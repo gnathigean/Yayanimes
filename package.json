@@ -2,11 +2,9 @@
   "name": "sistema-assinatura",
   "version": "1.0.0",
   "description": "Sistema de assinatura com Supabase e Mercado Pago",
-  "type": "module",
-  "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo 'No build needed'",
+    "build": "echo 'Static site - no build needed'",
     "deploy": "vercel --prod"
   },
   "dependencies": {

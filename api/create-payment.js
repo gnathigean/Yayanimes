@@ -1,13 +1,13 @@
 // api/create-payment.js
 // Endpoint para criar pagamentos PIX com Mercado Pago de forma segura
 
-import { createClient } from "@supabase/supabase-js";
+const { createClient } = require("@supabase/supabase-js");
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Configurar CORS
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -24,33 +24,63 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  console.log("🚀 Iniciando criação de pagamento...");
+  console.log("📝 Body recebido:", req.body);
+
   try {
     const { user_id, plan_type, amount, email } = req.body;
 
     // Validar dados
     if (!user_id || !plan_type || !amount || !email) {
+      console.error("❌ Dados incompletos:", {
+        user_id,
+        plan_type,
+        amount,
+        email,
+      });
       return res.status(400).json({ error: "Dados incompletos" });
     }
 
     // Validar variáveis de ambiente
     if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !MERCADOPAGO_ACCESS_TOKEN) {
-      console.error("Variáveis de ambiente não configuradas");
+      console.error("❌ Variáveis de ambiente não configuradas");
       return res
         .status(500)
         .json({ error: "Configuração do servidor incompleta" });
     }
 
+    console.log("✅ Variáveis de ambiente OK");
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
     // Verificar se usuário existe
+    console.log("🔍 Verificando usuário:", user_id);
+
     const { data: user, error: userError } = await supabase
       .from("user_profiles")
       .select("id")
       .eq("id", user_id)
       .single();
 
-    if (userError || !user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
+    if (userError) {
+      console.error("❌ Erro ao buscar usuário:", userError);
+
+      // Se não existe, criar o perfil
+      console.log("📝 Criando perfil de usuário...");
+      const { error: createError } = await supabase
+        .from("user_profiles")
+        .insert([{ id: user_id, email: email }]);
+
+      if (createError) {
+        console.error("❌ Erro ao criar perfil:", createError);
+        return res
+          .status(500)
+          .json({ error: "Erro ao criar perfil de usuário" });
+      }
+
+      console.log("✅ Perfil criado com sucesso");
+    } else {
+      console.log("✅ Usuário encontrado");
     }
 
     // Verificar se já tem assinatura ativa
@@ -62,6 +92,7 @@ export default async function handler(req, res) {
       .single();
 
     if (existingSub) {
+      console.log("⚠️ Usuário já possui assinatura ativa");
       return res
         .status(400)
         .json({ error: "Usuário já possui assinatura ativa" });
@@ -72,9 +103,11 @@ export default async function handler(req, res) {
       ? `https://${process.env.VERCEL_URL}/api/webhook-mercadopago`
       : `https://${req.headers.host}/api/webhook-mercadopago`;
 
-    console.log("Webhook URL:", webhookUrl);
+    console.log("🔔 Webhook URL:", webhookUrl);
 
     // Criar pagamento no Mercado Pago
+    console.log("💳 Criando pagamento no Mercado Pago...");
+
     const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
       headers: {
@@ -100,7 +133,7 @@ export default async function handler(req, res) {
 
     if (!mpResponse.ok) {
       const error = await mpResponse.json();
-      console.error("Erro Mercado Pago:", error);
+      console.error("❌ Erro Mercado Pago:", error);
       return res.status(500).json({
         error: "Erro ao criar pagamento no Mercado Pago",
         details: error.message,
@@ -108,8 +141,11 @@ export default async function handler(req, res) {
     }
 
     const mpPayment = await mpResponse.json();
+    console.log("✅ Pagamento criado no Mercado Pago:", mpPayment.id);
 
     // Salvar pagamento no banco
+    console.log("💾 Salvando pagamento no banco...");
+
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
       .insert([
@@ -126,9 +162,11 @@ export default async function handler(req, res) {
       .single();
 
     if (paymentError) {
-      console.error("Erro ao salvar pagamento:", paymentError);
+      console.error("❌ Erro ao salvar pagamento:", paymentError);
       return res.status(500).json({ error: "Erro ao salvar pagamento" });
     }
+
+    console.log("✅ Pagamento salvo no banco");
 
     // Criar assinatura pendente
     const plans = {
@@ -138,6 +176,8 @@ export default async function handler(req, res) {
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + plans[plan_type]);
+
+    console.log("📅 Criando assinatura...");
 
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
@@ -154,9 +194,11 @@ export default async function handler(req, res) {
       .single();
 
     if (subError) {
-      console.error("Erro ao criar assinatura:", subError);
+      console.error("❌ Erro ao criar assinatura:", subError);
       return res.status(500).json({ error: "Erro ao criar assinatura" });
     }
+
+    console.log("✅ Assinatura criada com sucesso!");
 
     // Retornar dados do pagamento
     return res.status(200).json({
@@ -173,10 +215,10 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    console.error("Erro ao criar pagamento:", error);
+    console.error("💥 Erro geral:", error);
     return res.status(500).json({
       error: "Erro interno do servidor",
       message: error.message,
     });
   }
-}
+};
