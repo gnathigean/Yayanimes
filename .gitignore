@@ -1,23 +1,35 @@
-# Ignorar credenciais
-.env
-config.js
-payment.js
-
 # Dependências
 node_modules/
+package-lock.json
+yarn.lock
+
+# Vercel
+.vercel
+
+# Ambiente
+.env
+.env.local
+.env.production
 
 # Logs
 *.log
+npm-debug.log*
 
-# Sistema
+# Sistema Operacional
 .DS_Store
 Thumbs.db
 
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # Build
 dist/
 build/
-.vercel
+.next/
+
+# Temporários
+*.tmp
+.cache/
