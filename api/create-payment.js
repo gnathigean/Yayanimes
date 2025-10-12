@@ -8,6 +8,17 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
 export default async function handler(req, res) {
+  // Configurar CORS
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Responder OPTIONS para preflight
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   // Permitir apenas POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -19,6 +30,14 @@ export default async function handler(req, res) {
     // Validar dados
     if (!user_id || !plan_type || !amount || !email) {
       return res.status(400).json({ error: "Dados incompletos" });
+    }
+
+    // Validar variáveis de ambiente
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !MERCADOPAGO_ACCESS_TOKEN) {
+      console.error("Variáveis de ambiente não configuradas");
+      return res
+        .status(500)
+        .json({ error: "Configuração do servidor incompleta" });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -48,6 +67,13 @@ export default async function handler(req, res) {
         .json({ error: "Usuário já possui assinatura ativa" });
     }
 
+    // Construir URL do webhook corretamente
+    const webhookUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}/api/webhook-mercadopago`
+      : `https://${req.headers.host}/api/webhook-mercadopago`;
+
+    console.log("Webhook URL:", webhookUrl);
+
     // Criar pagamento no Mercado Pago
     const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
@@ -64,9 +90,7 @@ export default async function handler(req, res) {
           email: email,
           first_name: email.split("@")[0],
         },
-        notification_url: `${
-          process.env.VERCEL_URL || req.headers.host
-        }/api/webhook-mercadopago`,
+        notification_url: webhookUrl,
         metadata: {
           user_id: user_id,
           plan_type: plan_type,
@@ -77,9 +101,10 @@ export default async function handler(req, res) {
     if (!mpResponse.ok) {
       const error = await mpResponse.json();
       console.error("Erro Mercado Pago:", error);
-      return res
-        .status(500)
-        .json({ error: "Erro ao criar pagamento no Mercado Pago" });
+      return res.status(500).json({
+        error: "Erro ao criar pagamento no Mercado Pago",
+        details: error.message,
+      });
     }
 
     const mpPayment = await mpResponse.json();
@@ -94,6 +119,7 @@ export default async function handler(req, res) {
           status: "pending",
           payment_method: "pix",
           pix_code: mpPayment.point_of_interaction.transaction_data.qr_code,
+          payment_id: String(mpPayment.id),
         },
       ])
       .select()
@@ -148,6 +174,9 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Erro ao criar pagamento:", error);
-    return res.status(500).json({ error: "Erro interno do servidor" });
+    return res.status(500).json({
+      error: "Erro interno do servidor",
+      message: error.message,
+    });
   }
 }
