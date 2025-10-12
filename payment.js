@@ -1,7 +1,7 @@
-// payment.js - PagSeguro Integration
-// Sistema de pagamento com PagSeguro/PagBank
+// payment.js - Mercado Pago Integration
+// Sistema de pagamento com Mercado Pago
 
-console.log("✅ payment.js carregado (PagSeguro)");
+console.log("✅ payment.js carregado (Mercado Pago)");
 
 let currentPaymentId = null;
 let paymentCheckInterval = null;
@@ -49,7 +49,7 @@ async function generatePixPayment() {
     btn.disabled = true;
     btn.textContent = "Gerando código PIX...";
 
-    console.log("💳 Criando pagamento no PagSeguro...");
+    console.log("💳 Criando pagamento no Mercado Pago...");
 
     const response = await fetch("/api/create-payment", {
       method: "POST",
