@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Player - YayAnimes</title>
+
+    <!-- Plyr CSS -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link rel="stylesheet" href="plyr-custom.css" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #000;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color: white;
+        overflow-x: hidden;
+      }
+
+      /* Header */
+      .player-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.9) 0%,
+          transparent 100%
+        );
+        padding: 20px;
+        z-index: 100;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: opacity 0.3s;
+      }
+
+      .player-header.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .back-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.3s;
+      }
+
+      .back-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .video-title {
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      /* Container do Player */
+      .player-container {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: #000;
+      }
+
+      .video-wrapper {
+        width: 100%;
+        max-width: 1920px;
+        aspect-ratio: 16/9;
+        position: relative;
+      }
+
+      /* Customização do Plyr */
+      .plyr {
+        width: 100%;
+        height: 100%;
+      }
+
+      .plyr--video {
+        background: #000;
+      }
+
+      .plyr__control--overlaid {
+        background: rgba(102, 126, 234, 0.9);
+      }
+
+      .plyr__control--overlaid:hover {
+        background: rgb(102, 126, 234);
+      }
+
+      .plyr__menu__container
+        .plyr__control[role="menuitemradio"][aria-checked="true"]::before {
+        background: #667eea;
+      }
+
+      /* Info do vídeo */
+      .video-info {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.9) 0%,
+          transparent 100%
+        );
+        padding: 30px 20px 20px;
+        z-index: 99;
+        transition: opacity 0.3s;
+      }
+
+      .video-info.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .video-description {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .video-meta {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .meta-badge {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+      }
+
+      /* Loading */
+      .loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 18px;
+        display: none;
+      }
+
+      .loading.active {
+        display: block;
+      }
+
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Episódios (para séries) */
+      .episodes-panel {
+        position: fixed;
+        right: -400px;
+        top: 0;
+        bottom: 0;
+        width: 400px;
+        background: rgba(17, 24, 39, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 20px;
+        overflow-y: auto;
+        transition: right 0.3s;
+        z-index: 101;
+      }
+
+      .episodes-panel.open {
+        right: 0;
+      }
+
+      .episodes-toggle {
+        position: fixed;
+        right: 20px;
+        top: 80px;
+        background: rgba(102, 126, 234, 0.9);
+        border: none;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        z-index: 100;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .episodes-toggle:hover {
+        background: rgb(102, 126, 234);
+      }
+
+      .episode-item {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border-left: 3px solid transparent;
+      }
+
+      .episode-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-left-color: #667eea;
+      }
+
+      .episode-item.active {
+        background: rgba(102, 126, 234, 0.2);
+        border-left-color: #667eea;
+      }
+
+      .episode-number {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 5px;
+      }
+
+      .episode-title {
+        font-size: 14px;
+        color: #d1d5db;
+      }
+
+      /* Responsivo */
+      @media (max-width: 768px) {
+        .video-title {
+          font-size: 16px;
+        }
+
+        .episodes-panel {
+          width: 100%;
+          right: -100%;
+        }
+
+        .episodes-toggle {
+          right: 10px;
+          top: 70px;
+          padding: 10px 16px;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="player-header" id="player-header">
+      <button class="back-btn" onclick="goBack()">← Voltar</button>
+      <div class="video-title" id="video-title">Carregando...</div>
+      <div></div>
+    </div>
+
+    <!-- Toggle Episódios -->
+    <button
+      class="episodes-toggle"
+      id="episodes-toggle"
+      onclick="toggleEpisodes()"
+      style="display: none"
+    >
+      📺 Episódios
+    </button>
+
+    <!-- Container do Player -->
+    <div class="player-container">
+      <div class="loading active" id="loading">
+        <div class="spinner"></div>
+        <div>Carregando vídeo...</div>
+      </div>
+
+      <div class="video-wrapper">
+        <video id="player" playsinline controls>
+          <source src="" type="video/mp4" />
+        </video>
+      </div>
+    </div>
+
+    <!-- Painel de Episódios -->
+    <div class="episodes-panel" id="episodes-panel">
+      <h3 style="margin-bottom: 20px; color: #667eea">Lista de Episódios</h3>
+      <div id="episodes-list"></div>
+    </div>
+
+    <!-- Info do Vídeo -->
+    <div class="video-info" id="video-info">
+      <div class="video-description">
+        <div class="video-meta" id="video-meta"></div>
+        <p id="video-desc" style="color: #9ca3af; line-height: 1.6"></p>
+      </div>
+    </div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Plyr JS -->
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
+    <!-- Config -->
+    <script src="config.js"></script>
+
+    <!-- Player Script -->
+    <script>
+      let player;
+      let currentContent = null;
+      let autoHideTimer;
+      let hasAutoFullscreenTriggered = false;
+
+      // Pegar parâmetros da URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const contentId = parseInt(urlParams.get("id"));
+      const contentType = urlParams.get("type");
+
+      // Inicializar
+      document.addEventListener("DOMContentLoaded", async () => {
+        await verifyAccess();
+        await loadContent();
+        initializePlayer();
+        setupEventListeners();
+      });
+
+      // Verificar acesso
+      async function verifyAccess() {
+        const user = await checkAuth();
+        if (!user) {
+          alert("⚠️ Você precisa estar logado para assistir!");
+          window.location.href = "login.html";
+          return;
+        }
+
+        const subscription = await checkSubscription(user.id);
+        if (!subscription) {
+          alert("⚠️ Você precisa de uma assinatura ativa!");
+          window.location.href = "index.html";
+          return;
+        }
+      }
+
+      // Carregar conteúdo
+      async function loadContent() {
+        // Database temporário (mesmo do content-streaming.js)
+        const contentDatabase = {
+          animes: [
+            {
+              id: 1,
+              title: "One Piece",
+              rating: 9.5,
+              year: 2023,
+              episodes: 10,
+              description:
+                "A jornada de Monkey D. Luffy em busca do tesouro lendário.",
+              video:
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            },
+            {
+              id: 2,
+              title: "Naruto Shippuden",
+              rating: 9.2,
+              year: 2023,
+              episodes: 10,
+              description: "Naruto continua sua jornada para se tornar Hokage.",
+              video:
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+            },
+            {
+              id: 3,
+              title: "Attack on Titan",
+              rating: 9.8,
+              year: 2023,
+              episodes: 10,
+              description: "Humanidade luta contra gigantes.",
+              video:
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            },
+          ],
+          movies: [
+            {
+              id: 101,
+              title: "Spider-Man",
+              rating: 8.7,
+              year: 2023,
+              duration: "148 min",
+              description: "Peter Parker enfrenta novos desafios.",
+              video:
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            },
+            {
+              id: 102,
+              title: "Vingadores",
+              rating: 9.1,
+              year: 2023,
+              duration: "181 min",
+              description: "Os heróis mais poderosos da Terra se unem.",
+              video:
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+            },
+          ],
+          series: [
+            {
+              id: 201,
+              title: "The Last of Us",
+              rating: 9.4,
+              year: 2023,
+              seasons: 1,
+              episodes: 10,
+              description: "Sobreviventes em um mundo pós-apocalíptico.",
+              video:
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            },
+          ],
+        };
+
+        const allContent = [
+          ...contentDatabase.animes,
+          ...contentDatabase.movies,
+          ...contentDatabase.series,
+        ];
+
+        currentContent = allContent.find((c) => c.id === contentId);
+
+        if (!currentContent) {
+          alert("❌ Conteúdo não encontrado!");
+          goBack();
+          return;
+        }
+
+        // Atualizar UI
+        document.getElementById("video-title").textContent =
+          currentContent.title;
+        document.getElementById("video-desc").textContent =
+          currentContent.description;
+
+        const metaHTML = `
+        <span class="meta-badge">⭐ ${currentContent.rating}</span>
+        <span class="meta-badge">${currentContent.year}</span>
+        ${
+          currentContent.duration
+            ? `<span class="meta-badge">${currentContent.duration}</span>`
+            : ""
+        }
+        ${
+          currentContent.episodes
+            ? `<span class="meta-badge">${currentContent.episodes} episódios</span>`
+            : ""
+        }
+      `;
+        document.getElementById("video-meta").innerHTML = metaHTML;
+
+        // Carregar vídeo
+        const videoElement = document.getElementById("player");
+        videoElement.src = currentContent.video;
+
+        // Se for anime/série, mostrar episódios
+        if (contentType === "anime" || contentType === "series") {
+          loadEpisodes();
+        }
+      }
+
+      // Inicializar Plyr
+      function initializePlayer() {
+        player = new Plyr("#player", {
+          controls: [
+            "play-large",
+            "play",
+            "progress",
+            "current-time",
+            "mute",
+            "volume",
+            "captions",
+            "settings",
+            "pip",
+            "airplay",
+            "fullscreen",
+          ],
+          settings: ["captions", "quality", "speed"],
+          quality: {
+            default: 720,
+            options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240],
+          },
+          speed: {
+            selected: 1,
+            options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+          },
+          i18n: {
+            restart: "Reiniciar",
+            rewind: "Retroceder {seektime}s",
+            play: "Reproduzir",
+            pause: "Pausar",
+            fastForward: "Avançar {seektime}s",
+            seek: "Avançar",
+            seekLabel: "{currentTime} de {duration}",
+            played: "Reproduzido",
+            buffered: "Carregado",
+            currentTime: "Tempo atual",
+            duration: "Duração",
+            volume: "Volume",
+            mute: "Sem som",
+            unmute: "Com som",
+            enableCaptions: "Ativar legendas",
+            disableCaptions: "Desativar legendas",
+            download: "Download",
+            enterFullscreen: "Tela cheia",
+            exitFullscreen: "Sair da tela cheia",
+            frameTitle: "Player para {title}",
+            captions: "Legendas",
+            settings: "Configurações",
+            pip: "Picture-in-Picture",
+            menuBack: "Voltar",
+            speed: "Velocidade",
+            normal: "Normal",
+            quality: "Qualidade",
+            loop: "Loop",
+          },
+        });
+
+        // Eventos
+        player.on("ready", () => {
+          document.getElementById("loading").classList.remove("active");
+          console.log("✅ Player pronto!");
+
+          // Carregar progresso salvo
+          loadSavedProgress();
+        });
+
+        player.on("play", () => {
+          console.log("▶️ Reproduzindo");
+
+          // Entrar em tela cheia automaticamente APENAS no primeiro play
+          if (!player.fullscreen.active && !hasAutoFullscreenTriggered) {
+            setTimeout(() => {
+              player.fullscreen.enter();
+              hasAutoFullscreenTriggered = true;
+            }, 100);
+          }
+
+          saveProgress();
+        });
+
+        player.on("timeupdate", () => {
+          // Salvar progresso a cada 10 segundos
+          if (Math.floor(player.currentTime) % 10 === 0) {
+            saveProgress();
+          }
+        });
+
+        player.on("ended", () => {
+          console.log("✅ Vídeo finalizado");
+          onVideoEnded();
+        });
+      }
+
+      // Setup de eventos
+      function setupEventListeners() {
+        let isMouseMoving = false;
+
+        // Auto-hide header/footer
+        document.addEventListener("mousemove", () => {
+          showControls();
+          clearTimeout(autoHideTimer);
+          autoHideTimer = setTimeout(hideControls, 3000);
+        });
+
+        // Teclas de atalho
+        document.addEventListener("keydown", (e) => {
+          if (e.key === " " || e.key === "k") {
+            e.preventDefault();
+            player.togglePlay();
+          }
+          if (e.key === "f") {
+            player.fullscreen.toggle();
+          }
+          if (e.key === "m") {
+            player.muted = !player.muted;
+          }
+          if (e.key === "ArrowLeft") {
+            player.rewind(10);
+          }
+          if (e.key === "ArrowRight") {
+            player.forward(10);
+          }
+          if (e.key === "Escape" && !player.fullscreen.active) {
+            goBack();
+          }
+        });
+      }
+
+      // Mostrar controles
+      function showControls() {
+        document.getElementById("player-header").classList.remove("hide");
+        document.getElementById("video-info").classList.remove("hide");
+        document.body.style.cursor = "default";
+      }
+
+      // Esconder controles
+      function hideControls() {
+        if (!player.paused) {
+          document.getElementById("player-header").classList.add("hide");
+          document.getElementById("video-info").classList.add("hide");
+          document.body.style.cursor = "none";
+        }
+      }
+
+      // Carregar episódios
+      function loadEpisodes() {
+        document.getElementById("episodes-toggle").style.display = "block";
+
+        const episodesList = document.getElementById("episodes-list");
+        const episodes = [];
+
+        for (let i = 1; i <= (currentContent.episodes || 10); i++) {
+          episodes.push({
+            number: i,
+            title: `Episódio ${i}`,
+            video: currentContent.video,
+          });
+        }
+
+        episodesList.innerHTML = episodes
+          .map(
+            (ep, index) => `
+        <div class="episode-item ${
+          index === 0 ? "active" : ""
+        }" onclick="loadEpisode(${ep.number})">
+          <div class="episode-number">Episódio ${ep.number}</div>
+          <div class="episode-title">${ep.title}</div>
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      // Carregar episódio
+      function loadEpisode(episodeNumber) {
+        player.source = {
+          type: "video",
+          sources: [
+            {
+              src: currentContent.video,
+              type: "video/mp4",
+            },
+          ],
+        };
+
+        // Atualizar episódio ativo
+        document.querySelectorAll(".episode-item").forEach((el, index) => {
+          el.classList.toggle("active", index === episodeNumber - 1);
+        });
+
+        player.play();
+        toggleEpisodes();
+      }
+
+      // Toggle painel de episódios
+      function toggleEpisodes() {
+        document.getElementById("episodes-panel").classList.toggle("open");
+      }
+
+      // Salvar progresso
+      function saveProgress() {
+        const progress = {
+          contentId: currentContent.id,
+          currentTime: player.currentTime,
+          duration: player.duration,
+          percentage: (player.currentTime / player.duration) * 100,
+          lastWatched: new Date().toISOString(),
+        };
+
+        localStorage.setItem(
+          `progress_${currentContent.id}`,
+          JSON.stringify(progress)
+        );
+      }
+
+      // Carregar progresso salvo
+      function loadSavedProgress() {
+        const saved = localStorage.getItem(`progress_${currentContent.id}`);
+
+        if (saved) {
+          try {
+            const progress = JSON.parse(saved);
+
+            // Se assistiu menos de 90% e mais de 10 segundos
+            if (progress.percentage < 90 && progress.currentTime > 10) {
+              const resume = confirm(
+                `Continuar de onde parou? (${Math.floor(progress.percentage)}%)`
+              );
+
+              if (resume) {
+                player.currentTime = progress.currentTime;
+              }
+            }
+          } catch (e) {
+            console.error("Erro ao carregar progresso:", e);
+          }
+        }
+      }
+
+      // Quando vídeo termina
+      function onVideoEnded() {
+        // Se for série/anime, perguntar se quer próximo episódio
+        if (contentType === "anime" || contentType === "series") {
+          setTimeout(() => {
+            if (confirm("Reproduzir próximo episódio?")) {
+              // Lógica para próximo episódio
+              alert("Próximo episódio!");
+            }
+          }, 1000);
+        }
+      }
+
+      // Voltar
+      function goBack() {
+        window.history.back();
+      }
+    </script>
+  </body>
+</html>

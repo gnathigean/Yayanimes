@@ -3,80 +3,182 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Conteúdo Premium - Sistema de Assinatura</title>
+    <title>YayaAnimes - Assistir Online</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="streaming.css" />
   </head>
   <body>
-    <div class="container">
-      <header>
-        <h1>Conteúdo Premium</h1>
-        <div class="user-header">
-          <span id="user-email"></span>
-          <button onclick="logout()" class="btn-secondary">Sair</button>
+    <!-- Acesso Negado -->
+    <div id="access-denied" class="access-denied" style="display: none">
+      <h2>⚠️ Acesso Negado</h2>
+      <p>Você precisa de uma assinatura ativa para acessar este conteúdo.</p>
+      <button onclick="window.location.href='index.html'" class="btn-primary">
+        Ver Planos
+      </button>
+    </div>
+
+    <!-- Conteúdo Premium -->
+    <div id="premium-content" style="display: none">
+      <!-- Header -->
+      <header class="streaming-header">
+        <div class="header-content">
+          <div class="logo-section">
+            <h1>🎬 YayaAnimes</h1>
+          </div>
+
+          <nav class="main-nav">
+            <button
+              class="nav-btn active"
+              data-category="all"
+              onclick="filterContent('all')"
+            >
+              🏠 Início
+            </button>
+            <button
+              class="nav-btn"
+              data-category="movies"
+              onclick="filterContent('movies')"
+            >
+              🎥 Filmes
+            </button>
+            <button
+              class="nav-btn"
+              data-category="series"
+              onclick="filterContent('series')"
+            >
+              📺 Séries
+            </button>
+            <button
+              class="nav-btn"
+              data-category="animes"
+              onclick="filterContent('animes')"
+            >
+              ⚡ Animes
+            </button>
+          </nav>
+
+          <div class="user-section">
+            <div class="subscription-badge">
+              <span class="badge-icon">👑</span>
+              <span id="plan-badge">Premium</span>
+            </div>
+            <span
+              id="user-email"
+              class="user-email"
+              title="Clique para ver favoritos"
+            ></span>
+            <button onclick="logout()" class="btn-logout">Sair</button>
+          </div>
         </div>
       </header>
 
-      <div id="access-denied" class="access-denied" style="display: none">
-        <h2>⚠️ Acesso Negado</h2>
-        <p>Você precisa de uma assinatura ativa para acessar este conteúdo.</p>
-        <button onclick="window.location.href='index.html'" class="btn-primary">
-          Ver Planos
-        </button>
-      </div>
-
-      <div id="premium-content" style="display: none">
-        <div class="subscription-info">
-          <p><strong>Sua assinatura:</strong> <span id="sub-plan"></span></p>
-          <p><strong>Válida até:</strong> <span id="sub-expires"></span></p>
+      <!-- Banner Principal -->
+      <section class="hero-banner">
+        <div class="banner-content">
+          <div class="banner-info">
+            <span class="badge-featured">⭐ Em Destaque</span>
+            <h2 class="banner-title">One Piece</h2>
+            <p class="banner-description">
+              Acompanhe as aventuras de Monkey D. Luffy e sua tripulação em
+              busca do tesouro lendário One Piece!
+            </p>
+            <div class="banner-meta">
+              <span>⭐ 9.5</span>
+              <span>📅 2023</span>
+              <span>🎬 1000+ Episódios</span>
+            </div>
+            <div class="banner-actions">
+              <button class="btn-play" onclick="playContent(1, 'anime')">
+                ▶️ Assistir Agora
+              </button>
+              <button
+                class="btn-info"
+                onclick="alert('Mais informações em breve!')"
+              >
+                ℹ️ Mais Informações
+              </button>
+            </div>
+          </div>
         </div>
+      </section>
 
+      <!-- Busca -->
+      <section class="search-section">
+        <div class="search-container">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="🔍 Buscar filmes, séries ou animes..."
+            onkeyup="searchContent()"
+          />
+        </div>
+      </section>
+
+      <!-- Conteúdo -->
+      <main class="content-main">
+        <!-- Continue Assistindo -->
         <section class="content-section">
-          <h2>🎓 Conteúdo Exclusivo</h2>
-          <div class="content-grid">
-            <div class="content-card">
-              <h3>Módulo 1</h3>
-              <p>
-                Introdução ao conteúdo premium. Aqui você encontra materiais
-                exclusivos.
-              </p>
-              <button class="btn-primary">Acessar</button>
-            </div>
-            <div class="content-card">
-              <h3>Módulo 2</h3>
-              <p>
-                Conteúdo avançado para assinantes. Material aprofundado sobre o
-                tema.
-              </p>
-              <button class="btn-primary">Acessar</button>
-            </div>
-            <div class="content-card">
-              <h3>Módulo 3</h3>
-              <p>Materiais complementares e exercícios práticos exclusivos.</p>
-              <button class="btn-primary">Acessar</button>
-            </div>
-            <div class="content-card">
-              <h3>Módulo 4</h3>
-              <p>Recursos extras e conteúdo bônus para assinantes ativos.</p>
-              <button class="btn-primary">Acessar</button>
-            </div>
+          <div class="section-header">
+            <h3>🔄 Continue Assistindo</h3>
+          </div>
+          <div class="content-grid continue-watching" id="continue-grid">
+            <!-- Será preenchido via JavaScript -->
           </div>
         </section>
 
-        <section class="content-section">
-          <h2>📚 Biblioteca</h2>
-          <ul class="resource-list">
-            <li>📄 Documento 1 - Guia Completo</li>
-            <li>🎥 Vídeo Aula 1 - Introdução</li>
-            <li>📄 Documento 2 - Material Avançado</li>
-            <li>🎥 Vídeo Aula 2 - Prática</li>
-            <li>📊 Planilhas e Templates</li>
-          </ul>
+        <!-- Animes Populares -->
+        <section class="content-section" data-category="animes">
+          <div class="section-header">
+            <h3>⚡ Animes em Alta</h3>
+            <button class="btn-see-all">Ver Todos →</button>
+          </div>
+          <div class="content-grid" id="animes-grid">
+            <!-- Será preenchido via JavaScript -->
+          </div>
         </section>
-      </div>
+
+        <!-- Filmes -->
+        <section class="content-section" data-category="movies">
+          <div class="section-header">
+            <h3>🎥 Filmes Populares</h3>
+            <button class="btn-see-all">Ver Todos →</button>
+          </div>
+          <div class="content-grid" id="movies-grid">
+            <!-- Será preenchido via JavaScript -->
+          </div>
+        </section>
+
+        <!-- Séries -->
+        <section class="content-section" data-category="series">
+          <div class="section-header">
+            <h3>📺 Séries do Momento</h3>
+            <button class="btn-see-all">Ver Todos →</button>
+          </div>
+          <div class="content-grid" id="series-grid">
+            <!-- Será preenchido via JavaScript -->
+          </div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="streaming-footer">
+        <div class="footer-content">
+          <div class="footer-info">
+            <p><strong>Sua Assinatura:</strong> <span id="sub-plan"></span></p>
+            <p><strong>Válida até:</strong> <span id="sub-expires"></span></p>
+          </div>
+          <div class="footer-links">
+            <a href="#">Termos de Uso</a>
+            <a href="#">Privacidade</a>
+            <a href="#">Suporte</a>
+          </div>
+        </div>
+      </footer>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="content.js"></script>
+    <script src="content-streaming.js"></script>
   </body>
 </html>
