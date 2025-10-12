@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conteúdo Premium - Sistema de Assinatura</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Conteúdo Premium</h1>
+        <div class="user-header">
+          <span id="user-email"></span>
+          <button onclick="logout()" class="btn-secondary">Sair</button>
+        </div>
+      </header>
+
+      <div id="access-denied" class="access-denied" style="display: none">
+        <h2>⚠️ Acesso Negado</h2>
+        <p>Você precisa de uma assinatura ativa para acessar este conteúdo.</p>
+        <button onclick="window.location.href='index.html'" class="btn-primary">
+          Ver Planos
+        </button>
+      </div>
+
+      <div id="premium-content" style="display: none">
+        <div class="subscription-info">
+          <p><strong>Sua assinatura:</strong> <span id="sub-plan"></span></p>
+          <p><strong>Válida até:</strong> <span id="sub-expires"></span></p>
+        </div>
+
+        <section class="content-section">
+          <h2>🎓 Conteúdo Exclusivo</h2>
+          <div class="content-grid">
+            <div class="content-card">
+              <h3>Módulo 1</h3>
+              <p>
+                Introdução ao conteúdo premium. Aqui você encontra materiais
+                exclusivos.
+              </p>
+              <button class="btn-primary">Acessar</button>
+            </div>
+            <div class="content-card">
+              <h3>Módulo 2</h3>
+              <p>
+                Conteúdo avançado para assinantes. Material aprofundado sobre o
+                tema.
+              </p>
+              <button class="btn-primary">Acessar</button>
+            </div>
+            <div class="content-card">
+              <h3>Módulo 3</h3>
+              <p>Materiais complementares e exercícios práticos exclusivos.</p>
+              <button class="btn-primary">Acessar</button>
+            </div>
+            <div class="content-card">
+              <h3>Módulo 4</h3>
+              <p>Recursos extras e conteúdo bônus para assinantes ativos.</p>
+              <button class="btn-primary">Acessar</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-section">
+          <h2>📚 Biblioteca</h2>
+          <ul class="resource-list">
+            <li>📄 Documento 1 - Guia Completo</li>
+            <li>🎥 Vídeo Aula 1 - Introdução</li>
+            <li>📄 Documento 2 - Material Avançado</li>
+            <li>🎥 Vídeo Aula 2 - Prática</li>
+            <li>📊 Planilhas e Templates</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="content.js"></script>
+  </body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Assinatura</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Bem-vindo ao Sistema de Assinatura</h1>
+        <div id="auth-buttons">
+          <button
+            onclick="window.location.href='login.html'"
+            class="btn-primary"
+          >
+            Entrar
+          </button>
+          <button
+            onclick="window.location.href='register.html'"
+            class="btn-secondary"
+          >
+            Cadastrar
+          </button>
+        </div>
+        <div id="user-info" style="display: none">
+          <span id="user-email"></span>
+          <button onclick="logout()" class="btn-secondary">Sair</button>
+        </div>
+      </header>
+
+      <main id="main-content">
+        <section class="hero">
+          <h2>Acesse Conteúdo Premium</h2>
+          <p>
+            Escolha seu plano e tenha acesso ilimitado ao nosso conteúdo
+            exclusivo!
+          </p>
+        </section>
+
+        <section class="plans">
+          <h3>Nossos Planos</h3>
+          <div class="plans-container">
+            <div class="plan-card">
+              <h4>Plano 7 Dias</h4>
+              <p class="price">R$ 19,90</p>
+              <p class="description">Acesso completo por 7 dias</p>
+              <button onclick="selectPlan('7_dias')" class="btn-primary">
+                Escolher
+              </button>
+            </div>
+            <div class="plan-card featured">
+              <span class="badge">Mais Popular</span>
+              <h4>Plano 30 Dias</h4>
+              <p class="price">R$ 49,90</p>
+              <p class="description">Acesso completo por 30 dias</p>
+              <button onclick="selectPlan('30_dias')" class="btn-primary">
+                Escolher
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="subscription-info" style="display: none">
+          <h3>Sua Assinatura</h3>
+          <div class="subscription-card">
+            <p><strong>Plano:</strong> <span id="sub-plan"></span></p>
+            <p>
+              <strong>Status:</strong>
+              <span id="sub-status" class="status-active">Ativo</span>
+            </p>
+            <p><strong>Expira em:</strong> <span id="sub-expires"></span></p>
+            <button
+              onclick="window.location.href='content.html'"
+              class="btn-primary"
+            >
+              Acessar Conteúdo
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+# Ignorar credenciais
+.env
+config.js
+payment.js
+
+# Dependências
+node_modules/
+
+# Logs
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+.vercel
