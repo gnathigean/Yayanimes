@@ -11,8 +11,13 @@
     cache: {
       duration: 30 * 60 * 1000, // 30 minutos
       enabled: true
-    }
+    },
+    // ✅ Delay entre requisições para evitar rate limit
+    requestDelay: 300 // 300ms entre requisições
   };
+
+  // ✅ Controle de tempo da última requisição
+  let lastRequestTime = 0;
 
   // Cache simples em memória
   const cache = new Map();
@@ -50,8 +55,8 @@
     });
   }
 
-  // Função auxiliar para fazer requisições
-  async function fetchAPI(endpoint, params = {}) {
+  // Função auxiliar para fazer requisições com retry
+  async function fetchAPI(endpoint, params = {}, retryCount = 0) {
     const cacheKey = getCacheKey(endpoint, params);
     
     // Verificar cache
@@ -85,6 +90,19 @@
       });
 
       clearTimeout(timeoutId);
+
+      // ✅ TRATAR RATE LIMIT (429) COM RETRY
+      if (response.status === 429) {
+        const maxRetries = 3;
+        if (retryCount < maxRetries) {
+          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff
+          console.warn(`⚠️ Rate limit (429) - Tentando novamente em ${retryDelay}ms (tentativa ${retryCount + 1}/${maxRetries})`);
+          
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return fetchAPI(endpoint, params, retryCount + 1);
+        }
+        throw new Error('Rate limit excedido. Aguarde alguns segundos e tente novamente.');
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
