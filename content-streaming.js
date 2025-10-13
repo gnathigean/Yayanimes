@@ -165,6 +165,7 @@ async function loadContent() {
       renderContent("series-grid", mockSeries);
     }
 
+    // **Chamada crucial após o carregamento bem-sucedido**
     loadContinueWatching();
     hideLoadingState();
   } catch (error) {
@@ -184,6 +185,9 @@ async function loadContent() {
     renderContent("animes-grid", mockAnimes);
     renderContent("movies-grid", mockMovies);
     renderContent("series-grid", mockSeries);
+
+    // Tenta carregar o histórico mesmo após o erro de API
+    loadContinueWatching();
   }
 }
 
