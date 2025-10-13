@@ -377,10 +377,12 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75); /* Fundo mais escuro para maior contraste */
+  /* AJUSTE AQUI: Mudar de 'center' para 'column' e distribuir */
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column; /* Organiza o conteúdo em coluna */
+  justify-content: space-between; /* Espalha conteúdo e ações */
+  padding: 15px; /* Adiciona padding interno */
   opacity: 0;
   transition: opacity 0.3s;
   z-index: 2;
@@ -388,6 +390,16 @@ body {
 
 .content-card:hover .card-overlay {
   opacity: 1;
+}
+
+/* Novo estilo para os detalhes do overlay */
+.overlay-details {
+  /* Alinha os detalhes no topo ou no centro, se quiser */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  flex-grow: 1; /* Permite que ocupe o espaço */
+  padding-top: 15px; /* Espaçamento do topo */
 }
 
 .play-btn {

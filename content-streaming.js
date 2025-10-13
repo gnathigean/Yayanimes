@@ -282,20 +282,24 @@ function renderContent(gridId, items) {
     .map(
       (item) => `
     <div class="content-card" data-id="${item.id}" data-type="${item.type}">
-     <div class="card-image">
+      <div class="card-image">
         <img src="${item.image}" alt="${item.title}" loading="lazy">
       </div>
       ${item.new ? '<span class="card-badge badge-new">NOVO</span>' : ""}
       ${item.hd ? '<span class="card-badge badge-hd">HD</span>' : ""}
+      
       <div class="card-overlay">
-        <h4 class="card-title">${item.title}</h4>
-        <div class="card-info">
-          <span class="card-rating">⭐ ${item.rating}</span>
-          <span>${item.year}</span>
-          ${item.episodes ? `<span>${item.episodes} eps</span>` : ""}
-          ${item.duration ? `<span>${item.duration}</span>` : ""}
-          ${item.seasons ? `<span>${item.seasons} temp</span>` : ""}
+        <div class="overlay-details">
+            <h4 class="card-title">${item.title}</h4>
+            <div class="card-meta">
+              <span class="card-rating">⭐ ${item.rating}</span>
+              <span>${item.year}</span>
+              ${item.episodes ? `<span>${item.episodes} eps</span>` : ""}
+              ${item.duration ? `<span>${item.duration}</span>` : ""}
+              ${item.seasons ? `<span>${item.seasons} temp</span>` : ""}
+            </div>
         </div>
+
         <div class="card-actions">
           <button onclick="playContent(${item.id}, '${
         item.type
@@ -309,7 +313,7 @@ function renderContent(gridId, items) {
           </button>
         </div>
       </div>
-    </div>
+      </div>
   `
     )
     .join("");
@@ -378,8 +382,12 @@ function loadContinueWatching() {
     .map(
       (item) => `
     <div class="content-card" onclick="playContent(${item.id}, '${item.type}')">
-      <img src="${item.image}" alt="${item.title}" loading="lazy">
-      <div class="progress-bar" style="width: ${item.progress}%"></div>
+       <div class="card-image">
+        <img src="${item.image}" alt="${item.title}" loading="lazy">
+      </div>
+      <div class="progress-bar" style="width: ${item.progress}%">
+        <div class="progress-fill" style="width: ${item.progress}%;"></div>
+      </div>
       <div class="card-overlay">
         <h4 class="card-title">${item.title}</h4>
         <div class="card-info">
