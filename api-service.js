@@ -1,3 +1,6 @@
+// api-service.js - ATUALIZADO para usar seu backend proxy
+// Mude apenas a baseURL para apontar para seu backend
+
 const API_CONFIG = {
   baseURL: "https://yayapi-delta.vercel.app/api/v2/hianime",
 

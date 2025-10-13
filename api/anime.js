@@ -1,7 +1,7 @@
-// /api/anime.js
-// Proxy para Aniwatch API com CORS habilitado
+// /api/v2/hianime/[...slug].js
+// Proxy genérico para Aniwatch API com CORS habilitado
 
-const ANIWATCH_BASE = "https://yayapi-delta.vercel.app/api/v2/hianime";
+const ANIWATCH_BASE = "https://aniwatch-api-dusky.vercel.app/api/v2/hianime";
 
 // Cache simples (5 minutos)
 const cache = new Map();
@@ -39,13 +39,18 @@ export default async (req, res) => {
   }
 
   try {
-    // Pegar o path da requisição (ex: /api/anime/home -> home)
-    const path = req.url.replace("/api/anime", "").split("?")[0] || "/home";
+    // Pegar o slug (ex: ['home'] ou ['search'], etc)
+    const { slug } = req.query;
+    const path = slug ? "/" + slug.join("/") : "/home";
 
     // Construir query string se existir
-    const queryString = req.url.includes("?")
-      ? "?" + req.url.split("?")[1]
-      : "";
+    const queryString =
+      Object.keys(req.query).length > 0
+        ? "?" +
+          new URLSearchParams(
+            Object.entries(req.query).filter(([key]) => key !== "slug")
+          ).toString()
+        : "";
 
     // Verificar cache
     const cacheKey = `${path}${queryString}`;
