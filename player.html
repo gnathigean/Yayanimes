@@ -418,12 +418,13 @@
             const success = renderPlayer(streamsResponse.data);
 
             if (success) {
-              // Aguardar 3 segundos para verificar se o vídeo realmente carregou
+              // Simular espera para carregamento (evita rejeição precoce)
               setTimeout(() => {
                 const iframe = document.querySelector(
                   "#video-container iframe"
                 );
                 if (iframe) {
+                  // Assume que se o iframe foi criado, a URL de proxy está correta
                   resolve();
                 } else {
                   reject(new Error("Player não foi criado"));
@@ -452,13 +453,22 @@
           return false;
         }
 
-        console.log("🎥 URL do vídeo:", videoUrl);
+        // ⚠️ MUDANÇA CRÍTICA: Construir a URL do proxy
+        // A URL real do vídeo deve ser passada para o seu endpoint de proxy
+        const proxyUrl = `/api/proxy-stream?url=${encodeURIComponent(
+          videoUrl
+        )}`;
+
+        console.log("🎥 URL do vídeo real:", videoUrl);
+        console.log("🎥 URL do proxy (usada no iframe):", proxyUrl);
 
         const subtitles =
           streamData.tracks?.filter(
             (t) => t.kind === "captions" || t.kind === "subtitles"
           ) || [];
-        const playerHTML = createPlayerHTML(videoUrl, subtitles);
+
+        // Passa a URL do proxy para a função de criação do player
+        const playerHTML = createPlayerHTML(proxyUrl, subtitles);
         const blob = new Blob([playerHTML], { type: "text/html" });
         const blobUrl = URL.createObjectURL(blob);
 
@@ -480,7 +490,7 @@
           urlJSON +
           ";const subtitles=" +
           subsJSON +
-          ';const video=document.getElementById("video");const loading=document.querySelector(".loading");const errorMsg=document.getElementById("error");let loadTimeout;function hideLoading(){loading.style.display="none";clearTimeout(loadTimeout)}function showError(msg){hideLoading();errorMsg.style.display="block";errorMsg.querySelector("p").textContent=msg||"Erro ao carregar"}subtitles.forEach((sub,i)=>{const track=document.createElement("track");track.kind=sub.kind||"subtitles";track.label=sub.label||"Portuguese";track.srclang=sub.srclang||"pt";track.src=sub.file;if(i===0)track.default=true;video.appendChild(track)});if(videoUrl.includes(".m3u8")){if(Hls.isSupported()){const hls=new Hls({debug:false,enableWorker:true,maxBufferLength:30,maxMaxBufferLength:60,xhrSetup:function(xhr,url){xhr.withCredentials=false}});hls.loadSource(videoUrl);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,function(){console.log("Stream carregado");hideLoading();video.play().catch(e=>{console.warn("Autoplay bloqueado");hideLoading()})});hls.on(Hls.Events.ERROR,function(event,data){console.error("Erro HLS:",data);if(data.fatal){hideLoading();switch(data.type){case Hls.ErrorTypes.NETWORK_ERROR:showError("Erro de rede. Servidor não respondeu.");break;case Hls.ErrorTypes.MEDIA_ERROR:showError("Erro de mídia. Formato não suportado.");break;default:showError("Erro ao carregar. Tente outro servidor.");break}}});video.addEventListener("timeupdate",function(){if(window.parent){window.parent.postMessage({type:"progress",currentTime:video.currentTime,duration:video.duration,progress:(video.currentTime/video.duration)*100},"*")}})}else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=videoUrl;video.addEventListener("loadedmetadata",function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))})}else{showError("Navegador não suporta HLS")}}else{video.src=videoUrl;video.addEventListener("loadedmetadata",()=>hideLoading());video.play().catch(e=>console.warn("Autoplay bloqueado"))}loadTimeout=setTimeout(()=>{if(video.readyState<2){showError("Tempo esgotado. Servidor não respondeu.")}},15000)<\/script></body></html>'
+          ';const video=document.getElementById("video");const loading=document.querySelector(".loading");const errorMsg=document.getElementById("error");let loadTimeout;function hideLoading(){loading.style.display="none";clearTimeout(loadTimeout)}function showError(msg){hideLoading();errorMsg.style.display="block";errorMsg.querySelector("p").textContent=msg||"Erro ao carregar"}subtitles.forEach((sub,i)=>{const track=document.createElement("track");track.kind=sub.kind||"subtitles";track.label=sub.label||"Portuguese";track.srclang=sub.srclang||"pt";track.src=sub.file;if(i===0)track.default=true;video.appendChild(track)});if(videoUrl.includes(".m3u8") || videoUrl.includes("proxy-stream")){if(Hls.isSupported()){const hls=new Hls({debug:false,enableWorker:true,maxBufferLength:30,maxMaxBufferLength:60,xhrSetup:function(xhr,url){xhr.withCredentials=false}});hls.loadSource(videoUrl);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,function(){console.log("Stream carregado");hideLoading();video.play().catch(e=>{console.warn("Autoplay bloqueado");hideLoading()})});hls.on(Hls.Events.ERROR,function(event,data){console.error("Erro HLS:",data);if(data.fatal){hideLoading();switch(data.type){case Hls.ErrorTypes.NETWORK_ERROR:showError("Erro de rede. Servidor não respondeu.");break;case Hls.ErrorTypes.MEDIA_ERROR:showError("Erro de mídia. Formato não suportado.");break;default:showError("Erro ao carregar. Tente outro servidor.");break}}});video.addEventListener("timeupdate",function(){if(window.parent){window.parent.postMessage({type:"progress",currentTime:video.currentTime,duration:video.duration,progress:(video.currentTime/video.duration)*100},"*")}})}else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=videoUrl;video.addEventListener("loadedmetadata",function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))})}else{showError("Navegador não suporta HLS")}}else{video.src=videoUrl;video.addEventListener("loadedmetadata",()=>hideLoading());video.play().catch(e=>console.warn("Autoplay bloqueado"))}loadTimeout=setTimeout(()=>{if(video.readyState<2){showError("Tempo esgotado. Servidor não respondeu.")}},15000)<\/script></body></html>'
         );
       }
 
