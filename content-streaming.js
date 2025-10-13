@@ -286,11 +286,32 @@ async function loadHomeContent() {
     
     const homeData = await window.api.getHome();
     
-    if (!homeData || !homeData.success || !homeData.data) {
-      throw new Error('Dados da home inválidos');
+    console.log('✅ Home data recebida:', homeData);
+    console.log('📊 Estrutura completa:', JSON.stringify(homeData, null, 2));
+    
+    // ✅ VALIDAÇÃO MELHORADA - Verificar múltiplas estruturas possíveis
+    if (!homeData) {
+      throw new Error('Nenhum dado retornado da API');
     }
     
-    console.log('✅ Home data carregada:', homeData);
+    // Tentar diferentes estruturas de resposta
+    let sections = [];
+    
+    if (homeData.data && homeData.data.sections) {
+      // Estrutura: { success: true, data: { sections: [...] } }
+      sections = homeData.data.sections;
+    } else if (homeData.sections) {
+      // Estrutura: { success: true, sections: [...] }
+      sections = homeData.sections;
+    } else if (Array.isArray(homeData.data)) {
+      // Estrutura: { success: true, data: [...] }
+      sections = homeData.data;
+    } else if (Array.isArray(homeData)) {
+      // Estrutura: [...]
+      sections = homeData;
+    }
+    
+    console.log('📦 Seções encontradas:', sections.length, sections);
     
     const container = document.getElementById('dynamic-content-container');
     if (!container) {
@@ -300,11 +321,22 @@ async function loadHomeContent() {
     // Limpar container
     container.innerHTML = '';
     
-    // Renderizar seções
-    const sections = homeData.data.sections || [];
+    // Se não encontrou seções válidas, tentar carregar trending
+    if (!sections || sections.length === 0) {
+      console.warn('⚠️ Nenhuma seção encontrada, carregando trending...');
+      await loadTrendingAnimes();
+      hideLoading();
+      return;
+    }
     
+    // Renderizar seções
     for (const section of sections) {
-      if (!section.animes || section.animes.length === 0) continue;
+      if (!section.animes || section.animes.length === 0) {
+        console.warn('⚠️ Seção sem animes:', section.title);
+        continue;
+      }
+      
+      console.log('✅ Renderizando seção:', section.title, `(${section.animes.length} animes)`);
       
       const sectionHtml = `
         <section class="content-section">
@@ -320,15 +352,12 @@ async function loadHomeContent() {
       container.innerHTML += sectionHtml;
     }
     
-    // Se não houver seções, mostrar trending
-    if (sections.length === 0) {
-      await loadTrendingAnimes();
-    }
-    
+    console.log('✅ Conteúdo renderizado com sucesso!');
     hideLoading();
     
   } catch (error) {
     console.error('❌ Erro ao carregar home:', error);
+    console.error('📊 Stack trace:', error.stack);
     hideLoading();
     showError(`Não foi possível carregar o conteúdo: ${error.message}`);
   }
