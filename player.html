@@ -471,17 +471,13 @@
       // ===========================
 
       function selectEpisode(episodeId, episodeNumber, episodeTitle) {
-        // CORREÇÃO: Limpar episodeId
         let cleanEpisodeId = episodeId;
 
-        if (cleanEpisodeId.includes("?")) {
-          cleanEpisodeId = cleanEpisodeId.split("?")[0];
+        // EXTRAIR o episodeId, não remover!
+        if (episodeId.includes("?ep=")) {
+          cleanEpisodeId = episodeId.split("?ep=")[1]; // ✅ CORRETO!
         }
 
-        console.log("🎯 Selecionando episódio:", episodeNumber);
-        console.log("🎯 EpisodeId limpo:", cleanEpisodeId);
-
-        currentEpisodeNumber = episodeNumber;
         loadEpisode(cleanEpisodeId, episodeNumber, episodeTitle);
       }
 
