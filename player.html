@@ -353,80 +353,62 @@
       }
 
       // ===========================
-      // CARREGAR EPISÓDIO - COM FALLBACK
+      // CARREGAR EPISÓDIO - VERSÃO FINAL CORRIGIDA
       // ===========================
 
       async function loadEpisode(episodeId, episodeNumber, episodeTitle) {
         console.log(`📡 Carregando episódio: ${episodeId}`);
 
         try {
-          // Extrair episodeId em diferentes formatos possíveis
-          let cleanEpisodeId = episodeId;
+          // PASSO 1: Extrair episodeId numérico
+          let numericEpisodeId = episodeId;
+          let completeEpisodeId = episodeId;
 
-          // Formato 1: "animeId?ep=145496"
           if (episodeId.includes("?ep=")) {
-            cleanEpisodeId = episodeId.split("?ep=")[1];
-            console.log("✅ Formato ?ep= detectado, extraído:", cleanEpisodeId);
-          }
-          // Formato 2: "animeId?145496"
-          else if (episodeId.includes("?")) {
+            // Formato: "animeId?ep=145526"
+            const parts = episodeId.split("?ep=");
+            numericEpisodeId = parts[1];
+            completeEpisodeId = episodeId;
+            console.log("✅ Formato ?ep= detectado");
+            console.log("   - Numérico:", numericEpisodeId);
+            console.log("   - Completo:", completeEpisodeId);
+          } else if (episodeId.includes("?")) {
+            // Outros formatos com ?
             const parts = episodeId.split("?");
-            cleanEpisodeId = parts[1];
-            console.log(
-              "✅ Formato ? simples detectado, extraído:",
-              cleanEpisodeId
-            );
-          }
-          // Se ainda contiver animeId, remover
-          else if (episodeId.includes("-") && !/^\d+$/.test(episodeId)) {
-            // Pode ser formato "animeId-ep-123" ou similar
-            const match = episodeId.match(/(\d{6,})/);
-            if (match) {
-              cleanEpisodeId = match[1];
-              console.log("✅ Extraído número grande:", cleanEpisodeId);
-            }
+            numericEpisodeId = parts[1];
+            completeEpisodeId = episodeId;
+            console.log("✅ Formato ? simples detectado");
           }
 
-          console.log(`🧹 EpisodeId limpo: ${cleanEpisodeId}`);
-
-          // Tentar obter servidores
+          // PASSO 2: Tentar obter servidores
           let serversData = null;
-          let lastError = null;
+          let serverEpisodeId = completeEpisodeId; // ID para usar nos servidores
 
-          // TENTATIVA 1: usar o episodeId extraído
           try {
-            console.log(
-              `📡 Tentativa 1 - Buscando servidores para: ${cleanEpisodeId}`
-            );
+            console.log(`📡 Buscando servidores com: ${completeEpisodeId}`);
             serversData = await window.AnimeAPI.getEpisodeServers(
-              cleanEpisodeId
+              completeEpisodeId
             );
-            console.log("✅ Servidores obtidos com sucesso na tentativa 1");
           } catch (error1) {
-            console.warn("❌ Tentativa 1 falhou:", error1.message);
-            lastError = error1;
+            console.warn("❌ Tentativa com episodeId completo falhou");
 
-            // TENTATIVA 2: usar o episodeId original completo
-            if (cleanEpisodeId !== episodeId) {
+            // Tentar com apenas o numérico
+            if (completeEpisodeId !== numericEpisodeId) {
               try {
                 console.log(
-                  `📡 Tentativa 2 - Buscando servidores para: ${episodeId}`
+                  `📡 Tentando com episodeId numérico: ${numericEpisodeId}`
                 );
                 serversData = await window.AnimeAPI.getEpisodeServers(
-                  episodeId
+                  numericEpisodeId
                 );
-                console.log("✅ Servidores obtidos com sucesso na tentativa 2");
+                serverEpisodeId = numericEpisodeId;
               } catch (error2) {
-                console.warn("❌ Tentativa 2 também falhou:", error2.message);
-                lastError = error2;
+                console.error("❌ Ambas tentativas falharam");
+                throw error2;
               }
+            } else {
+              throw error1;
             }
-          }
-
-          if (!serversData) {
-            throw new Error(
-              `Não foi possível obter servidores. Último erro: ${lastError.message}`
-            );
           }
 
           const servers =
@@ -446,10 +428,12 @@
             `🎯 Servidor selecionado: ${server.serverName || "hd-1"}`
           );
 
-          // Buscar streams
-          console.log(`📡 Buscando streams...`);
+          // PASSO 3: Buscar streams - SEMPRE usar apenas o ID numérico
+          console.log(
+            `📡 Buscando streams com episodeId numérico: ${numericEpisodeId}`
+          );
           const streamsData = await window.AnimeAPI.getEpisodeStreams(
-            cleanEpisodeId !== episodeId ? cleanEpisodeId : episodeId,
+            numericEpisodeId, // IMPORTANTE: Sempre usar ID numérico aqui!
             server.serverName || "hd-1",
             "sub"
           );
@@ -473,7 +457,7 @@
             videoUrl.substring(0, 60) + "..."
           );
 
-          // Inicializar player
+          // PASSO 4: Inicializar player
           if (videoUrl.includes(".m3u8")) {
             console.log("🎬 Inicializando player HLS...");
             initializeHlsPlayer(videoUrl);
@@ -483,7 +467,7 @@
             video.src = videoUrl;
           }
 
-          // Atualizar UI
+          // PASSO 5: Atualizar UI
           const title = animeInfo?.name || animeInfo?.title || "Anime";
           document.getElementById(
             "anime-title"
@@ -506,8 +490,6 @@
           saveToHistory(currentAnimeId, title, episodeNumber);
         } catch (error) {
           console.error("❌ Erro ao carregar episódio:", error);
-
-          // Log detalhado do erro
           console.error("📋 Informações do erro:");
           console.error("  - Mensagem:", error.message);
           console.error("  - Stack:", error.stack);
@@ -539,7 +521,6 @@
         console.log("\n=== FIM DEBUG ===");
       }
 
-      // Expor função globalmente
       window.debugEpisodes = debugEpisodes;
 
       // ===========================
