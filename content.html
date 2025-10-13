@@ -4,11 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>YayaAnimes - Assistir Online</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="streaming.css" />
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://supabase.co" crossorigin />
+    <link
+      rel="preload"
+      href="styles.css"
+      as="style"
+      onload="this.rel='stylesheet'"
+    />
+    <link
+      rel="preload"
+      href="streaming.css"
+      as="style"
+      onload="this.rel='stylesheet'"
+    />
+
+    <noscript>
+      <link rel="stylesheet" href="styles.css" />
+      <link rel="stylesheet" href="streaming.css" />
+    </noscript>
   </head>
   <body>
-    <!-- Acesso Negado -->
     <div id="access-denied" class="access-denied" style="display: none">
       <h2>⚠️ Acesso Negado</h2>
       <p>Você precisa de uma assinatura ativa para acessar este conteúdo.</p>
@@ -17,9 +34,7 @@
       </button>
     </div>
 
-    <!-- Conteúdo Premium -->
     <div id="premium-content" style="display: none">
-      <!-- Header -->
       <header class="streaming-header">
         <div class="header-content">
           <div class="logo-section">
@@ -72,7 +87,6 @@
         </div>
       </header>
 
-      <!-- Banner Principal -->
       <section class="hero-banner">
         <div class="banner-content">
           <div class="banner-info">
@@ -102,7 +116,6 @@
         </div>
       </section>
 
-      <!-- Busca -->
       <section class="search-section">
         <div class="search-container">
           <input
@@ -114,53 +127,39 @@
         </div>
       </section>
 
-      <!-- Conteúdo -->
       <main class="content-main">
-        <!-- Continue Assistindo -->
         <section class="content-section">
           <div class="section-header">
             <h3>🔄 Continue Assistindo</h3>
           </div>
-          <div class="content-grid continue-watching" id="continue-grid">
-            <!-- Será preenchido via JavaScript -->
-          </div>
+          <div class="content-grid continue-watching" id="continue-grid"></div>
         </section>
 
-        <!-- Animes Populares -->
         <section class="content-section" data-category="animes">
           <div class="section-header">
             <h3>⚡ Animes em Alta</h3>
             <button class="btn-see-all">Ver Todos →</button>
           </div>
-          <div class="content-grid" id="animes-grid">
-            <!-- Será preenchido via JavaScript -->
-          </div>
+          <div class="content-grid" id="animes-grid"></div>
         </section>
 
-        <!-- Filmes -->
         <section class="content-section" data-category="movies">
           <div class="section-header">
             <h3>🎥 Filmes Populares</h3>
             <button class="btn-see-all">Ver Todos →</button>
           </div>
-          <div class="content-grid" id="movies-grid">
-            <!-- Será preenchido via JavaScript -->
-          </div>
+          <div class="content-grid" id="movies-grid"></div>
         </section>
 
-        <!-- Séries -->
         <section class="content-section" data-category="series">
           <div class="section-header">
             <h3>📺 Séries do Momento</h3>
             <button class="btn-see-all">Ver Todos →</button>
           </div>
-          <div class="content-grid" id="series-grid">
-            <!-- Será preenchido via JavaScript -->
-          </div>
+          <div class="content-grid" id="series-grid"></div>
         </section>
       </main>
 
-      <!-- Footer -->
       <footer class="streaming-footer">
         <div class="footer-content">
           <div class="footer-info">
@@ -176,10 +175,12 @@
       </footer>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
-    <script src="api-service.js"></script>
-    <script src="content-streaming.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+      defer
+    ></script>
+    <script src="config.js" defer></script>
+    <script src="api-service.js" defer></script>
+    <script src="content-streaming.js" defer></script>
   </body>
 </html>

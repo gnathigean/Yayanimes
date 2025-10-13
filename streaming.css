@@ -57,12 +57,33 @@ body {
   gap: 30px;
 }
 
+/* --- AJUSTE DA LOGO CRÍTICO --- */
+.logo-section {
+  display: flex;
+  align-items: center;
+  grid-column: 1; /* Garante que ocupe a primeira coluna no grid do header */
+}
+
 .logo-section h1 {
+  /* Mantido para fallback */
   font-size: 26px;
   font-weight: 700;
   color: white;
   white-space: nowrap;
 }
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.main-logo {
+  height: 40px; /* Define a altura correta da logo */
+  width: auto;
+  vertical-align: middle;
+}
+/* ----------------------- */
 
 .main-nav {
   display: flex;
@@ -309,7 +330,6 @@ body {
 .section-header h3 {
   font-size: 24px;
   font-weight: 700;
-  /* CORRIGIDO para garantir a visibilidade no tema escuro */
   color: white;
 }
 
@@ -330,7 +350,6 @@ body {
 
 /* Grid de Conteúdo */
 .content-grid {
-  /* O grid original já estava correto e é o que alinha os cards */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
@@ -371,18 +390,22 @@ body {
   transform: scale(1.1);
 }
 
+/* ---------------------------------------------------- */
+/* AJUSTES CRÍTICOS NO OVERLAY E BOTÕES */
+/* ---------------------------------------------------- */
+
 .card-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75); /* Fundo mais escuro para maior contraste */
-  /* AJUSTE AQUI: Mudar de 'center' para 'column' e distribuir */
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
-  flex-direction: column; /* Organiza o conteúdo em coluna */
-  justify-content: space-between; /* Espalha conteúdo e ações */
-  padding: 15px; /* Adiciona padding interno */
+  flex-direction: column;
+  justify-content: flex-end; /* Alinha o conteúdo ao rodapé */
+  align-items: center;
+  padding: 15px;
   opacity: 0;
   transition: opacity 0.3s;
   z-index: 2;
@@ -392,16 +415,48 @@ body {
   opacity: 1;
 }
 
-/* Novo estilo para os detalhes do overlay */
+/* Estilo para os detalhes (Título e Meta) dentro do Overlay */
 .overlay-details {
-  /* Alinha os detalhes no topo ou no centro, se quiser */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  flex-grow: 1; /* Permite que ocupe o espaço */
-  padding-top: 15px; /* Espaçamento do topo */
+  flex-grow: 1; /* Ocupa o espaço superior */
+  width: 100%;
+  align-items: flex-start; /* Alinha o texto à esquerda */
+  padding-bottom: 10px; /* Espaço entre as infos e os botões */
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
 }
 
+/* Estilo para o contêiner dos botões */
+.card-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Estilo para os botões Assistir e Info (Redução de Tamanho) */
+.card-actions .btn-play,
+.card-actions .btn-info {
+  flex: 1;
+  padding: 10px 15px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Apenas a cor de fundo do botão Info */
+.card-actions .btn-info {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid white;
+}
+.card-actions .btn-info:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: none;
+}
+
+/* Reset para os botões .play-btn (que estavam fora do .card-actions) */
 .play-btn {
   background: #667eea;
   border: none;
@@ -414,11 +469,9 @@ body {
   transition: all 0.3s;
   z-index: 3;
 }
-
-.play-btn:hover {
-  background: #5568d3;
-  transform: scale(1.1);
-}
+/* ---------------------------------------------------- */
+/* FIM DOS AJUSTES CRÍTICOS */
+/* ---------------------------------------------------- */
 
 .card-badge {
   position: absolute;
@@ -671,6 +724,11 @@ body {
     padding: 0 15px;
   }
 
+  /* AJUSTE LOGO RESPONSIVO */
+  .main-logo {
+    height: 35px;
+  }
+
   .nav-btn {
     padding: 8px 14px;
     font-size: 14px;
@@ -698,9 +756,20 @@ body {
   .favorites-content {
     padding: 20px;
   }
+
+  /* Ajuste responsivo dos botões do card para telas menores */
+  .card-actions .btn-play,
+  .card-actions .btn-info {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 480px) {
+  /* AJUSTE LOGO RESPONSIVO */
+  .main-logo {
+    height: 30px;
+  }
   .logo-section h1 {
     font-size: 20px;
   }

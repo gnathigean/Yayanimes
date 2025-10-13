@@ -282,13 +282,16 @@ function renderContent(gridId, items) {
     .map(
       (item) => `
     <div class="content-card" data-id="${item.id}" data-type="${item.type}">
+      
       <div class="card-image">
         <img src="${item.image}" alt="${item.title}" loading="lazy">
       </div>
+      
       ${item.new ? '<span class="card-badge badge-new">NOVO</span>' : ""}
       ${item.hd ? '<span class="card-badge badge-hd">HD</span>' : ""}
       
       <div class="card-overlay">
+        
         <div class="overlay-details">
             <h4 class="card-title">${item.title}</h4>
             <div class="card-meta">
@@ -313,7 +316,7 @@ function renderContent(gridId, items) {
           </button>
         </div>
       </div>
-      </div>
+    </div>
   `
     )
     .join("");
@@ -370,28 +373,24 @@ function loadContinueWatching() {
     ];
   }
 
-  const grid = document.getElementById("continue-grid");
-  if (!grid) return;
-
-  // Ordenar por último assistido
-  const sortedHistory = watchHistory
-    .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
-    .slice(0, 6); // Mostrar apenas os 6 mais recentes
-
   grid.innerHTML = sortedHistory
     .map(
       (item) => `
     <div class="content-card" onclick="playContent(${item.id}, '${item.type}')">
-       <div class="card-image">
+      
+      <div class="card-image">
         <img src="${item.image}" alt="${item.title}" loading="lazy">
       </div>
-      <div class="progress-bar" style="width: ${item.progress}%">
+
+      <div class="progress-bar">
         <div class="progress-fill" style="width: ${item.progress}%;"></div>
       </div>
       <div class="card-overlay">
-        <h4 class="card-title">${item.title}</h4>
-        <div class="card-info">
-          <span>⏱️ ${item.progress}% concluído</span>
+        <div class="overlay-details">
+            <h4 class="card-title">${item.title}</h4>
+            <div class="card-meta">
+              <span>⏱️ ${item.progress}% concluído</span>
+            </div>
         </div>
       </div>
     </div>
