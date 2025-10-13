@@ -800,3 +800,215 @@ body {
     font-size: 16px;
   }
 }
+/* ===========================
+   MELHORIAS PARA MODAIS E PLAYER
+   =========================== */
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 2px solid white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Ajustes para botões dentro dos cards */
+.card-actions .btn-favorite {
+  background: rgba(239, 68, 68, 0.2);
+  border: 2px solid #ef4444;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.card-actions .btn-favorite:hover {
+  background: rgba(239, 68, 68, 0.4);
+  transform: scale(1.05);
+}
+
+/* Loading Overlay */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+#loading-overlay.show {
+  display: flex;
+}
+
+/* Toast Container */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+}
+
+/* Melhorias no card-overlay para melhor visualização */
+.card-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.7) 50%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+}
+
+/* Melhorar visibilidade do título no card */
+.card-title {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+/* Responsividade dos modais */
+@media (max-width: 768px) {
+  .video-player-container,
+  .info-modal {
+    margin: 10px;
+    max-height: 95vh;
+  }
+
+  .info-content {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .player-header h3 {
+    font-size: 16px;
+  }
+
+  .info-details h2 {
+    font-size: 22px;
+  }
+
+  .info-actions {
+    flex-direction: column;
+  }
+
+  .info-actions button {
+    width: 100%;
+  }
+}
+
+/* Animações suaves */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-section {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Melhorar feedback visual ao clicar */
+.btn-play:active,
+.btn-info:active,
+.btn-favorite:active {
+  transform: scale(0.95);
+}
+
+/* Status badges para episódios */
+.badge-new {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Melhorar acessibilidade */
+button:focus,
+input:focus {
+  outline: 3px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
+}
+
+/* Estados de carregamento */
+.content-card.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.content-card.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
