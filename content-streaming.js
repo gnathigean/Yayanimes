@@ -356,7 +356,8 @@ async function loadHomeContent() {
     const homeData = await window.api.getHome();
     console.log('✅ Dados home carregados:', homeData);
 
-    if (!homeData || !homeData.success) {
+    // ✅ API retorna { status: 200, data: {...} }
+    if (!homeData || !homeData.data) {
       throw new Error('Dados da home inválidos');
     }
 
