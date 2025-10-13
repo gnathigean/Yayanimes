@@ -6,8 +6,26 @@ const SUPABASE_URL = "https://asyrgavjapvyfxtyblnu.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzeXJnYXZqYXB2eWZ4dHlibG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxODQ0MTIsImV4cCI6MjA3NTc2MDQxMn0.cTxS6Q-EX_zpU1tIu29LonBA4Ad468fxuVDn4ix64So";
 
-// Inicializar cliente Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Verificar se biblioteca Supabase foi carregada
+if (typeof window.supabase === "undefined") {
+  console.error(
+    "❌ Biblioteca Supabase não carregada! Verifique o script CDN."
+  );
+} else {
+  console.log("✅ Biblioteca Supabase detectada");
+
+  try {
+    // Inicializar cliente Supabase
+    window.supabase = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+    console.log("✅ Supabase Client inicializado com sucesso!");
+    console.log("🔗 URL:", SUPABASE_URL);
+  } catch (error) {
+    console.error("❌ Erro ao inicializar Supabase:", error);
+  }
+}
 
 // Configuração dos planos
 const PLANS = {
@@ -27,28 +45,60 @@ const PLANS = {
 
 // Verificar se usuário está autenticado
 async function checkAuth() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  try {
+    if (!window.supabase) {
+      console.error("❌ Supabase não disponível em checkAuth");
+      return null;
+    }
+
+    const {
+      data: { user },
+      error,
+    } = await window.supabase.auth.getUser();
+
+    if (error) {
+      console.error("❌ Erro em checkAuth:", error);
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    console.error("❌ Exceção em checkAuth:", error);
+    return null;
+  }
 }
 
 // Verificar se usuário tem assinatura ativa
 async function checkSubscription(userId) {
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .gte("expires_at", new Date().toISOString())
-    .single();
+  try {
+    if (!window.supabase) {
+      console.error("❌ Supabase não disponível em checkSubscription");
+      return null;
+    }
 
-  if (error) {
-    console.log("Nenhuma assinatura ativa encontrada");
+    const { data, error } = await window.supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .gte("expires_at", new Date().toISOString())
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        console.log("ℹ️ Nenhuma assinatura ativa encontrada");
+      } else {
+        console.error("❌ Erro ao buscar assinatura:", error);
+      }
+      return null;
+    }
+
+    console.log("✅ Assinatura ativa encontrada:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Exceção em checkSubscription:", error);
     return null;
   }
-
-  return data;
 }
 
 // Formatar data brasileira
@@ -70,3 +120,6 @@ function formatCurrency(value) {
     currency: "BRL",
   });
 }
+
+console.log("✅ config.js carregado!");
+console.log("📋 Planos disponíveis:", Object.keys(PLANS));
