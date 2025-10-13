@@ -1,5 +1,8 @@
-// api-service.js - ATUALIZADO para usar seu backend proxy
-// Mude apenas a baseURL para apontar para seu backend
+export default async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+};
 
 const API_CONFIG = {
   baseURL: "https://yayapi-delta.vercel.app/api/v2/hianime",
