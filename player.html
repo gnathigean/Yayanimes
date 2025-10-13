@@ -308,7 +308,11 @@
           const serversData = await window.AnimeAPI.getEpisodeServers(
             episodeId
           );
-          const servers = serversData.sub || serversData.servers || [];
+          const servers =
+            serversData.sub ||
+            serversData.data?.sub ||
+            serversData.servers ||
+            [];
 
           console.log("✅ Servidores disponíveis:", servers);
 
@@ -331,18 +335,30 @@
           // Extrair URL do vídeo
           const videoUrl =
             streamsData.sources?.[0]?.url ||
+            streamsData.data?.sources?.[0]?.url ||
             streamsData.link ||
             streamsData.url;
 
           if (!videoUrl) {
-            throw new Error("URL do vídeo não encontrada");
+            // Se não houver URL, mostrar aviso mas manter interface funcionando
+            console.warn("⚠️ URL do vídeo não encontrada");
+            const videoPlayer = document.getElementById("video-player");
+            videoPlayer.srcdoc = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #1e293b; color: white; text-align: center; padding: 40px; font-family: sans-serif;">
+          <div>
+            <h2 style="font-size: 48px; margin-bottom: 20px;">⚠️</h2>
+            <h3>Vídeo Indisponível</h3>
+            <p style="color: #9ca3af; margin: 20px 0;">Este episódio não está disponível no momento devido ao limite da API.</p>
+            <p style="color: #9ca3af;">Por favor, aguarde alguns minutos e tente novamente.</p>
+          </div>
+        </div>
+      `;
+          } else {
+            console.log("✅ URL do vídeo:", videoUrl);
+            // Carregar vídeo no player
+            const videoPlayer = document.getElementById("video-player");
+            videoPlayer.src = videoUrl;
           }
-
-          console.log("✅ URL do vídeo:", videoUrl);
-
-          // Carregar vídeo no player
-          const videoPlayer = document.getElementById("video-player");
-          videoPlayer.src = videoUrl;
 
           // Atualizar título
           const title = animeInfo?.name || animeInfo?.title || "Anime";
@@ -370,7 +386,22 @@
           saveToHistory(currentAnimeId, title, episodeNumber);
         } catch (error) {
           console.error("❌ Erro ao carregar episódio:", error);
-          showError(`Erro ao carregar episódio: ${error.message}`);
+
+          // Mostrar mensagem amigável no player
+          const videoPlayer = document.getElementById("video-player");
+          videoPlayer.srcdoc = `
+      <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #1e293b; color: white; text-align: center; padding: 40px; font-family: sans-serif;">
+        <div>
+          <h2 style="font-size: 48px; margin-bottom: 20px;">⏳</h2>
+          <h3>Aguarde um momento</h3>
+          <p style="color: #9ca3af; margin: 20px 0;">A API está com limite de requisições.</p>
+          <p style="color: #9ca3af;">Tente novamente em alguns segundos.</p>
+          <button onclick="window.location.reload()" style="margin-top: 20px; padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+            🔄 Tentar Novamente
+          </button>
+        </div>
+      </div>
+    `;
         }
       }
 
