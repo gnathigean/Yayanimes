@@ -324,7 +324,13 @@ function renderContent(gridId, items) {
 
 // Continue assistindo (simulado com localStorage)
 function loadContinueWatching() {
+  // CRÍTICO: Garante que o elemento HTML existe antes de tentar manipulá-lo
+  const grid = document.getElementById("continue-grid");
+  if (!grid) return; // Sai da função se o elemento não for encontrado
+
   const savedHistory = localStorage.getItem("watch_history");
+
+  let watchHistory = []; // Declara a variável localmente
 
   if (savedHistory) {
     try {
@@ -334,7 +340,7 @@ function loadContinueWatching() {
     }
   }
 
-  // Se não tiver histórico, usar conteúdo de exemplo mockado
+  // Se não tiver histórico, usar conteúdo de exemplo mockado (SIMULAÇÃO)
   if (watchHistory.length === 0) {
     watchHistory = [
       {
@@ -373,6 +379,12 @@ function loadContinueWatching() {
     ];
   }
 
+  // Ordenar por último assistido
+  const sortedHistory = watchHistory
+    .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
+    .slice(0, 6); // Mostrar apenas os 6 mais recentes
+
+  // Se o grid existe (verificado no início), renderiza:
   grid.innerHTML = sortedHistory
     .map(
       (item) => `
@@ -385,12 +397,18 @@ function loadContinueWatching() {
       <div class="progress-bar">
         <div class="progress-fill" style="width: ${item.progress}%;"></div>
       </div>
+      
       <div class="card-overlay">
         <div class="overlay-details">
             <h4 class="card-title">${item.title}</h4>
             <div class="card-meta">
               <span>⏱️ ${item.progress}% concluído</span>
             </div>
+        </div>
+        <div class="card-actions">
+          <button onclick="playContent(${item.id}, '${item.type}')" class="btn-play">
+            ▶️ Continuar
+          </button>
         </div>
       </div>
     </div>
