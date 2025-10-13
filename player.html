@@ -360,11 +360,30 @@
 
           renderServers();
 
-          const firstServer = availableServers[0].serverName;
-          currentServer = firstServer;
-          console.log("🎯 Servidor selecionado:", currentServer);
+          // SOLUÇÃO: Tentar todos os servidores até um funcionar
+          let loaded = false;
+          for (let i = 0; i < availableServers.length && !loaded; i++) {
+            const serverName = availableServers[i].serverName;
+            currentServer = serverName;
+            console.log(
+              "🎯 Tentando servidor:",
+              currentServer,
+              "(" + (i + 1) + "/" + availableServers.length + ")"
+            );
 
-          await loadStream(fullEpisodeId, currentServer);
+            try {
+              await loadStream(fullEpisodeId, serverName);
+              loaded = true;
+              console.log("✅ Servidor funcionando:", serverName);
+              renderServers();
+            } catch (error) {
+              console.warn("⚠️ Servidor", serverName, "falhou:", error.message);
+              if (i === availableServers.length - 1) {
+                throw new Error("Nenhum servidor disponível funcionou");
+              }
+            }
+          }
+
           saveToHistory(episodeNumber);
         } catch (error) {
           console.error("❌ Erro ao carregar episódio:", error);
@@ -373,25 +392,51 @@
       }
 
       async function loadStream(episodeId, server) {
-        try {
-          console.log("📡 Carregando stream:", episodeId, "servidor:", server);
+        return new Promise(async (resolve, reject) => {
+          try {
+            console.log(
+              "📡 Carregando stream:",
+              episodeId,
+              "servidor:",
+              server
+            );
 
-          const streamsResponse = await window.AnimeAPI.getEpisodeStreams(
-            episodeId,
-            server,
-            currentCategory
-          );
+            const streamsResponse = await window.AnimeAPI.getEpisodeStreams(
+              episodeId,
+              server,
+              currentCategory
+            );
 
-          if (!streamsResponse || !streamsResponse.data) {
-            throw new Error("Stream não disponível");
+            if (!streamsResponse || !streamsResponse.data) {
+              reject(new Error("Stream não disponível"));
+              return;
+            }
+
+            console.log("✅ Stream carregado:", streamsResponse.data);
+
+            // Verificar se conseguiu renderizar
+            const success = renderPlayer(streamsResponse.data);
+
+            if (success) {
+              // Aguardar 3 segundos para verificar se o vídeo realmente carregou
+              setTimeout(() => {
+                const iframe = document.querySelector(
+                  "#video-container iframe"
+                );
+                if (iframe) {
+                  resolve();
+                } else {
+                  reject(new Error("Player não foi criado"));
+                }
+              }, 1000);
+            } else {
+              reject(new Error("Falha ao renderizar player"));
+            }
+          } catch (error) {
+            console.error("❌ Erro ao carregar stream:", error);
+            reject(error);
           }
-
-          console.log("✅ Stream carregado:", streamsResponse.data);
-          renderPlayer(streamsResponse.data);
-        } catch (error) {
-          console.error("❌ Erro ao carregar stream:", error);
-          showError("Erro ao carregar vídeo: " + error.message);
-        }
+        });
       }
 
       function renderPlayer(streamData) {
@@ -404,7 +449,7 @@
 
         if (!videoUrl) {
           showError("URL do vídeo não encontrada");
-          return;
+          return false;
         }
 
         console.log("🎥 URL do vídeo:", videoUrl);
@@ -423,6 +468,7 @@
           '" allowfullscreen frameborder="0" style="width: 100%; height: 100%; border: none;" allow="autoplay; fullscreen"></iframe>';
 
         setupProgressTracking();
+        return true;
       }
 
       function createPlayerHTML(videoUrl, subtitles) {
@@ -430,11 +476,11 @@
         const urlJSON = JSON.stringify(videoUrl);
 
         return (
-          '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;overflow:hidden}#video-container{width:100vw;height:100vh;position:relative}video{width:100%;height:100%;object-fit:contain}.loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center}.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,.3);border-top-color:#667eea;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 15px}@keyframes spin{to{transform:rotate(360deg)}}.error-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(239,68,68,.9);color:#fff;padding:20px 30px;border-radius:8px;text-align:center;display:none}</style></head><body><div id="video-container"><div class="loading"><div class="spinner"></div><p>Carregando...</p></div><video id="video" controls preload="auto"></video><div class="error-msg" id="error"><h3>Erro ao carregar</h3><p>Tente outro servidor</p></div></div><script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script><script>const videoUrl=' +
+          '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;overflow:hidden}#video-container{width:100vw;height:100vh;position:relative}video{width:100%;height:100%;object-fit:contain}.loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;z-index:10}.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,.3);border-top-color:#667eea;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 15px}@keyframes spin{to{transform:rotate(360deg)}}.error-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(239,68,68,.9);color:#fff;padding:20px 30px;border-radius:8px;text-align:center;display:none;z-index:10}</style></head><body><div id="video-container"><div class="loading"><div class="spinner"></div><p>Carregando vídeo...</p><small style="margin-top:10px;display:block;opacity:0.7">Conectando ao servidor</small></div><video id="video" controls preload="auto"></video><div class="error-msg" id="error"><h3>❌ Erro</h3><p>Tente outro servidor</p></div></div><script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script><script>const videoUrl=' +
           urlJSON +
           ";const subtitles=" +
           subsJSON +
-          ';const video=document.getElementById("video");const loading=document.querySelector(".loading");const errorMsg=document.getElementById("error");function hideLoading(){loading.style.display="none"}function showError(msg){hideLoading();errorMsg.style.display="block";errorMsg.querySelector("p").textContent=msg||"Erro ao carregar"}subtitles.forEach((sub,i)=>{const track=document.createElement("track");track.kind=sub.kind||"subtitles";track.label=sub.label||"Portuguese";track.srclang=sub.srclang||"pt";track.src=sub.file;if(i===0)track.default=true;video.appendChild(track)});if(videoUrl.includes(".m3u8")){if(Hls.isSupported()){const hls=new Hls({debug:false,enableWorker:true,xhrSetup:function(xhr){xhr.withCredentials=false}});hls.loadSource(videoUrl);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))});hls.on(Hls.Events.ERROR,function(event,data){console.error("Erro HLS:",data);if(data.fatal){switch(data.type){case Hls.ErrorTypes.NETWORK_ERROR:hls.startLoad();setTimeout(()=>{if(video.paused)showError("Servidor indisponível")},5000);break;case Hls.ErrorTypes.MEDIA_ERROR:hls.recoverMediaError();break;default:showError("Erro fatal. Tente outro servidor");break}}});video.addEventListener("timeupdate",function(){if(window.parent){window.parent.postMessage({type:"progress",currentTime:video.currentTime,duration:video.duration,progress:(video.currentTime/video.duration)*100},"*")}})}else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=videoUrl;video.addEventListener("loadedmetadata",function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))})}else{showError("Navegador não suporta HLS")}}else{video.src=videoUrl;video.addEventListener("loadedmetadata",()=>hideLoading());video.play().catch(e=>console.warn("Autoplay bloqueado"))}setTimeout(()=>{if(video.readyState===0)showError("Tempo esgotado")},10000)<\/script></body></html>'
+          ';const video=document.getElementById("video");const loading=document.querySelector(".loading");const errorMsg=document.getElementById("error");let loadTimeout;function hideLoading(){loading.style.display="none";clearTimeout(loadTimeout)}function showError(msg){hideLoading();errorMsg.style.display="block";errorMsg.querySelector("p").textContent=msg||"Erro ao carregar"}subtitles.forEach((sub,i)=>{const track=document.createElement("track");track.kind=sub.kind||"subtitles";track.label=sub.label||"Portuguese";track.srclang=sub.srclang||"pt";track.src=sub.file;if(i===0)track.default=true;video.appendChild(track)});if(videoUrl.includes(".m3u8")){if(Hls.isSupported()){const hls=new Hls({debug:false,enableWorker:true,maxBufferLength:30,maxMaxBufferLength:60,xhrSetup:function(xhr,url){xhr.withCredentials=false}});hls.loadSource(videoUrl);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,function(){console.log("Stream carregado");hideLoading();video.play().catch(e=>{console.warn("Autoplay bloqueado");hideLoading()})});hls.on(Hls.Events.ERROR,function(event,data){console.error("Erro HLS:",data);if(data.fatal){hideLoading();switch(data.type){case Hls.ErrorTypes.NETWORK_ERROR:showError("Erro de rede. Servidor não respondeu.");break;case Hls.ErrorTypes.MEDIA_ERROR:showError("Erro de mídia. Formato não suportado.");break;default:showError("Erro ao carregar. Tente outro servidor.");break}}});video.addEventListener("timeupdate",function(){if(window.parent){window.parent.postMessage({type:"progress",currentTime:video.currentTime,duration:video.duration,progress:(video.currentTime/video.duration)*100},"*")}})}else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=videoUrl;video.addEventListener("loadedmetadata",function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))})}else{showError("Navegador não suporta HLS")}}else{video.src=videoUrl;video.addEventListener("loadedmetadata",()=>hideLoading());video.play().catch(e=>console.warn("Autoplay bloqueado"))}loadTimeout=setTimeout(()=>{if(video.readyState<2){showError("Tempo esgotado. Servidor não respondeu.")}},15000)<\/script></body></html>'
         );
       }
 
