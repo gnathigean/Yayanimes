@@ -1,325 +1,714 @@
-// api-service.js
-// Serviço de API para HiAnime com sistema de fila e proteção contra rate limit
+// api-service.js - VERSÃO COM FALLBACK LOCAL
 
-(function() {
-  'use strict';
+const API_BASE_URL = "https://yayapi-delta.vercel.app/api/v2/hianime";
 
-  // Configuração da API
-  const API_CONFIG = {
-    baseURL: 'https://yayapi-delta.vercel.app/api/v2/hianime',
-    timeout: 30000,
-    cache: {
-      duration: 60 * 60 * 1000, // 1 hora (aumentado)
-      enabled: true
-    },
-    requestDelay: 1000, // 1 segundo entre requisições
-    maxRetries: 3
-  };
+// ===========================
+// SISTEMA DE CACHE PERSISTENTE
+// ===========================
 
-  // ✅ SISTEMA DE FILA DE REQUISIÇÕES
-  class RequestQueue {
-    constructor(delayMs = 1000) {
-      this.queue = [];
-      this.processing = false;
-      this.delay = delayMs;
-      this.lastRequestTime = 0;
-    }
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutos
 
-    async add(fn) {
-      return new Promise((resolve, reject) => {
-        this.queue.push({ fn, resolve, reject });
-        this.process();
-      });
-    }
-
-    async process() {
-      if (this.processing || this.queue.length === 0) return;
-
-      this.processing = true;
-      const { fn, resolve, reject } = this.queue.shift();
-
-      try {
-        // Garantir delay mínimo entre requisições
-        const now = Date.now();
-        const timeSinceLastRequest = now - this.lastRequestTime;
-        if (timeSinceLastRequest < this.delay) {
-          await new Promise(r => setTimeout(r, this.delay - timeSinceLastRequest));
-        }
-
-        const result = await fn();
-        this.lastRequestTime = Date.now();
-        resolve(result);
-      } catch (error) {
-        reject(error);
-      }
-
-      // Aguardar antes de processar próxima requisição
-      await new Promise(r => setTimeout(r, this.delay));
-      this.processing = false;
-      this.process();
-    }
-  }
-
-  const requestQueue = new RequestQueue(API_CONFIG.requestDelay);
-
-  // Cache simples em memória
-  const cache = new Map();
-
-  // Função auxiliar para cache
-  function getCacheKey(endpoint, params = {}) {
-    const sortedParams = Object.keys(params)
-      .sort()
-      .map(key => `${key}=${params[key]}`)
-      .join('&');
-    return `${endpoint}?${sortedParams}`;
-  }
-
-  function getFromCache(key) {
-    if (!API_CONFIG.cache.enabled) return null;
-    
-    const cached = cache.get(key);
+function getCachedData(key) {
+  try {
+    const cached = localStorage.getItem(`cache_${key}`);
     if (!cached) return null;
-    
-    const now = Date.now();
-    if (now - cached.timestamp > API_CONFIG.cache.duration) {
-      cache.delete(key);
+
+    const data = JSON.parse(cached);
+    if (Date.now() - data.timestamp > CACHE_DURATION) {
+      localStorage.removeItem(`cache_${key}`);
       return null;
     }
-    
-    console.log('📦 Retornando do cache:', key);
-    return cached.data;
+
+    console.log(`📦 Cache hit: ${key}`);
+    return data.value;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setCachedData(key, value) {
+  try {
+    localStorage.setItem(
+      `cache_${key}`,
+      JSON.stringify({
+        value,
+        timestamp: Date.now(),
+      })
+    );
+  } catch (error) {
+    console.warn("Erro ao salvar cache:", error);
+  }
+}
+
+// ===========================
+// CONTROLE DE RATE LIMIT
+// ===========================
+
+let rateLimitInfo = {
+  isBlocked: false,
+  unblockTime: 0,
+  requestCount: 0,
+  resetTime: Date.now() + 60000,
+};
+
+function canMakeRequest() {
+  const now = Date.now();
+
+  // Verificar se ainda está bloqueado
+  if (rateLimitInfo.isBlocked && now < rateLimitInfo.unblockTime) {
+    const waitTime = Math.ceil((rateLimitInfo.unblockTime - now) / 1000);
+    console.warn(`⏳ Rate limit ativo. Aguarde ${waitTime}s`);
+    return false;
   }
 
-  function setCache(key, data) {
-    if (!API_CONFIG.cache.enabled) return;
-    
-    cache.set(key, {
-      data: data,
-      timestamp: Date.now()
+  // Resetar contadores se passou o tempo
+  if (now > rateLimitInfo.resetTime) {
+    rateLimitInfo.requestCount = 0;
+    rateLimitInfo.resetTime = now + 60000;
+    rateLimitInfo.isBlocked = false;
+  }
+
+  return true;
+}
+
+function blockRequests(seconds = 60) {
+  rateLimitInfo.isBlocked = true;
+  rateLimitInfo.unblockTime = Date.now() + seconds * 1000;
+  console.warn(`🚫 Requisições bloqueadas por ${seconds}s`);
+}
+
+// ===========================
+// REQUISIÇÕES À API
+// ===========================
+
+async function apiRequest(endpoint, options = {}) {
+  const cacheKey = `${endpoint}-${JSON.stringify(options)}`;
+
+  // 1. Tentar cache primeiro
+  const cached = getCachedData(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // 2. Verificar rate limit
+  if (!canMakeRequest()) {
+    console.warn("⚠️ Usando dados em cache devido ao rate limit");
+    throw new Error("RATE_LIMIT_EXCEEDED");
+  }
+
+  const url = `${API_BASE_URL}${endpoint}`;
+  console.log(`📡 Requisição: ${url}`);
+
+  rateLimitInfo.requestCount++;
+
+  try {
+    const response = await fetch(url, {
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      ...options,
     });
-  }
 
-  // ✅ FUNÇÃO DE REQUISIÇÃO MELHORADA
-  async function fetchAPI(endpoint, params = {}, retryCount = 0) {
-    const cacheKey = getCacheKey(endpoint, params);
-    
-    // Verificar cache PRIMEIRO
-    const cached = getFromCache(cacheKey);
-    if (cached) {
-      return cached;
+    if (response.status === 429) {
+      console.error("❌ Rate limit atingido!");
+      blockRequests(60); // Bloquear por 60 segundos
+      throw new Error("RATE_LIMIT_EXCEEDED");
     }
 
-    // Construir URL
-    const queryString = Object.keys(params)
-      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-      .join('&');
-    
-    const url = queryString 
-      ? `${API_CONFIG.baseURL}${endpoint}?${queryString}`
-      : `${API_CONFIG.baseURL}${endpoint}`;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-    // ✅ ADICIONAR À FILA DE REQUISIÇÕES
-    return requestQueue.add(async () => {
-      console.log('🌐 Fazendo requisição:', url);
+    const data = await response.json();
 
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+    // Salvar no cache
+    setCachedData(cacheKey, data);
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'YayaAnimes/1.0'
+    console.log(`✅ Resposta de ${endpoint}`);
+    return data;
+  } catch (error) {
+    if (error.message === "RATE_LIMIT_EXCEEDED") {
+      throw error;
+    }
+    console.error(`❌ Erro na requisição ${url}:`, error);
+    throw error;
+  }
+}
+
+// ===========================
+// DADOS DE FALLBACK (MOCK)
+// ===========================
+
+// SUBSTITUA O MOCK_DATA no api-service.js por este:
+
+const MOCK_DATA = {
+  homepage: {
+    status: 200,
+    data: {
+      spotlightAnimes: [
+        {
+          id: "one-piece-100",
+          name: "One Piece",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/bcd84731a3eda4f4a306250769675065.jpg",
+          rating: "9.5",
+          episodes: { sub: 1122, dub: 1096 },
+          type: "TV",
+        },
+        {
+          id: "bleach-thousand-year-blood-war-the-conflict-19322",
+          name: "Bleach: Thousand-Year Blood War - The Conflict",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/5bc8560e1d28ca217c9d5a4e83e02b0f.jpg",
+          rating: "9.2",
+          episodes: { sub: 13, dub: 0 },
+          type: "TV",
+        },
+        {
+          id: "dragon-ball-daima-19830",
+          name: "Dragon Ball DAIMA",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/72f5894c9d5742fa2f6ac037fb20ab0a.jpg",
+          rating: "8.9",
+          episodes: { sub: 15, dub: 0 },
+          type: "TV",
+        },
+        {
+          id: "my-hero-academia-final-season-19930",
+          name: "My Hero Academia Final Season",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/d0cf8e5a8a7d03f0bf37a8abc2ff4e4e.jpg",
+          rating: "8.8",
+          episodes: { sub: 8, dub: 8 },
+          type: "TV",
+        },
+      ],
+      trendingAnimes: [
+        {
+          id: "solo-leveling-18718",
+          name: "Solo Leveling",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/6b17ba80dc1dfa4fb4812d2bc1f6e999.jpg",
+          rating: "9.3",
+          episodes: { sub: 12, dub: 12 },
+          type: "TV",
+        },
+        {
+          id: "jujutsu-kaisen-2nd-season-18413",
+          name: "Jujutsu Kaisen 2nd Season",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/4bcef2b91f0ed5bbb067f71dda44c0e5.jpg",
+          rating: "9.1",
+          episodes: { sub: 23, dub: 23 },
+          type: "TV",
+        },
+        {
+          id: "demon-slayer-kimetsu-no-yaiba-swordsmith-village-arc-18056",
+          name: "Demon Slayer: Swordsmith Village Arc",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/b774c03241a3c34d5fc5f5a3e93d04f0.jpg",
+          rating: "9.0",
+          episodes: { sub: 11, dub: 11 },
+          type: "TV",
+        },
+        {
+          id: "frieren-beyond-journeys-end-18542",
+          name: "Frieren: Beyond Journey's End",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/70093ab5e46b9826815ed2b5e30fd8d3.jpg",
+          rating: "9.4",
+          episodes: { sub: 28, dub: 28 },
+          type: "TV",
+        },
+      ],
+      mostPopularAnimes: [
+        {
+          id: "attack-on-titan-112",
+          name: "Attack on Titan",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/e6ab5ccd4e6e96a7ca3cfb5609a02bf5.jpg",
+          rating: "9.8",
+          episodes: { sub: 87, dub: 87 },
+          type: "TV",
+        },
+        {
+          id: "fullmetal-alchemist-brotherhood-1",
+          name: "Fullmetal Alchemist: Brotherhood",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/93d22af9595f8a18c7f4e97ec6323564.jpg",
+          rating: "9.7",
+          episodes: { sub: 64, dub: 64 },
+          type: "TV",
+        },
+        {
+          id: "death-note-60",
+          name: "Death Note",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/605e784b9dbb9d01d96fbb0c9f8e9cdb.jpg",
+          rating: "9.6",
+          episodes: { sub: 37, dub: 37 },
+          type: "TV",
+        },
+      ],
+      mostFavoriteAnimes: [
+        {
+          id: "one-piece-100",
+          name: "One Piece",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/bcd84731a3eda4f4a306250769675065.jpg",
+          rating: "9.5",
+          episodes: { sub: 1122, dub: 1096 },
+          type: "TV",
+        },
+        {
+          id: "attack-on-titan-112",
+          name: "Attack on Titan",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/e6ab5ccd4e6e96a7ca3cfb5609a02bf5.jpg",
+          rating: "9.8",
+          episodes: { sub: 87, dub: 87 },
+          type: "TV",
+        },
+      ],
+      top10Animes: {
+        today: [
+          {
+            id: "solo-leveling-18718",
+            name: "Solo Leveling",
+            poster:
+              "https://cdn.noitatnemucod.net/thumbnail/300x400/100/6b17ba80dc1dfa4fb4812d2bc1f6e999.jpg",
+            rating: "9.3",
+            episodes: { sub: 12, dub: 12 },
+            type: "TV",
           },
-          signal: controller.signal
-        });
+          {
+            id: "frieren-beyond-journeys-end-18542",
+            name: "Frieren: Beyond Journey's End",
+            poster:
+              "https://cdn.noitatnemucod.net/thumbnail/300x400/100/70093ab5e46b9826815ed2b5e30fd8d3.jpg",
+            rating: "9.4",
+            episodes: { sub: 28, dub: 28 },
+            type: "TV",
+          },
+        ],
+      },
+      topAiringAnimes: [
+        {
+          id: "bleach-thousand-year-blood-war-the-conflict-19322",
+          name: "Bleach: Thousand-Year Blood War",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/5bc8560e1d28ca217c9d5a4e83e02b0f.jpg",
+          rating: "9.2",
+          episodes: { sub: 13, dub: 0 },
+          type: "TV",
+        },
+        {
+          id: "dragon-ball-daima-19830",
+          name: "Dragon Ball DAIMA",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/72f5894c9d5742fa2f6ac037fb20ab0a.jpg",
+          rating: "8.9",
+          episodes: { sub: 15, dub: 0 },
+          type: "TV",
+        },
+      ],
+      latestEpisodeAnimes: [
+        {
+          id: "shangri-la-frontier-2nd-season-19367",
+          name: "Shangri-La Frontier 2nd Season",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/3d71eefbe9dd8beae3417520e2ab3c6e.jpg",
+          rating: "8.5",
+          episodes: { sub: 15, dub: 0 },
+          type: "TV",
+        },
+        {
+          id: "my-hero-academia-final-season-19930",
+          name: "My Hero Academia Final Season",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/d0cf8e5a8a7d03f0bf37a8abc2ff4e4e.jpg",
+          rating: "8.8",
+          episodes: { sub: 8, dub: 8 },
+          type: "TV",
+        },
+      ],
+      latestCompletedAnimes: [
+        {
+          id: "frieren-beyond-journeys-end-18542",
+          name: "Frieren: Beyond Journey's End",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/70093ab5e46b9826815ed2b5e30fd8d3.jpg",
+          rating: "9.4",
+          episodes: { sub: 28, dub: 28 },
+          type: "TV",
+        },
+      ],
+      topUpcomingAnimes: [
+        {
+          id: "wind-breaker-18749",
+          name: "Wind Breaker",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/54b147cae87f1afe08e4293b7e8ba1cc.jpg",
+          rating: "8.7",
+          episodes: { sub: 13, dub: 0 },
+          type: "TV",
+        },
+        {
+          id: "kaiju-no-8-19280",
+          name: "Kaiju No. 8",
+          poster:
+            "https://cdn.noitatnemucod.net/thumbnail/300x400/100/7d6e26e3e5ec5b7a1c2f5f3b7e8c9d4e.jpg",
+          rating: "8.6",
+          episodes: { sub: 12, dub: 0 },
+          type: "TV",
+        },
+      ],
+    },
+  },
+};
 
-        clearTimeout(timeoutId);
+// ===========================
+// MÓDULOS DA API
+// ===========================
 
-        // ✅ TRATAR RATE LIMIT (429)
-        if (response.status === 429) {
-          if (retryCount < API_CONFIG.maxRetries) {
-            const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000);
-            console.warn(`⚠️ Rate limit (429) - Aguardando ${retryDelay}ms (tentativa ${retryCount + 1}/${API_CONFIG.maxRetries})`);
-            
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-            return fetchAPI(endpoint, params, retryCount + 1);
-          }
-          throw new Error('Rate limit excedido. Por favor, aguarde alguns minutos.');
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Verificar sucesso da resposta
-        if (data.success === false) {
-          throw new Error(data.message || 'Erro na resposta da API');
-        }
-
-        // Armazenar no cache
-        setCache(cacheKey, data);
-        console.log('✅ Requisição bem-sucedida:', endpoint);
-
-        return data;
-
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          throw new Error('Timeout: A requisição demorou muito');
-        }
-        console.error('❌ Erro na requisição:', error);
-        throw error;
+const anime = {
+  // Homepage com fallback
+  async loadContentForHomepage() {
+    try {
+      const data = await apiRequest("/home");
+      return data;
+    } catch (error) {
+      if (error.message === "RATE_LIMIT_EXCEEDED") {
+        console.warn("⚠️ Rate limit! Usando dados locais");
+        return MOCK_DATA.homepage;
       }
-    });
-  }
-
-  // ==================== API PÚBLICA ====================
-
-  const APIService = {
-    
-    // 1. Home Page
-    async getHome() {
-      console.log('📡 getHome()');
-      return await fetchAPI('/home');
-    },
-
-    // 2. Anime A-Z List
-    async getAZList(sortOption = 'a', page = 1) {
-      console.log(`📡 getAZList(${sortOption}, ${page})`);
-      return await fetchAPI(`/azlist/${sortOption}`, { page });
-    },
-
-    // 3. Anime Qtip Info
-    async getAnimeQtip(animeId) {
-      console.log(`📡 getAnimeQtip(${animeId})`);
-      return await fetchAPI(`/qtip/${animeId}`);
-    },
-
-    // 4. Anime About Info
-    async getAnimeInfo(animeId) {
-      console.log(`📡 getAnimeInfo(${animeId})`);
-      if (!animeId || typeof animeId !== 'string') {
-        throw new Error('animeId inválido');
-      }
-      return await fetchAPI(`/anime/${animeId}`);
-    },
-
-    // 5. Search Results
-    async search(query, options = {}) {
-      console.log(`📡 search(${query})`, options);
-      if (!query) {
-        throw new Error('Query de busca é obrigatória');
-      }
-      
-      const params = {
-        q: query,
-        page: options.page || 1,
-        ...options
-      };
-      
-      return await fetchAPI('/search', params);
-    },
-
-    // 6. Search Suggestions
-    async getSearchSuggestions(query) {
-      console.log(`📡 getSearchSuggestions(${query})`);
-      if (!query) return { suggestions: [] };
-      return await fetchAPI('/search/suggestion', { q: query });
-    },
-
-    // 7. Producer Animes
-    async getProducerAnimes(name, page = 1) {
-      console.log(`📡 getProducerAnimes(${name}, ${page})`);
-      return await fetchAPI(`/producer/${name}`, { page });
-    },
-
-    // 8. Genre Animes
-    async getGenreAnimes(name, page = 1) {
-      console.log(`📡 getGenreAnimes(${name}, ${page})`);
-      return await fetchAPI(`/genre/${name}`, { page });
-    },
-
-    // 9. Category Animes
-    async getCategoryAnimes(name, page = 1) {
-      console.log(`📡 getCategoryAnimes(${name}, ${page})`);
-      return await fetchAPI(`/category/${name}`, { page });
-    },
-
-    // 10. Estimated Schedules
-    async getSchedule(date) {
-      console.log(`📡 getSchedule(${date})`);
-      const params = date ? { date } : {};
-      return await fetchAPI('/schedule', params);
-    },
-
-    // 11. Anime Episodes
-    async getAnimeEpisodes(animeId) {
-      console.log(`📡 getAnimeEpisodes(${animeId})`);
-      if (!animeId || typeof animeId !== 'string') {
-        throw new Error('animeId inválido');
-      }
-      return await fetchAPI(`/anime/${animeId}/episodes`);
-    },
-
-    // 12. Next Episode Schedule
-    async getNextEpisodeSchedule(animeId) {
-      console.log(`📡 getNextEpisodeSchedule(${animeId})`);
-      return await fetchAPI(`/anime/${animeId}/next-episode-schedule`);
-    },
-
-    // 13. Episode Servers
-    async getEpisodeServers(episodeId) {
-      console.log(`📡 getEpisodeServers(${episodeId})`);
-      
-      if (!episodeId || typeof episodeId !== 'string') {
-        throw new Error('episodeId inválido');
-      }
-
-      return await fetchAPI('/episode/servers', { animeEpisodeId: episodeId });
-    },
-
-    // 14. Episode Streaming Sources
-    async getEpisodeSources(episodeId, server = 'vidstreaming', category = 'sub') {
-      console.log(`📡 getEpisodeSources(${episodeId}, ${server}, ${category})`);
-      
-      if (!episodeId || typeof episodeId !== 'string') {
-        throw new Error('episodeId inválido');
-      }
-
-      return await fetchAPI('/episode/sources', {
-        animeEpisodeId: episodeId,
-        server: server,
-        category: category
-      });
-    },
-
-    // Utilitários
-    clearCache() {
-      cache.clear();
-      console.log('🗑️ Cache limpo');
-    },
-
-    getCacheSize() {
-      return cache.size;
-    },
-
-    getQueueSize() {
-      return requestQueue.queue.length;
+      console.error("Erro ao carregar homepage:", error);
+      throw error;
     }
-  };
+  },
 
-  // ==================== EXPORTAR PARA WINDOW ====================
-  
-  window.api = APIService;
-  window.APIService = APIService;
+  // ADICIONAR APÓS O MOCK_DATA.homepage (linha ~250):
 
-  console.log('✅ API Service carregado!');
-  console.log('📺 API Base:', API_CONFIG.baseURL);
-  console.log('💾 Cache duration:', API_CONFIG.cache.duration / 60000, 'minutos');
-  console.log('⏱️ Request delay:', API_CONFIG.requestDelay, 'ms');
-  console.log('🔍 window.api:', window.api);
+  // Dados de animes individuais (para o player)
+  animeDetails: {
+    "one-piece-100": {
+      status: 200,
+      data: {
+        anime: {
+          info: {
+            id: "one-piece-100",
+            name: "One Piece",
+            poster:
+              "https://cdn.noitatnemucod.net/thumbnail/300x400/100/bcd84731a3eda4f4a306250769675065.jpg",
+            description:
+              "Monkey D. Luffy refuses to let anyone or anything stand in the way of his quest to become king of all pirates. With a course charted for the treacherous waters of the Grand Line, this is one captain who'll never drop anchor until he's claimed the greatest treasure on Earth—the Legendary One Piece!",
+            rating: "9.5",
+            jname: "One Piece",
+            stats: {
+              episodes: { sub: 1122, dub: 1096 },
+              type: "TV",
+              status: "Ongoing",
+            },
+          },
+        },
+      },
+    },
+    "my-hero-academia-final-season-19930": {
+      status: 200,
+      data: {
+        anime: {
+          info: {
+            id: "my-hero-academia-final-season-19930",
+            name: "My Hero Academia Final Season",
+            poster:
+              "https://cdn.noitatnemucod.net/thumbnail/300x400/100/d0cf8e5a8a7d03f0bf37a8abc2ff4e4e.jpg",
+            description: "The final season of My Hero Academia.",
+            rating: "8.8",
+            jname: "Boku no Hero Academia",
+            stats: {
+              episodes: { sub: 8, dub: 8 },
+              type: "TV",
+              status: "Ongoing",
+            },
+          },
+        },
+      },
+    },
+    "solo-leveling-18718": {
+      status: 200,
+      data: {
+        anime: {
+          info: {
+            id: "solo-leveling-18718",
+            name: "Solo Leveling",
+            poster:
+              "https://cdn.noitatnemucod.net/thumbnail/300x400/100/6b17ba80dc1dfa4fb4812d2bc1f6e999.jpg",
+            description:
+              "In a world where hunters—human warriors who possess supernatural abilities—must battle deadly monsters to protect mankind from certain annihilation, a notoriously weak hunter named Sung Jinwoo finds himself in a seemingly endless struggle for survival.",
+            rating: "9.3",
+            jname: "Ore dake Level Up na Ken",
+            stats: {
+              episodes: { sub: 12, dub: 12 },
+              type: "TV",
+              status: "Completed",
+            },
+          },
+        },
+      },
+    },
+    "attack-on-titan-112": {
+      status: 200,
+      data: {
+        anime: {
+          info: {
+            id: "attack-on-titan-112",
+            name: "Attack on Titan",
+            poster:
+              "https://cdn.noitatnemucod.net/thumbnail/300x400/100/e6ab5ccd4e6e96a7ca3cfb5609a02bf5.jpg",
+            description:
+              "Several hundred years ago, humans were nearly exterminated by titans.",
+            rating: "9.8",
+            jname: "Shingeki no Kyojin",
+            stats: {
+              episodes: { sub: 87, dub: 87 },
+              type: "TV",
+              status: "Completed",
+            },
+          },
+        },
+      },
+    },
+  },
 
-})();
+  // Episódios dos animes (para o player)
+  animeEpisodes: {
+    "one-piece-100": {
+      status: 200,
+      totalEpisodes: 1122,
+      episodes: Array.from({ length: 20 }, (_, i) => ({
+        title: `Episode ${i + 1}`,
+        episodeId: `one-piece-100-episode-${i + 1}`,
+        number: i + 1,
+        isFiller: false,
+      })),
+    },
+    "my-hero-academia-final-season-19930": {
+      status: 200,
+      totalEpisodes: 8,
+      episodes: Array.from({ length: 8 }, (_, i) => ({
+        title: `Episode ${i + 1}`,
+        episodeId: `my-hero-academia-final-season-19930-episode-${i + 1}`,
+        number: i + 1,
+        isFiller: false,
+      })),
+    },
+    "solo-leveling-18718": {
+      status: 200,
+      totalEpisodes: 12,
+      episodes: Array.from({ length: 12 }, (_, i) => ({
+        title: `Episode ${i + 1}`,
+        episodeId: `solo-leveling-18718-episode-${i + 1}`,
+        number: i + 1,
+        isFiller: false,
+      })),
+    },
+    "attack-on-titan-112": {
+      status: 200,
+      totalEpisodes: 87,
+      episodes: Array.from({ length: 87 }, (_, i) => ({
+        title: `Episode ${i + 1}`,
+        episodeId: `attack-on-titan-112-episode-${i + 1}`,
+        number: i + 1,
+        isFiller: false,
+      })),
+    },
+  },
+
+  // Buscar animes
+  async searchAnimes(query, page = 1) {
+    try {
+      const data = await apiRequest(
+        `/search?q=${encodeURIComponent(query)}&page=${page}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar animes:", error);
+      throw error;
+    }
+  },
+
+  // Info do anime - COM FALLBACK
+  async getAnimeInfo(animeId) {
+    try {
+      const cleanId = animeId.split("?")[0];
+      const data = await apiRequest(`/anime/${cleanId}`);
+      return data;
+    } catch (error) {
+      if (error.message === "RATE_LIMIT_EXCEEDED") {
+        console.warn(`⚠️ Rate limit! Usando dados locais para ${animeId}`);
+        // Tentar buscar nos dados mock
+        const mockData = MOCK_DATA.animeDetails[animeId];
+        if (mockData) {
+          return mockData;
+        }
+        // Se não tiver no mock, criar dados genéricos
+        return {
+          status: 200,
+          data: {
+            anime: {
+              info: {
+                id: animeId,
+                name: "Anime (Modo Offline)",
+                poster: "https://via.placeholder.com/300x400?text=Anime",
+                description:
+                  "Informações não disponíveis no momento. Por favor, tente novamente mais tarde.",
+                rating: "N/A",
+                stats: {
+                  episodes: { sub: 0, dub: 0 },
+                  type: "TV",
+                  status: "Unknown",
+                },
+              },
+            },
+          },
+        };
+      }
+      console.error("Erro ao buscar info do anime:", error);
+      throw error;
+    }
+  },
+};
+
+const episodes = {
+  // Episódios do anime - COM FALLBACK
+  async getAnimeEpisodes(animeId) {
+    try {
+      const cleanId = animeId.split("?")[0];
+      const data = await apiRequest(`/anime/${cleanId}/episodes`);
+
+      console.log("📺 Estrutura de episódios:", data);
+
+      if (data.data && data.data.episodes) {
+        console.log(`✅ ${data.data.episodes.length} episódios extraídos`);
+        return {
+          status: data.status,
+          totalEpisodes: data.data.totalEpisodes,
+          episodes: data.data.episodes,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      if (error.message === "RATE_LIMIT_EXCEEDED") {
+        console.warn(`⚠️ Rate limit! Usando episódios locais para ${animeId}`);
+        // Tentar buscar nos dados mock
+        const mockEpisodes = MOCK_DATA.animeEpisodes[animeId];
+        if (mockEpisodes) {
+          return mockEpisodes;
+        }
+        // Se não tiver no mock, criar episódios genéricos
+        return {
+          status: 200,
+          totalEpisodes: 12,
+          episodes: Array.from({ length: 12 }, (_, i) => ({
+            title: `Episode ${i + 1}`,
+            episodeId: `${animeId}-episode-${i + 1}`,
+            number: i + 1,
+            isFiller: false,
+          })),
+        };
+      }
+      console.error("Erro ao buscar episódios:", error);
+      throw error;
+    }
+  },
+};
+const streaming = {
+  // Servidores de um episódio
+  async getEpisodeServers(episodeId) {
+    try {
+      const data = await apiRequest(
+        `/episode/servers?animeEpisodeId=${episodeId}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar servidores:", error);
+      throw error;
+    }
+  },
+
+  // Streams de um episódio
+  async getEpisodeStreams(episodeId, server = "hd-1", category = "sub") {
+    try {
+      const data = await apiRequest(
+        `/episode/sources?animeEpisodeId=${episodeId}&server=${server}&category=${category}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar streams:", error);
+      throw error;
+    }
+  },
+};
+
+const search = {
+  async searchAnimes(query, page = 1) {
+    return anime.searchAnimes(query, page);
+  },
+};
+
+const categories = {
+  async getGenres() {
+    try {
+      const data = await apiRequest("/genre");
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar gêneros:", error);
+      throw error;
+    }
+  },
+
+  async getProducers() {
+    try {
+      const data = await apiRequest("/producer");
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar produtores:", error);
+      throw error;
+    }
+  },
+};
+
+const schedules = {};
+const auth = {};
+
+// ===========================
+// API GLOBAL
+// ===========================
+
+window.AnimeAPI = {
+  loadContentForHomepage: anime.loadContentForHomepage,
+  searchAnimes: anime.searchAnimes,
+  getAnimeInfo: anime.getAnimeInfo,
+  getAnimeEpisodes: episodes.getAnimeEpisodes,
+  getEpisodeServers: streaming.getEpisodeServers,
+  getEpisodeStreams: streaming.getEpisodeStreams,
+  getGenres: categories.getGenres,
+  getProducers: categories.getProducers,
+};
+
+window.apiService = {
+  anime,
+  episodes,
+  streaming,
+  search,
+  categories,
+  schedules,
+  auth,
+};
+
+console.log("✅ API Service carregado!");
+console.log("📺 API Base:", API_BASE_URL);
+console.log("💾 Cache duration:", CACHE_DURATION / 1000 / 60, "minutos");

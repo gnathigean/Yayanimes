@@ -1,773 +1,720 @@
 // content-streaming.js
-// Lógica principal da página de streaming
+// VERSÃO CORRIGIDA E REVISADA - COMPLETA
 
-// ==================== UTILITÁRIOS DE LOADING ====================
+// ===========================
+// CONFIGURAÇÃO
+// ===========================
 
-function showLoading() {
-  const overlay = document.getElementById('loading-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
-    console.log('✅ Loading exibido');
-  }
-}
+const USE_API = true;
+let currentUser = null;
+let currentSubscription = null;
+let watchHistory = [];
+let contentDatabase = {
+  animes: [],
+  movies: [],
+  series: [],
+};
 
-function hideLoading() {
-  const overlay = document.getElementById('loading-overlay');
-  if (overlay) {
-    overlay.style.display = 'none';
-    console.log('✅ Loading ocultado');
-  }
-}
+// ===========================
+// INICIALIZAÇÃO - CORRIGIDO
+// ===========================
 
-function showToast(message, type = 'info') {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
+async function init() {
+  console.log("🚀 Iniciando aplicação...");
 
-  const toast = document.createElement('div');
-  toast.className = 'toast-message';
-  toast.textContent = message;
-  toast.style.background = type === 'error' ? '#ef4444' : 
-                          type === 'success' ? '#10b981' : '#667eea';
-  
-  container.appendChild(toast);
-  
-  setTimeout(() => toast.classList.add('show'), 10);
-  
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-function showError(message) {
-  console.error('❌ Erro ao inicializar aplicação');
-  hideLoading();
-  showToast(message, 'error');
-  
-  // Mostrar mensagem de erro no container principal
-  const mainContent = document.getElementById('main-content');
-  if (mainContent) {
-    mainContent.innerHTML = `
-      <div class="no-results">
-        <h3>❌ Erro ao carregar conteúdo</h3>
-        <p>${message}</p>
-        <button class="btn-primary" onclick="location.reload()">🔄 Tentar Novamente</button>
-      </div>
-    `;
-  }
-}
-
-// ==================== AUTENTICAÇÃO ====================
-
-async function checkAuth() {
   try {
-    const { data: { user }, error } = await window.supabase.auth.getUser();
-    
-    if (error) throw error;
-    
-    if (!user) {
-      console.log('❌ Usuário não autenticado');
-      return null;
-    }
-    
-    console.log('✅ Usuário autenticado:', user.email);
-    return user;
-    
+    setupEventListeners();
+    loadWatchHistory();
+
+    // AGUARDAR API CARREGAR
+    console.log("⏳ Aguardando API...");
+    await waitForAPI();
+    console.log("✅ API disponível!");
+
+    await verifyAccessAndLoadContent();
   } catch (error) {
-    console.error('❌ Erro ao verificar autenticação:', error);
-    return null;
+    console.error("❌ Erro na inicialização:", error);
+    hideLoadingState();
+    showErrorMessage("Erro ao inicializar aplicação");
   }
 }
 
-async function checkSubscription(userId) {
-  try {
-    const { data, error } = await window.supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .single();
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log('⚠️ Nenhuma assinatura ativa encontrada');
-        return null;
+function setupEventListeners() {
+  console.log("🔧 Configurando event listeners...");
+
+  // Busca
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(handleSearch, 300));
+  }
+
+  // Filtros
+  const filterButtons = document.querySelectorAll(".nav-btn");
+  filterButtons.forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      filterButtons.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const filter = btn.dataset.filter;
+
+      if (filter === "favorites") {
+        showFavorites();
+      } else {
+        filterContent(filter);
       }
-      throw error;
-    }
-    
-    console.log('✅ Assinatura encontrada:', data);
-    return data;
-    
-  } catch (error) {
-    console.error('❌ Erro ao verificar assinatura:', error);
-    return null;
+    });
+  });
+
+  // Logout
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", logout);
   }
 }
 
-// ==================== FAVORITOS ====================
+// ===========================
+// AGUARDAR API - CRÍTICO
+// ===========================
 
-let userFavorites = [];
-
-async function loadFavorites(userId) {
-  try {
-    const { data, error } = await window.supabase
-      .from('favorites')
-      .select('*')
-      .eq('user_id', userId);
-    
-    if (error) throw error;
-    
-    userFavorites = data.map(fav => fav.anime_id);
-    console.log('✅ Favoritos carregados:', userFavorites.length);
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar favoritos:', error);
-    userFavorites = [];
-  }
-}
-
-async function toggleFavorite(animeId, animeData) {
-  try {
-    const user = await checkAuth();
-    if (!user) return;
-    
-    const isFavorite = userFavorites.includes(animeId);
-    
-    if (isFavorite) {
-      // Remover dos favoritos
-      const { error } = await window.supabase
-        .from('favorites')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('anime_id', animeId);
-      
-      if (error) throw error;
-      
-      userFavorites = userFavorites.filter(id => id !== animeId);
-      showToast('❤️ Removido dos favoritos', 'success');
-      
-    } else {
-      // Adicionar aos favoritos
-      const { error } = await window.supabase
-        .from('favorites')
-        .insert({
-          user_id: user.id,
-          anime_id: animeId,
-          anime_name: animeData.name,
-          anime_poster: animeData.poster,
-          added_at: new Date().toISOString()
-        });
-      
-      if (error) throw error;
-      
-      userFavorites.push(animeId);
-      showToast('❤️ Adicionado aos favoritos', 'success');
+function waitForAPI() {
+  return new Promise((resolve, reject) => {
+    if (window.AnimeAPI) {
+      console.log("✅ API já disponível");
+      resolve();
+      return;
     }
-    
-    // Atualizar UI
-    updateFavoriteButtons();
-    
-  } catch (error) {
-    console.error('❌ Erro ao alternar favorito:', error);
-    showToast('Erro ao atualizar favoritos', 'error');
-  }
-}
 
-function updateFavoriteButtons() {
-  document.querySelectorAll('.card-favorite').forEach(btn => {
-    const animeId = btn.dataset.animeId;
-    if (userFavorites.includes(animeId)) {
-      btn.classList.add('active');
-      btn.textContent = '❤️';
-    } else {
-      btn.classList.remove('active');
-      btn.textContent = '🤍';
-    }
+    console.log("⏳ Aguardando API carregar...");
+    let attempts = 0;
+    const maxAttempts = 100; // 10 segundos
+
+    const checkInterval = setInterval(() => {
+      attempts++;
+
+      if (window.AnimeAPI) {
+        clearInterval(checkInterval);
+        console.log(`✅ API carregada após ${attempts * 100}ms`);
+        resolve();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.error("❌ Timeout aguardando API");
+        reject(new Error("API não carregou a tempo"));
+      }
+    }, 100);
   });
 }
 
-// ==================== HISTÓRICO ====================
+// ===========================
+// CONTROLE DE ACESSO - INTEGRADO COM SUPABASE
+// ===========================
 
-let userHistory = [];
+async function verifyAccessAndLoadContent() {
+  console.log("🔐 Verificando acesso...");
 
-async function loadHistory(userId) {
   try {
-    const { data, error } = await window.supabase
-      .from('watch_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('last_watched', { ascending: false })
-      .limit(20);
-    
-    if (error) throw error;
-    
-    userHistory = data;
-    console.log('✅ Histórico carregado:', userHistory.length);
-    
-    // Renderizar Continue Assistindo
-    renderContinueWatching();
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar histórico:', error);
-    userHistory = [];
-  }
-}
+    // Verificar se Supabase está disponível
+    if (!window.supabase) {
+      throw new Error("Supabase não carregado");
+    }
 
-async function saveToHistory(userId, animeId, animeData, episodeNumber, progress) {
-  try {
-    const { data, error } = await window.supabase
-      .from('watch_history')
-      .upsert({
-        user_id: userId,
-        anime_id: animeId,
-        anime_name: animeData.name,
-        anime_poster: animeData.poster,
-        episode_number: episodeNumber,
-        progress_seconds: Math.floor(progress),
-        last_watched: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,anime_id'
-      });
-    
-    if (error) throw error;
-    
-  } catch (error) {
-    console.error('❌ Erro ao salvar histórico:', error);
-  }
-}
+    // Verificar autenticação do Supabase
+    const {
+      data: { user },
+      error: authError,
+    } = await window.supabase.auth.getUser();
 
-function renderContinueWatching() {
-  const section = document.getElementById('continue-watching-section');
-  const grid = document.getElementById('continue-grid');
-  
-  if (!section || !grid) return;
-  
-  if (userHistory.length === 0) {
-    section.style.display = 'none';
-    return;
-  }
-  
-  section.style.display = 'block';
-  
-  grid.innerHTML = userHistory.map(item => {
-    const progressPercent = (item.progress_seconds / (item.episode_duration || 1400)) * 100;
-    
-    return `
-      <div class="content-card" onclick="window.location.href='player.html?id=${item.anime_id}&ep=${item.episode_number}'">
-        <div class="card-image">
-          <img src="${item.anime_poster}" alt="${item.anime_name}" loading="lazy">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${progressPercent}%"></div>
-          </div>
-        </div>
-        <div class="card-info">
-          <h4 class="card-title">${item.anime_name}</h4>
-          <div class="card-meta">
-            <span>EP ${item.episode_number}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-// ==================== CARREGAMENTO DE CONTEÚDO ====================
-
-// ==================== CARREGAMENTO DE CONTEÚDO ====================
-
-async function loadHomeContent() {
-  console.log('📺 Carregando conteúdo home...');
-  
-  try {
-    showLoading();
-    
-    // ✅ AGUARDAR 2 SEGUNDOS ANTES DA PRIMEIRA REQUISIÇÃO
-    console.log('⏳ Aguardando 2s antes de fazer requisição...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const homeData = await window.api.getHome();
-    
-    console.log('✅ Home data recebida:', homeData);
-    
-    if (!homeData || !homeData.data) {
-      throw new Error('Nenhum dado retornado da API');
-    }
-    
-    const container = document.getElementById('dynamic-content-container');
-    if (!container) {
-      throw new Error('Container não encontrado');
-    }
-    
-    // Limpar container
-    container.innerHTML = '';
-    
-    // ✅ ESTRUTURA CORRETA DA API: homeData.data tem várias propriedades
-    const data = homeData.data;
-    
-    // 1. Spotlight Animes (Destaques)
-    if (data.spotlightAnimes && data.spotlightAnimes.length > 0) {
-      console.log('✅ Renderizando Spotlight:', data.spotlightAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>🌟 Em Destaque</h3>
-          </div>
-          <div class="content-grid">
-            ${data.spotlightAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 2. Trending Animes
-    if (data.trendingAnimes && data.trendingAnimes.length > 0) {
-      console.log('✅ Renderizando Trending:', data.trendingAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>🔥 Em Alta</h3>
-          </div>
-          <div class="content-grid">
-            ${data.trendingAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 3. Latest Episodes
-    if (data.latestEpisodeAnimes && data.latestEpisodeAnimes.length > 0) {
-      console.log('✅ Renderizando Latest:', data.latestEpisodeAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>🆕 Últimos Episódios</h3>
-          </div>
-          <div class="content-grid">
-            ${data.latestEpisodeAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 4. Top Upcoming Animes
-    if (data.topUpcomingAnimes && data.topUpcomingAnimes.length > 0) {
-      console.log('✅ Renderizando Upcoming:', data.topUpcomingAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>📅 Em Breve</h3>
-          </div>
-          <div class="content-grid">
-            ${data.topUpcomingAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 5. Top Airing Animes
-    if (data.topAiringAnimes && data.topAiringAnimes.length > 0) {
-      console.log('✅ Renderizando Top Airing:', data.topAiringAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>⭐ Melhores em Exibição</h3>
-          </div>
-          <div class="content-grid">
-            ${data.topAiringAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 6. Most Popular Animes
-    if (data.mostPopularAnimes && data.mostPopularAnimes.length > 0) {
-      console.log('✅ Renderizando Popular:', data.mostPopularAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>👥 Mais Populares</h3>
-          </div>
-          <div class="content-grid">
-            ${data.mostPopularAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 7. Most Favorite Animes
-    if (data.mostFavoriteAnimes && data.mostFavoriteAnimes.length > 0) {
-      console.log('✅ Renderizando Favorites:', data.mostFavoriteAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>💖 Mais Favoritados</h3>
-          </div>
-          <div class="content-grid">
-            ${data.mostFavoriteAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 8. Latest Completed Animes
-    if (data.latestCompletedAnimes && data.latestCompletedAnimes.length > 0) {
-      console.log('✅ Renderizando Completed:', data.latestCompletedAnimes.length);
-      container.innerHTML += `
-        <section class="content-section">
-          <div class="section-header">
-            <h3>✅ Recém Finalizados</h3>
-          </div>
-          <div class="content-grid">
-            ${data.latestCompletedAnimes.map(anime => createAnimeCard(anime)).join('')}
-          </div>
-        </section>
-      `;
-    }
-    
-    // 9. Genres (se houver)
-    if (data.genres && data.genres.length > 0) {
-      console.log('✅ Gêneros disponíveis:', data.genres.length);
-    }
-    
-    console.log('✅ Conteúdo renderizado com sucesso!');
-    hideLoading();
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar home:', error);
-    hideLoading();
-    showError(`Não foi possível carregar o conteúdo: ${error.message}`);
-  }
-}
-
-async function loadTrendingAnimes() {
-  try {
-    // ✅ BUSCAR SEM QUERY (permite busca vazia com filtros)
-    const trendingData = await window.api.search('anime', { page: 1 });
-    
-    if (!trendingData || !trendingData.data || !trendingData.data.animes) {
-      console.warn('⚠️ Nenhum anime trending encontrado');
-      
-      // Fallback: mostrar mensagem amigável
-      const container = document.getElementById('dynamic-content-container');
-      if (container) {
-        container.innerHTML = `
-          <div class="no-results">
-            <h3>📺 Bem-vindo ao YayaAnimes!</h3>
-            <p>Explore nosso catálogo de animes usando a busca acima.</p>
-          </div>
-        `;
-      }
+    if (authError || !user) {
+      console.log("❌ Usuário não autenticado");
+      showAccessDenied();
       return;
     }
-    
-    const container = document.getElementById('dynamic-content-container');
-    if (!container) return;
-    
-    container.innerHTML = `
-      <section class="content-section">
-        <div class="section-header">
-          <h3>🔥 Animes em Alta</h3>
-        </div>
-        <div class="content-grid">
-          ${trendingData.data.animes.map(anime => createAnimeCard(anime)).join('')}
-        </div>
-      </section>
-    `;
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar trending:', error);
-    
-    // Fallback: mostrar mensagem amigável
-    const container = document.getElementById('dynamic-content-container');
-    if (container) {
-      container.innerHTML = `
-        <div class="no-results">
-          <h3>⚠️ Erro ao carregar conteúdo</h3>
-          <p>Tente recarregar a página ou use a busca acima.</p>
-          <button class="btn-primary" onclick="location.reload()">🔄 Recarregar</button>
-        </div>
-      `;
+
+    console.log("✅ Usuário autenticado:", user.email);
+    currentUser = {
+      id: user.id,
+      email: user.email,
+    };
+
+    // Atualizar email no header
+    const userEmail = document.getElementById("user-email");
+    if (userEmail) {
+      userEmail.textContent = user.email;
     }
+
+    // Salvar no localStorage para compatibilidade
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+
+    // Verificar assinatura no Supabase
+    const { data: subscription, error: subError } = await window.supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single();
+
+    if (subError && subError.code !== "PGRST116") {
+      throw subError;
+    }
+
+    if (!subscription) {
+      console.log("❌ Nenhuma assinatura ativa");
+      showAccessDenied();
+      return;
+    }
+
+    // Verificar se a assinatura expirou
+    const now = new Date();
+    const expiresAt = new Date(subscription.expires_at);
+
+    if (now > expiresAt) {
+      console.log("❌ Assinatura expirada");
+
+      // Atualizar status no banco
+      await window.supabase
+        .from("subscriptions")
+        .update({ status: "expired" })
+        .eq("id", subscription.id);
+
+      showAccessDenied();
+      return;
+    }
+
+    console.log("✅ Assinatura ativa:", subscription);
+    currentSubscription = subscription;
+
+    // Salvar no localStorage
+    localStorage.setItem("currentSubscription", JSON.stringify(subscription));
+
+    // Exibir conteúdo premium
+    showPremiumContent();
+    await loadContent();
+  } catch (error) {
+    console.error("❌ Erro ao verificar acesso:", error);
+    showAccessDenied();
   }
 }
 
-function createAnimeCard(anime) {
-  const isFavorite = userFavorites.includes(anime.id);
-  
-  // ✅ Suporte para diferentes estruturas de episódios
-  const episodesText = anime.episodes?.sub 
-    ? `📺 ${anime.episodes.sub} eps` 
-    : anime.episodes?.total 
-    ? `📺 ${anime.episodes.total} eps`
-    : '';
-  
-  return `
-    <div class="content-card">
-      <div class="card-image">
-        <img src="${anime.poster}" alt="${anime.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/200x300?text=No+Image'">
-        
-        ${anime.type ? `<div class="card-badge">${anime.type}</div>` : ''}
-        ${anime.rank ? `<div class="card-badge" style="left: auto; right: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">#${anime.rank}</div>` : ''}
-        
-        <div class="card-overlay">
-          <div class="overlay-details">
-            <h4 class="card-title" style="color: white;">${anime.name}</h4>
-            <div class="card-meta">
-              ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
-              ${episodesText ? `<span>${episodesText}</span>` : ''}
-            </div>
-          </div>
-          
-          <div class="card-actions">
-            <button class="btn-play" onclick="event.stopPropagation(); window.location.href='player.html?id=${anime.id}&ep=1'">
-              ▶️ Assistir
-            </button>
-            <button class="btn-info" onclick="event.stopPropagation(); showAnimeInfo('${anime.id}')">
-              ℹ️ Info
-            </button>
-          </div>
-        </div>
-        
-        <button class="card-favorite ${isFavorite ? 'active' : ''}" 
-                data-anime-id="${anime.id}"
-                onclick="event.stopPropagation(); toggleFavorite('${anime.id}', ${JSON.stringify(anime).replace(/"/g, '&quot;')})">
-          ${isFavorite ? '❤️' : '🤍'}
+function showAccessDenied() {
+  hideLoadingState();
+  const mainContent = document.getElementById("main-content");
+  if (mainContent) {
+    mainContent.innerHTML = `
+      <div class="access-denied" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <h2 style="font-size: 48px; margin-bottom: 20px;">🔒</h2>
+        <h2>Acesso Negado</h2>
+        <p style="max-width: 500px; text-align: center; margin: 20px 0;">Você precisa de uma assinatura Premium ativa para acessar este conteúdo exclusivo.</p>
+        <button onclick="window.location.href='index.html'" class="btn-primary" style="margin-top: 20px; padding: 15px 40px; font-size: 18px;">
+          🚀 Fazer Upgrade Agora
         </button>
       </div>
+    `;
+  }
+}
+
+function showPremiumContent() {
+  const mainContent = document.getElementById("main-content");
+  if (mainContent) {
+    mainContent.style.display = "block";
+  }
+}
+
+// ===========================
+// CARREGAMENTO DE CONTEÚDO
+// ===========================
+
+async function loadContent() {
+  console.log("📦 Iniciando loadContent...");
+  showLoadingState();
+
+  try {
+    if (USE_API && window.AnimeAPI) {
+      console.log("🌐 Usando API...");
+      await loadContentFromAPI();
+    } else {
+      console.log("💾 Usando dados mock...");
+      loadContentFromMock();
+    }
+
+    loadContinueWatching();
+    hideLoadingState();
+    console.log("✅ Conteúdo carregado com sucesso!");
+  } catch (error) {
+    console.error("❌ Erro ao carregar conteúdo:", error);
+    handleLoadError(error);
+  }
+}
+
+async function loadContentFromAPI() {
+  console.log("📡 Carregando da API...");
+
+  try {
+    const response = await window.AnimeAPI.loadContentForHomepage();
+    console.log("📦 Dados recebidos da API:", response);
+    console.log("📊 Estrutura completa:", JSON.stringify(response, null, 2));
+
+    if (!response) {
+      throw new Error("Nenhum dado retornado da API");
+    }
+
+    // A API retorna { status: 200, data: {...} }
+    const data = response.data || response;
+
+    if (!data) {
+      throw new Error("Estrutura de dados inválida");
+    }
+
+    // Mapear as seções conforme a estrutura real da API
+    const sections = [
+      {
+        title: "⭐ Animes em Destaque",
+        data: data.spotlightAnimes,
+        id: "spotlight",
+      },
+      {
+        title: "🔥 Animes em Tendência",
+        data: data.trendingAnimes,
+        id: "trending",
+      },
+      {
+        title: "📺 Animes Mais Vistos",
+        data: data.mostPopularAnimes,
+        id: "popular",
+      },
+      {
+        title: "❤️ Mais Favoritados",
+        data: data.mostFavoriteAnimes,
+        id: "favorites",
+      },
+      {
+        title: "🏆 Top 10 Hoje",
+        data: data.top10Animes?.today,
+        id: "top10",
+      },
+      {
+        title: "📡 Top Animes no Ar",
+        data: data.topAiringAnimes,
+        id: "airing",
+      },
+      {
+        title: "🆕 Últimos Episódios",
+        data: data.latestEpisodeAnimes,
+        id: "latest",
+      },
+      {
+        title: "✅ Recém-Completados",
+        data: data.latestCompletedAnimes,
+        id: "completed",
+      },
+      {
+        title: "🔜 Próximos Lançamentos",
+        data: data.topUpcomingAnimes,
+        id: "upcoming",
+      },
+    ];
+
+    const dynamicContainer = document.getElementById(
+      "dynamic-content-container"
+    );
+    if (!dynamicContainer) {
+      throw new Error("Container dinâmico não encontrado");
+    }
+
+    dynamicContainer.innerHTML = "";
+    let renderedSections = 0;
+
+    sections.forEach(({ title, data: sectionData, id }) => {
+      console.log(`🔍 Verificando ${title}:`, sectionData);
+
+      if (sectionData && Array.isArray(sectionData) && sectionData.length > 0) {
+        console.log(`✅ Renderizando: ${title} (${sectionData.length} itens)`);
+        renderSection(title, sectionData, dynamicContainer, id);
+        renderedSections++;
+
+        // Armazenar dados para busca
+        if (id === "trending" || id === "popular") {
+          contentDatabase.animes = [...contentDatabase.animes, ...sectionData];
+        }
+      } else {
+        console.warn(`⚠️ Sem dados válidos para: ${title}`, sectionData);
+      }
+    });
+
+    if (renderedSections === 0) {
+      console.error("❌ Nenhuma seção renderizada. Dados recebidos:", data);
+      throw new Error("Nenhuma seção com dados válidos");
+    }
+
+    // Esconder fallback
+    const fallbackSection = document.getElementById("animes-grid-section");
+    if (fallbackSection) {
+      fallbackSection.style.display = "none";
+    }
+
+    console.log(`✅ ${renderedSections} seções renderizadas com sucesso!`);
+  } catch (error) {
+    console.error("❌ Erro em loadContentFromAPI:", error);
+    throw error;
+  }
+}
+
+function loadContentFromMock() {
+  console.log("💾 Carregando dados mock...");
+
+  const mockAnimes = getMockData();
+  contentDatabase.animes = mockAnimes;
+
+  renderContent("animes-grid", mockAnimes);
+
+  const animesSection = document.getElementById("animes-grid-section");
+  if (animesSection) {
+    animesSection.style.display = "block";
+  }
+}
+
+function handleLoadError(error) {
+  console.error("❌ Tratando erro de carregamento:", error);
+  hideLoadingState();
+  showErrorMessage("Erro ao carregar conteúdo da API. Usando dados locais.");
+  loadContentFromMock();
+  loadContinueWatching();
+}
+
+// ===========================
+// RENDERIZAÇÃO
+// ===========================
+
+function renderSection(title, items, container, sectionId) {
+  const section = document.createElement("section");
+  section.className = "content-section";
+  section.id = `${sectionId}-section`;
+
+  section.innerHTML = `
+    <div class="section-header">
+      <h3>${title}</h3>
+      <button class="btn-see-all" onclick="viewAllSection('${sectionId}')">
+        Ver Todos →
+      </button>
+    </div>
+    <div class="content-grid" id="${sectionId}-grid"></div>
+  `;
+
+  container.appendChild(section);
+  renderContent(`${sectionId}-grid`, items);
+}
+
+function renderContent(gridId, items) {
+  const grid = document.getElementById(gridId);
+  if (!grid || !items || items.length === 0) return;
+
+  grid.innerHTML = items.map((item) => createContentCard(item)).join("");
+}
+
+function createContentCard(item) {
+  const id = item.id || "";
+  const title = item.name || item.title || "Sem título";
+  const image =
+    item.poster ||
+    item.image ||
+    "https://via.placeholder.com/300x450?text=No+Image";
+  const rating = item.rating || "N/A";
+  const episodes = item.episodes?.sub || item.episodes || "";
+  const type = item.type || "anime";
+
+  return `
+    <div class="content-card" data-id="${escapeHtml(id)}" data-type="${type}">
+      <div class="card-image">
+        <img src="${image}" alt="${escapeHtml(title)}" loading="lazy" 
+             onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+      </div>
       
-      <div class="card-info">
-        <h4 class="card-title">${anime.name}</h4>
-        <div class="card-meta">
-          ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
-          ${anime.type ? `<span>${anime.type}</span>` : ''}
+      ${
+        episodes
+          ? `<span class="card-badge badge-new">${episodes} EPs</span>`
+          : ""
+      }
+      
+      <div class="card-overlay">
+        <div class="overlay-details">
+          <h4 class="card-title">${escapeHtml(title)}</h4>
+          <div class="card-meta">
+            <span class="card-rating">⭐ ${rating}</span>
+            ${episodes ? `<span>${episodes} eps</span>` : ""}
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button onclick="playContent('${escapeHtml(
+            id
+          )}', '${type}')" class="btn-play">
+            ▶️ Assistir
+          </button>
+          <button onclick="showInfo('${escapeHtml(
+            id
+          )}', '${type}')" class="btn-info">
+            ℹ️ Info
+          </button>
+          <button onclick="addToFavorites('${escapeHtml(
+            id
+          )}', '${type}')" class="btn-favorite">
+            ❤️
+          </button>
         </div>
       </div>
     </div>
   `;
 }
 
-// ==================== BUSCA ====================
+// ===========================
+// CONTINUE ASSISTINDO
+// ===========================
 
-let searchTimeout;
-
-function setupSearch() {
-  const searchInput = document.getElementById('search-input');
-  if (!searchInput) return;
-  
-  searchInput.addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
-    
-    const query = e.target.value.trim();
-    
-    if (query.length < 2) {
-      loadHomeContent();
-      return;
-    }
-    
-    searchTimeout = setTimeout(() => {
-      performSearch(query);
-    }, 500);
-  });
+function loadWatchHistory() {
+  const saved = localStorage.getItem("watch_history");
+  watchHistory = saved ? JSON.parse(saved) : [];
 }
 
-async function performSearch(query) {
+function saveWatchHistory() {
+  localStorage.setItem("watch_history", JSON.stringify(watchHistory));
+}
+
+function loadContinueWatching() {
+  const grid = document.getElementById("continue-grid");
+  const section = document.getElementById("continue-watching-section");
+
+  if (!grid || !section) return;
+
+  if (watchHistory.length === 0) {
+    section.style.display = "none";
+    return;
+  }
+
+  section.style.display = "block";
+
+  const recentItems = watchHistory
+    .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
+    .slice(0, 6);
+
+  grid.innerHTML = recentItems.map((item) => createContinueCard(item)).join("");
+}
+
+function createContinueCard(item) {
+  return `
+    <div class="content-card" data-id="${escapeHtml(item.id)}" data-type="${
+    item.type
+  }">
+      <div class="card-image">
+        <img src="${item.image}" alt="${escapeHtml(item.title)}" loading="lazy"
+             onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${item.progress}%;"></div>
+      </div>
+      
+      <div class="card-overlay">
+        <div class="overlay-details">
+          <h4 class="card-title">${escapeHtml(item.title)}</h4>
+          <div class="card-meta">
+            <span>⏱️ ${item.progress}% concluído</span>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button onclick="playContent('${escapeHtml(item.id)}', '${
+    item.type
+  }')" class="btn-play">
+            ▶️ Continuar
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ===========================
+// BUSCA E FILTROS
+// ===========================
+
+function handleSearch(event) {
+  const query = event.target.value.trim();
+
+  if (query.length === 0) {
+    loadContent();
+    return;
+  }
+
+  if (query.length < 2) return;
+
+  searchContent(query);
+}
+
+async function searchContent(query) {
+  showLoadingState();
+
   try {
-    showLoading();
-    
-    const searchData = await window.api.search(query);
-    
-    if (!searchData || !searchData.data || !searchData.data.animes) {
-      throw new Error('Nenhum resultado encontrado');
+    if (window.AnimeAPI) {
+      const results = await window.AnimeAPI.searchAnimes(query);
+      displaySearchResults(results.animes || [], query);
+    } else {
+      const results = contentDatabase.animes.filter((item) =>
+        (item.name || item.title || "")
+          .toLowerCase()
+          .includes(query.toLowerCase())
+      );
+      displaySearchResults(results, query);
     }
-    
-    const container = document.getElementById('dynamic-content-container');
-    if (!container) return;
-    
-    container.innerHTML = `
-      <section class="content-section">
-        <div class="section-header">
-          <h3>🔍 Resultados para "${query}"</h3>
-        </div>
-        <div class="content-grid">
-          ${searchData.data.animes.map(anime => createAnimeCard(anime)).join('')}
-        </div>
-      </section>
-    `;
-    
-    hideLoading();
-    
   } catch (error) {
-    console.error('❌ Erro na busca:', error);
-    hideLoading();
-    showToast('Erro ao buscar animes', 'error');
+    console.error("Erro na busca:", error);
+    showErrorMessage("Erro ao buscar. Tente novamente.");
+  } finally {
+    hideLoadingState();
   }
 }
 
-// ==================== NAVEGAÇÃO ====================
+function displaySearchResults(results, query) {
+  const dynamicContainer = document.getElementById("dynamic-content-container");
+  if (!dynamicContainer) return;
 
-function setupNavigation() {
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      // Remover active de todos
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      
-      // Adicionar active no clicado
-      btn.classList.add('active');
-      
-      const filter = btn.dataset.filter;
-      
-      try {
-        showLoading();
-        
-        switch(filter) {
-          case 'all':
-            await loadHomeContent();
-            break;
-          case 'anime':
-            await loadTrendingAnimes();
-            break;
-          case 'trending':
-            await loadTrendingAnimes();
-            break;
-          case 'favorites':
-            await loadFavoritesView();
-            break;
-          default:
-            await loadHomeContent();
-        }
-        
-        hideLoading();
-        
-      } catch (error) {
-        console.error('❌ Erro na navegação:', error);
-        hideLoading();
-        showError('Erro ao carregar conteúdo');
-      }
-    });
-  });
-}
+  dynamicContainer.innerHTML = "";
 
-async function loadFavoritesView() {
-  const container = document.getElementById('dynamic-content-container');
-  if (!container) return;
-  
-  if (userFavorites.length === 0) {
-    container.innerHTML = `
+  if (results.length === 0) {
+    dynamicContainer.innerHTML = `
       <div class="no-results">
-        <h3>❤️ Nenhum favorito ainda</h3>
-        <p>Adicione animes aos seus favoritos para vê-los aqui!</p>
+        <h3>😕 Nenhum resultado encontrado</h3>
+        <p>Não encontramos nada para "${escapeHtml(query)}"</p>
+        <p>Tente pesquisar com outros termos.</p>
       </div>
     `;
     return;
   }
-  
-  try {
-    showLoading();
-    
-    // Carregar informações dos animes favoritos
-    const favoritesPromises = userFavorites.map(animeId => 
-      window.api.getAnimeInfo(animeId).catch(() => null)
+
+  renderSection(
+    `🔍 Resultados para "${query}"`,
+    results,
+    dynamicContainer,
+    "search-results"
+  );
+}
+
+function filterContent(type) {
+  if (type === "all") {
+    loadContent();
+    return;
+  }
+
+  const dynamicContainer = document.getElementById("dynamic-content-container");
+  if (!dynamicContainer) return;
+
+  dynamicContainer.innerHTML = "";
+
+  if (type === "trending") {
+    renderSection(
+      "🔥 Animes em Tendência",
+      contentDatabase.animes,
+      dynamicContainer,
+      "filtered"
     );
-    
-    const favoritesData = await Promise.all(favoritesPromises);
-    const validFavorites = favoritesData.filter(data => data && data.data);
-    
-    container.innerHTML = `
-      <section class="content-section">
-        <div class="section-header">
-          <h3>❤️ Meus Favoritos</h3>
-        </div>
-        <div class="content-grid">
-          ${validFavorites.map(fav => createAnimeCard(fav.data.anime.info)).join('')}
-        </div>
-      </section>
-    `;
-    
-    hideLoading();
-    
-  } catch (error) {
-    console.error('❌ Erro ao carregar favoritos:', error);
-    hideLoading();
+  } else if (type === "anime") {
+    renderSection(
+      "📺 Todos os Animes",
+      contentDatabase.animes,
+      dynamicContainer,
+      "filtered"
+    );
   }
 }
 
-// ==================== LOGOUT ====================
+function showFavorites() {
+  const favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
 
-function setupLogout() {
-  const logoutBtn = document.getElementById('logout-btn');
-  if (!logoutBtn) return;
-  
-  logoutBtn.addEventListener('click', async () => {
-    try {
-      const { error } = await window.supabase.auth.signOut();
-      if (error) throw error;
-      window.location.href = 'index.html';
-    } catch (error) {
-      console.error('❌ Erro ao fazer logout:', error);
-      showToast('Erro ao fazer logout', 'error');
-    }
-  });
+  if (favorites.length === 0) {
+    const dynamicContainer = document.getElementById(
+      "dynamic-content-container"
+    );
+    dynamicContainer.innerHTML = `
+      <div class="no-results">
+        <h3>💔 Nenhum favorito ainda</h3>
+        <p>Adicione seus animes favoritos clicando no botão ❤️</p>
+      </div>
+    `;
+    return;
+  }
+
+  showMessage("Funcionalidade em desenvolvimento! 🚧");
 }
 
-// ==================== MODAL DE INFORMAÇÕES ====================
+// ===========================
+// REPRODUÇÃO E INFORMAÇÕES
+// ===========================
 
-async function showAnimeInfo(animeId) {
+function playContent(id, type) {
+  console.log(`▶️ Reproduzindo: ${id}`);
+  window.location.href = `player.html?id=${encodeURIComponent(id)}&ep=1`;
+}
+
+async function showInfo(id, type) {
+  console.log(`ℹ️ Carregando info de: ${id}`);
+  showLoadingState();
+
   try {
-    showLoading();
-    
-    const animeData = await window.api.getAnimeInfo(animeId);
-    
-    if (!animeData || !animeData.data) {
-      throw new Error('Informações do anime não encontradas');
+    if (!window.AnimeAPI) {
+      throw new Error("API não disponível");
     }
-    
-    const anime = animeData.data.anime.info;
-    const moreInfo = animeData.data.anime.moreInfo;
-    const isFavorite = userFavorites.includes(animeId);
-    
-    const modalHtml = `
+
+    console.log(`📡 Buscando anime: ${id}`);
+    const animeData = await window.AnimeAPI.getAnimeInfo(id);
+    console.log("📦 Dados recebidos:", animeData);
+
+    const anime = animeData.anime?.info || animeData;
+
+    if (!anime) {
+      throw new Error("Dados do anime não encontrados");
+    }
+
+    const infoHTML = `
       <div class="info-modal-overlay" onclick="closeInfoModal(event)">
         <div class="info-modal" onclick="event.stopPropagation()">
-          <button class="btn-close" onclick="closeInfoModal()">✕</button>
-          
+          <button onclick="closeInfoModal()" class="btn-close" style="position: absolute; top: 20px; right: 20px; z-index: 10;">✕</button>
           <div class="info-content">
-            <div>
-              <img src="${anime.poster}" alt="${anime.name}">
-            </div>
-            
+            <img src="${anime.poster || "https://via.placeholder.com/300x450"}" 
+                 alt="${escapeHtml(anime.name || anime.title)}"
+                 onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
             <div class="info-details">
-              <h2>${anime.name}</h2>
-              
+              <h2>${escapeHtml(anime.name || anime.title || "Sem título")}</h2>
+              ${
+                anime.jname
+                  ? `<p style="color: #9ca3af; margin-bottom: 15px;">${escapeHtml(
+                      anime.jname
+                    )}</p>`
+                  : ""
+              }
               <div class="info-meta">
-                ${anime.stats?.rating ? `<span>⭐ ${anime.stats.rating}</span>` : ''}
-                ${anime.stats?.type ? `<span>📺 ${anime.stats.type}</span>` : ''}
-                ${anime.stats?.duration ? `<span>⏱️ ${anime.stats.duration}</span>` : ''}
-                ${moreInfo?.status ? `<span>🎬 ${moreInfo.status}</span>` : ''}
+                <span>⭐ ${anime.rating || "N/A"}</span>
+                ${
+                  anime.stats?.episodes?.sub
+                    ? `<span>📺 ${anime.stats.episodes.sub} eps</span>`
+                    : ""
+                }
+                ${
+                  anime.stats?.type ? `<span>📅 ${anime.stats.type}</span>` : ""
+                }
+                ${
+                  anime.stats?.status
+                    ? `<span>${anime.stats.status}</span>`
+                    : ""
+                }
               </div>
-              
-              <p>${anime.description || 'Sem descrição disponível'}</p>
-              
-              ${moreInfo?.genres ? `
-                <div style="margin-top: 15px;">
-                  <strong style="color: white;">Gêneros:</strong>
-                  <p style="color: #9ca3af;">${moreInfo.genres}</p>
-                </div>
-              ` : ''}
-              
-              ${moreInfo?.studios ? `
-                <div style="margin-top: 10px;">
-                  <strong style="color: white;">Estúdio:</strong>
-                  <p style="color: #9ca3af;">${moreInfo.studios}</p>
-                </div>
-              ` : ''}
-              
+              <p style="margin: 20px 0; line-height: 1.6;">${escapeHtml(
+                anime.description || "Descrição não disponível."
+              )}</p>
               <div class="info-actions">
-                <button class="btn-primary" onclick="window.location.href='player.html?id=${animeId}&ep=1'">
+                <button onclick="playContent('${escapeHtml(
+                  id
+                )}', '${type}'); closeInfoModal();" class="btn-play">
                   ▶️ Assistir Agora
                 </button>
-                <button class="btn-secondary" onclick="toggleFavorite('${animeId}', ${JSON.stringify(anime).replace(/"/g, '&quot;')}); closeInfoModal()">
-                  ${isFavorite ? '❤️ Remover dos Favoritos' : '🤍 Adicionar aos Favoritos'}
+                <button onclick="addToFavorites('${escapeHtml(
+                  id
+                )}', '${type}')" class="btn-secondary">
+                  ❤️ Favoritar
                 </button>
               </div>
             </div>
@@ -775,247 +722,355 @@ async function showAnimeInfo(animeId) {
         </div>
       </div>
     `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    hideLoading();
-    
+
+    document.body.insertAdjacentHTML("beforeend", infoHTML);
+    console.log("✅ Modal de info exibido");
   } catch (error) {
-    console.error('❌ Erro ao carregar informações:', error);
-    hideLoading();
-    showToast('Erro ao carregar informações', 'error');
+    console.error("❌ Erro ao carregar informações:", error);
+    showErrorMessage(`Erro: ${error.message}`);
+  } finally {
+    hideLoadingState();
   }
 }
 
 function closeInfoModal(event) {
-  if (event && event.target.className !== 'info-modal-overlay') return;
-  
-  const modal = document.querySelector('.info-modal-overlay');
-  if (modal) {
-    modal.remove();
+  if (event) event.stopPropagation();
+  const modal = document.querySelector(".info-modal-overlay");
+  if (modal) modal.remove();
+}
+
+// ===========================
+// FAVORITOS
+// ===========================
+
+function addToFavorites(id, type) {
+  const favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+  const key = `${type}-${id}`;
+
+  if (favorites.includes(key)) {
+    showMessage("❤️ Já está nos favoritos!");
+    return;
+  }
+
+  favorites.push(key);
+  localStorage.setItem("favorites", JSON.stringify(favorites));
+  showMessage("✅ Adicionado aos favoritos!");
+}
+
+// ===========================
+// UTILITÁRIOS
+// ===========================
+
+function escapeHtml(text) {
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+function showLoadingState() {
+  const loader = document.getElementById("loading-overlay");
+  if (loader) {
+    loader.style.display = "flex";
+    console.log("🔄 Loading exibido");
   }
 }
 
-// ==================== MODAL DO PERFIL ====================
+function hideLoadingState() {
+  const loader = document.getElementById("loading-overlay");
+  if (loader) {
+    loader.style.display = "none";
+    console.log("✅ Loading ocultado");
+  }
+}
+
+function showMessage(message) {
+  const container = document.getElementById("toast-container") || document.body;
+  const toast = document.createElement("div");
+  toast.className = "toast-message";
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => toast.classList.add("show"), 100);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function showErrorMessage(message) {
+  console.error("❌", message);
+  showMessage(message);
+}
+
+function viewAllSection(sectionId) {
+  console.log(`Ver todos: ${sectionId}`);
+  showMessage("Funcionalidade em desenvolvimento! 🚧");
+}
+
+function logout() {
+  if (confirm("Deseja realmente sair?")) {
+    // Fazer logout do Supabase
+    if (window.supabase) {
+      window.supabase.auth
+        .signOut()
+        .then(() => {
+          localStorage.removeItem("currentUser");
+          localStorage.removeItem("currentSubscription");
+          window.location.href = "index.html";
+        })
+        .catch((error) => {
+          console.error("Erro no logout:", error);
+          // Mesmo com erro, redirecionar
+          localStorage.removeItem("currentUser");
+          localStorage.removeItem("currentSubscription");
+          window.location.href = "index.html";
+        });
+    } else {
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("currentSubscription");
+      window.location.href = "index.html";
+    }
+  }
+}
+
+// ===========================
+// DADOS MOCK (FALLBACK)
+// ===========================
+
+function getMockData() {
+  return [
+    {
+      id: "one-piece-100",
+      name: "One Piece",
+      poster: "https://via.placeholder.com/300x450?text=One+Piece",
+      rating: 9.5,
+      episodes: { sub: 1000 },
+      type: "anime",
+    },
+    {
+      id: "naruto-shippuden",
+      name: "Naruto Shippuden",
+      poster: "https://via.placeholder.com/300x450?text=Naruto",
+      rating: 9.2,
+      episodes: { sub: 500 },
+      type: "anime",
+    },
+    {
+      id: "attack-on-titan-112",
+      name: "Attack on Titan",
+      poster: "https://via.placeholder.com/300x450?text=AOT",
+      rating: 9.8,
+      episodes: { sub: 87 },
+      type: "anime",
+    },
+  ];
+}
+
+// ===========================
+// EXPOSIÇÃO GLOBAL
+// ===========================
+
+window.playContent = playContent;
+window.showInfo = showInfo;
+window.searchContent = searchContent;
+window.filterContent = filterContent;
+window.addToFavorites = addToFavorites;
+window.logout = logout;
+window.closeInfoModal = closeInfoModal;
+window.viewAllSection = viewAllSection;
+window.showFavorites = showFavorites;
+// ADICIONAR AO FINAL DO ARQUIVO (na seção de exposição global):
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
+
+// ===========================
+// INICIALIZAÇÃO AUTOMÁTICA - CORRIGIDO
+// ===========================
+
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("📄 DOM Carregado");
+
+  // Pequeno delay para garantir que scripts carregaram
+  setTimeout(() => {
+    console.log("🎯 Chamando init()...");
+    init();
+  }, 100);
+});
+
+// ===========================
+// MODAL DO PERFIL
+// ===========================
 
 async function openProfileModal() {
+  if (!currentUser || !currentSubscription) {
+    showMessage("❌ Dados não disponíveis");
+    return;
+  }
+
+  showLoadingState();
+
   try {
-    const user = await checkAuth();
-    if (!user) return;
-    
-    const subscription = await checkSubscription(user.id);
-    
-    const modalHtml = `
+    // Calcular dias restantes
+    const now = new Date();
+    const expiresAt = new Date(currentSubscription.expires_at);
+    const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+
+    // Buscar histórico recente (últimos 3 dias)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const recentHistory = watchHistory
+      .filter((item) => new Date(item.lastWatched) >= threeDaysAgo)
+      .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
+      .slice(0, 10);
+
+    // Buscar última compra
+    let lastPayment = null;
+    if (window.supabase) {
+      const { data } = await window.supabase
+        .from("payments")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      lastPayment = data;
+    }
+
+    const modalHTML = `
       <div class="profile-modal-overlay" onclick="closeProfileModal(event)">
         <div class="profile-modal" onclick="event.stopPropagation()">
-          <button class="btn-close" onclick="closeProfileModal()">✕</button>
+          <button onclick="closeProfileModal()" class="btn-close">✕</button>
           
           <div class="profile-header">
-            <div class="profile-avatar">
-              ${user.email.charAt(0).toUpperCase()}
-            </div>
+            <div class="profile-avatar">👤</div>
             <div class="profile-info">
-              <h2>${user.email}</h2>
-              ${subscription ? `
-                <span class="profile-badge">
-                  👑 ${window.PLANS[subscription.plan_type]?.name || 'Premium'}
-                </span>
-              ` : '<span style="color: #9ca3af;">Sem assinatura ativa</span>'}
+              <h2>${escapeHtml(currentUser.email)}</h2>
+              <span class="profile-badge">👑 Membro Premium</span>
             </div>
           </div>
-          
+
           <div class="profile-stats">
             <div class="stat-card">
-              <span class="stat-icon">❤️</span>
+              <div class="stat-icon">⏰</div>
               <div class="stat-info">
-                <h3>${userFavorites.length}</h3>
-                <p>Favoritos</p>
+                <h3>${daysRemaining}</h3>
+                <p>Dias Restantes</p>
               </div>
             </div>
-            
+
             <div class="stat-card">
-              <span class="stat-icon">📺</span>
+              <div class="stat-icon">📅</div>
               <div class="stat-info">
-                <h3>${userHistory.length}</h3>
-                <p>Assistidos</p>
+                <h3>${
+                  formatDateBR(currentSubscription.expires_at).split(",")[0]
+                }</h3>
+                <p>Expira em</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon">📺</div>
+              <div class="stat-info">
+                <h3>${watchHistory.length}</h3>
+                <p>Animes Assistidos</p>
               </div>
             </div>
           </div>
-          
-          ${subscription ? `
-            <div class="profile-section">
-              <h3>💳 Assinatura</h3>
-              <div class="payment-info">
-                <p><strong>Plano:</strong> ${window.PLANS[subscription.plan_type]?.name || 'Premium'}</p>
-                <p><strong>Status:</strong> <span class="status-approved">Ativo</span></p>
-                <p><strong>Expira em:</strong> ${new Date(subscription.expires_at).toLocaleDateString('pt-BR')}</p>
-              </div>
+
+          ${
+            lastPayment
+              ? `
+          <div class="profile-section">
+            <h3>💳 Última Compra</h3>
+            <div class="payment-info">
+              <p><strong>Plano:</strong> ${
+                PLANS[currentSubscription.plan_type]?.name ||
+                currentSubscription.plan_type
+              }</p>
+              <p><strong>Valor:</strong> ${formatCurrency(
+                lastPayment.amount
+              )}</p>
+              <p><strong>Data:</strong> ${formatDateBR(
+                lastPayment.created_at
+              )}</p>
+              <p><strong>Status:</strong> <span class="status-approved">✅ Aprovado</span></p>
             </div>
-          ` : ''}
-          
-          ${userHistory.length > 0 ? `
-            <div class="profile-section">
-              <h3>⏱️ Histórico Recente</h3>
+          </div>
+          `
+              : ""
+          }
+
+          <div class="profile-section">
+            <h3>📺 Histórico Recente (3 dias)</h3>
+            ${
+              recentHistory.length > 0
+                ? `
               <div class="history-list">
-                ${userHistory.slice(0, 5).map(item => `
-                  <div class="history-item" onclick="window.location.href='player.html?id=${item.anime_id}&ep=${item.episode_number}'">
-                    <img src="${item.anime_poster}" alt="${item.anime_name}">
+                ${recentHistory
+                  .map(
+                    (item) => `
+                  <div class="history-item" onclick="playContent('${escapeHtml(
+                    item.id
+                  )}', '${item.type}'); closeProfileModal();">
+                    <img src="${item.image}" alt="${escapeHtml(
+                      item.title
+                    )}" onerror="this.src='https://via.placeholder.com/80x120?text=No+Image'">
                     <div class="history-details">
-                      <h4>${item.anime_name}</h4>
-                      <p>Episódio ${item.episode_number}</p>
-                      <p class="history-date">${new Date(item.last_watched).toLocaleDateString('pt-BR')}</p>
+                      <h4>${escapeHtml(item.title)}</h4>
+                      <p>⏱️ ${item.progress}% concluído</p>
+                      <p class="history-date">${formatDateBR(
+                        item.lastWatched
+                      )}</p>
                     </div>
                   </div>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </div>
-            </div>
-          ` : '<div class="no-history">📺 Nenhum histórico ainda</div>'}
-          
+            `
+                : `
+              <p class="no-history">📭 Nenhum anime assistido nos últimos 3 dias</p>
+            `
+            }
+          </div>
+
           <div class="profile-actions">
-            <button class="btn-primary" onclick="window.location.href='content.html'">
-              🏠 Página Inicial
+            <button onclick="window.location.href='index.html#plans'" class="btn-primary">
+              🚀 Renovar Assinatura
             </button>
-            <button class="btn-secondary" onclick="closeProfileModal()">
-              ✕ Fechar
+            <button onclick="closeProfileModal()" class="btn-secondary">
+              Fechar
             </button>
           </div>
         </div>
       </div>
     `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
+
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
   } catch (error) {
-    console.error('❌ Erro ao abrir perfil:', error);
-    showToast('Erro ao carregar perfil', 'error');
+    console.error("❌ Erro ao abrir perfil:", error);
+    showErrorMessage("Erro ao carregar perfil");
+  } finally {
+    hideLoadingState();
   }
 }
 
 function closeProfileModal(event) {
-  if (event && event.target.className !== 'profile-modal-overlay') return;
-  
-  const modal = document.querySelector('.profile-modal-overlay');
-  if (modal) {
-    modal.remove();
-  }
+  if (event) event.stopPropagation();
+  const modal = document.querySelector(".profile-modal-overlay");
+  if (modal) modal.remove();
 }
 
-// Expor função para o HTML
-window.openProfileModal = openProfileModal;
-window.showAnimeInfo = showAnimeInfo;
-window.toggleFavorite = toggleFavorite;
-window.closeInfoModal = closeInfoModal;
-window.closeProfileModal = closeProfileModal;
-
-// ==================== INICIALIZAÇÃO ====================
-
-async function init() {
-  console.log('🚀 Iniciando aplicação...');
-  
-  try {
-    // ✅ Verificar se API está disponível
-    if (typeof window.api === 'undefined') {
-      throw new Error('API Service não carregado');
-    }
-    
-    console.log('✅ API disponível:', window.api);
-    
-    // Verificar autenticação
-    const user = await checkAuth();
-    
-    if (!user) {
-      window.location.href = 'index.html';
-      return;
-    }
-    
-    // Mostrar email do usuário
-    const userEmailElement = document.getElementById('user-email');
-    if (userEmailElement) {
-      userEmailElement.textContent = user.email;
-    }
-    
-    // Verificar assinatura
-    const subscription = await checkSubscription(user.id);
-    
-    if (!subscription) {
-      showError('Você não possui uma assinatura ativa. Assine para acessar o conteúdo!');
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 3000);
-      return;
-    }
-    
-    // Verificar se assinatura expirou
-    const now = new Date();
-    const expiresAt = new Date(subscription.expires_at);
-    
-    if (now > expiresAt) {
-      showError('Sua assinatura expirou. Renove para continuar assistindo!');
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 3000);
-      return;
-    }
-    
-    console.log('✅ Configurando event listeners...');
-    
-    // Configurar navegação e busca
-    setupNavigation();
-    setupSearch();
-    setupLogout();
-    
-    console.log('📦 Carregando dados do usuário...');
-    
-    // Carregar dados do usuário
-    await loadFavorites(user.id);
-    await loadHistory(user.id);
-    
-    console.log('📺 Carregando conteúdo inicial...');
-    
-    // Carregar conteúdo inicial
-    await loadHomeContent();
-    
-    console.log('✅ Aplicação inicializada com sucesso!');
-    
-  } catch (error) {
-    console.error('❌ Erro fatal na inicialização:', error);
-    showError(`Erro ao inicializar: ${error.message}`);
-  }
-}
-
-// ==================== AGUARDAR DOM E API ====================
-
-console.log('🔍 Verificando API no início do script...');
-console.log('🔍 window.api existe?', typeof window.api !== 'undefined');
-console.log('🔍 window.api:', window.api);
-
-// Aguardar carregamento do DOM
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('📄 DOM Carregado');
-  
-  // Verificar se API já está disponível
-  if (typeof window.api !== 'undefined') {
-    console.log('✅ API já disponível, iniciando...');
-    init();
-  } else {
-    // Aguardar API ser carregada
-    console.log('⏳ Aguardando API...');
-    let attempts = 0;
-    const maxAttempts = 50;
-    
-    const checkAPI = setInterval(() => {
-      attempts++;
-      
-      if (typeof window.api !== 'undefined') {
-        console.log('✅ API carregada após', attempts, 'tentativas');
-        clearInterval(checkAPI);
-        init();
-      } else if (attempts >= maxAttempts) {
-        console.error('❌ API não foi carregada após', maxAttempts, 'tentativas');
-        clearInterval(checkAPI);
-        showError('Erro ao carregar serviços da aplicação. Recarregue a página.');
-      }
-    }, 100);
-  }
-});
-
-console.log('✅ content-streaming.js carregado!');
+console.log("✅ content-streaming.js carregado!");
