@@ -2,10 +2,7 @@
 // Mude apenas a baseURL para apontar para seu backend
 
 const API_CONFIG = {
-  // ⚠️ IMPORTANTE: Altere isso para a URL do seu backend
-  baseURL: "https://yayapi-delta.vercel.app/api/anime", // Mude para seu domínio
-  // Exemplo: "https://yayanimes-api.vercel.app/api/anime"
-  // Exemplo local: "http://localhost:3001/api/anime"
+  baseURL: "https://yayapi-delta.vercel.app/api/v2/hianime",
 
   headers: {
     "Content-Type": "application/json",
