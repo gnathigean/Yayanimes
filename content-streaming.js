@@ -156,13 +156,22 @@ async function loadFavorites() {
       .select('anime_id')
       .eq('user_id', currentUser.id);
 
-    if (error) throw error;
+    // ✅ Tratar erro de tabela não existente
+    if (error) {
+      if (error.code === 'PGRST205') {
+        console.warn('⚠️ Tabela favorites não existe ainda');
+        favoriteAnimes = new Set();
+        return;
+      }
+      throw error;
+    }
 
     favoriteAnimes = new Set(data.map(f => f.anime_id));
     console.log('✅ Favoritos carregados:', favoriteAnimes.size);
 
   } catch (error) {
     console.error('❌ Erro ao carregar favoritos:', error);
+    favoriteAnimes = new Set(); // Inicializar vazio em caso de erro
   }
 }
 
@@ -236,13 +245,22 @@ async function loadWatchHistory() {
       .order('last_watched', { ascending: false })
       .limit(10);
 
-    if (error) throw error;
+    // ✅ Tratar erro de tabela não existente
+    if (error) {
+      if (error.code === 'PGRST205') {
+        console.warn('⚠️ Tabela watch_history não existe ainda');
+        watchHistory = [];
+        return;
+      }
+      throw error;
+    }
 
     watchHistory = data || [];
     console.log('✅ Histórico carregado:', watchHistory.length);
 
   } catch (error) {
     console.error('❌ Erro ao carregar histórico:', error);
+    watchHistory = []; // Inicializar vazio em caso de erro
   }
 }
 
@@ -276,37 +294,45 @@ async function saveWatchHistory(animeId, episodeNumber, progress = 0) {
 function createAnimeCard(anime) {
   const isFavorite = favoriteAnimes.has(anime.id);
   
+  // Garantir que temos um ID válido
+  const animeId = anime.id || anime.animeId || '';
+  const animeName = anime.name || anime.title || 'Sem título';
+  const animePoster = anime.poster || anime.image || 'https://via.placeholder.com/300x450/667eea/ffffff?text=No+Image';
+  
   return `
-    <div class="content-card" data-anime-id="${anime.id}">
+    <div class="content-card" data-anime-id="${animeId}">
       <div class="card-image">
-        <img src="${anime.poster || 'https://via.placeholder.com/300x450/667eea/ffffff?text=No+Image'}" 
-             alt="${anime.name}"
+        <img src="${animePoster}" 
+             alt="${animeName}"
+             loading="lazy"
              onerror="this.src='https://via.placeholder.com/300x450/667eea/ffffff?text=Error'">
         
         <div class="card-overlay">
           <div class="overlay-details">
-            <h4 class="card-title">${anime.name}</h4>
+            <h4 class="card-title">${animeName}</h4>
             <div class="card-meta">
               ${anime.type ? `<span>📺 ${anime.type}</span>` : ''}
               ${anime.duration ? `<span>⏱️ ${anime.duration}</span>` : ''}
+              ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
             </div>
           </div>
           
           <div class="card-actions">
-            <button class="btn-play" onclick="watchAnime('${anime.id}', 1)">
+            <button class="btn-play" onclick="watchAnime('${animeId}', 1)">
               ▶️ Assistir
             </button>
-            <button class="btn-info" onclick="showAnimeInfo('${anime.id}')">
+            <button class="btn-info" onclick="showAnimeInfo('${animeId}')">
               ℹ️ Info
             </button>
           </div>
         </div>
 
         ${anime.episodes?.sub ? `<div class="card-badge">EP ${anime.episodes.sub}</div>` : ''}
+        ${anime.episodes?.dub ? `<div class="card-badge" style="top: 45px;">DUB EP ${anime.episodes.dub}</div>` : ''}
       </div>
 
       <div class="card-info">
-        <h4 class="card-title">${anime.name}</h4>
+        <h4 class="card-title">${animeName}</h4>
         <div class="card-meta">
           ${anime.type ? `<span>${anime.type}</span>` : ''}
           ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
@@ -314,8 +340,8 @@ function createAnimeCard(anime) {
       </div>
 
       <button class="card-favorite ${isFavorite ? 'active' : ''}" 
-              data-anime-id="${anime.id}"
-              onclick="toggleFavorite('${anime.id}')">
+              data-anime-id="${animeId}"
+              onclick="toggleFavorite('${animeId}')">
         ${isFavorite ? '❤️' : '🤍'}
       </button>
     </div>
@@ -355,6 +381,7 @@ async function loadHomeContent() {
 
     const homeData = await window.api.getHome();
     console.log('✅ Dados home carregados:', homeData);
+    console.log('📊 Estrutura dos dados:', JSON.stringify(homeData.data, null, 2).substring(0, 500));
 
     // ✅ API retorna { status: 200, data: {...} }
     if (!homeData || !homeData.data) {
@@ -367,7 +394,23 @@ async function loadHomeContent() {
     // Renderizar seções da API
     const sections = homeData.data?.sections || [];
     
-    sections.forEach(section => {
+    console.log('📦 Total de seções:', sections.length);
+    
+    if (sections.length === 0) {
+      console.warn('⚠️ Nenhuma seção encontrada nos dados');
+      container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: white;">
+          <h3 style="font-size: 24px; margin-bottom: 15px;">📺 Nenhum conteúdo disponível</h3>
+          <p style="color: #9ca3af;">Os animes serão carregados em breve.</p>
+        </div>
+      `;
+      hideLoading();
+      return;
+    }
+    
+    sections.forEach((section, index) => {
+      console.log(`📋 Seção ${index + 1}:`, section.title, '- Animes:', section.animes?.length || 0);
+      
       if (section.animes && section.animes.length > 0) {
         const sectionElement = renderAnimeSection(
           section.id || 'section-' + Math.random(),
