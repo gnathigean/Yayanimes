@@ -228,7 +228,7 @@
       }
 
       // ===========================
-      // CARREGAR ANIME
+      // CARREGAR ANIME - CORRIGIDO
       // ===========================
 
       async function loadAnime(animeId, episodeNumber) {
@@ -240,7 +240,8 @@
           // Carregar informações do anime
           console.log("📡 Buscando informações...");
           const infoData = await window.AnimeAPI.getAnimeInfo(animeId);
-          animeInfo = infoData.anime?.info || infoData;
+          animeInfo =
+            infoData.data?.anime?.info || infoData.anime?.info || infoData;
 
           console.log("✅ Info carregada:", animeInfo);
 
@@ -256,9 +257,21 @@
           // Carregar episódios
           console.log("📡 Buscando episódios...");
           const episodesData = await window.AnimeAPI.getAnimeEpisodes(animeId);
-          currentEpisodes = episodesData.episodes || [];
 
-          console.log(`✅ ${currentEpisodes.length} episódios carregados`);
+          console.log("📦 Dados de episódios recebidos:", episodesData);
+
+          // CORREÇÃO CRÍTICA: Extrair episódios corretamente
+          currentEpisodes =
+            episodesData.episodes || episodesData.data?.episodes || [];
+
+          console.log(
+            `✅ ${currentEpisodes.length} episódios carregados`,
+            currentEpisodes
+          );
+
+          if (currentEpisodes.length === 0) {
+            throw new Error("Nenhum episódio disponível para este anime");
+          }
 
           // Renderizar lista de episódios
           renderEpisodes(currentEpisodes, episodeNumber);
@@ -267,6 +280,7 @@
           const currentEpisode = currentEpisodes.find(
             (ep) => ep.number === episodeNumber
           );
+
           if (currentEpisode) {
             await loadEpisode(
               currentEpisode.episodeId,
@@ -294,7 +308,7 @@
           const serversData = await window.AnimeAPI.getEpisodeServers(
             episodeId
           );
-          const servers = serversData.servers || [];
+          const servers = serversData.sub || serversData.servers || [];
 
           console.log("✅ Servidores disponíveis:", servers);
 
@@ -463,7 +477,10 @@
           title: animeTitle,
           image: animeInfo?.poster || "",
           episode: episodeNumber,
-          progress: 0,
+          progress: Math.min(
+            100,
+            Math.round((episodeNumber / (currentEpisodes.length || 1)) * 100)
+          ),
           lastWatched: new Date().toISOString(),
           type: "anime",
         };
@@ -480,6 +497,7 @@
         }
 
         localStorage.setItem("watch_history", JSON.stringify(history));
+        console.log("✅ Histórico atualizado:", historyItem);
       }
 
       // ===========================

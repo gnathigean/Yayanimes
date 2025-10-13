@@ -888,6 +888,9 @@ window.logout = logout;
 window.closeInfoModal = closeInfoModal;
 window.viewAllSection = viewAllSection;
 window.showFavorites = showFavorites;
+// ADICIONAR AO FINAL DO ARQUIVO (na seção de exposição global):
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
 
 // ===========================
 // INICIALIZAÇÃO AUTOMÁTICA - CORRIGIDO
@@ -902,5 +905,172 @@ document.addEventListener("DOMContentLoaded", function () {
     init();
   }, 100);
 });
+
+// ===========================
+// MODAL DO PERFIL
+// ===========================
+
+async function openProfileModal() {
+  if (!currentUser || !currentSubscription) {
+    showMessage("❌ Dados não disponíveis");
+    return;
+  }
+
+  showLoadingState();
+
+  try {
+    // Calcular dias restantes
+    const now = new Date();
+    const expiresAt = new Date(currentSubscription.expires_at);
+    const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+
+    // Buscar histórico recente (últimos 3 dias)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const recentHistory = watchHistory
+      .filter((item) => new Date(item.lastWatched) >= threeDaysAgo)
+      .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
+      .slice(0, 10);
+
+    // Buscar última compra
+    let lastPayment = null;
+    if (window.supabase) {
+      const { data } = await window.supabase
+        .from("payments")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      lastPayment = data;
+    }
+
+    const modalHTML = `
+      <div class="profile-modal-overlay" onclick="closeProfileModal(event)">
+        <div class="profile-modal" onclick="event.stopPropagation()">
+          <button onclick="closeProfileModal()" class="btn-close">✕</button>
+          
+          <div class="profile-header">
+            <div class="profile-avatar">👤</div>
+            <div class="profile-info">
+              <h2>${escapeHtml(currentUser.email)}</h2>
+              <span class="profile-badge">👑 Membro Premium</span>
+            </div>
+          </div>
+
+          <div class="profile-stats">
+            <div class="stat-card">
+              <div class="stat-icon">⏰</div>
+              <div class="stat-info">
+                <h3>${daysRemaining}</h3>
+                <p>Dias Restantes</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon">📅</div>
+              <div class="stat-info">
+                <h3>${
+                  formatDateBR(currentSubscription.expires_at).split(",")[0]
+                }</h3>
+                <p>Expira em</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon">📺</div>
+              <div class="stat-info">
+                <h3>${watchHistory.length}</h3>
+                <p>Animes Assistidos</p>
+              </div>
+            </div>
+          </div>
+
+          ${
+            lastPayment
+              ? `
+          <div class="profile-section">
+            <h3>💳 Última Compra</h3>
+            <div class="payment-info">
+              <p><strong>Plano:</strong> ${
+                PLANS[currentSubscription.plan_type]?.name ||
+                currentSubscription.plan_type
+              }</p>
+              <p><strong>Valor:</strong> ${formatCurrency(
+                lastPayment.amount
+              )}</p>
+              <p><strong>Data:</strong> ${formatDateBR(
+                lastPayment.created_at
+              )}</p>
+              <p><strong>Status:</strong> <span class="status-approved">✅ Aprovado</span></p>
+            </div>
+          </div>
+          `
+              : ""
+          }
+
+          <div class="profile-section">
+            <h3>📺 Histórico Recente (3 dias)</h3>
+            ${
+              recentHistory.length > 0
+                ? `
+              <div class="history-list">
+                ${recentHistory
+                  .map(
+                    (item) => `
+                  <div class="history-item" onclick="playContent('${escapeHtml(
+                    item.id
+                  )}', '${item.type}'); closeProfileModal();">
+                    <img src="${item.image}" alt="${escapeHtml(
+                      item.title
+                    )}" onerror="this.src='https://via.placeholder.com/80x120?text=No+Image'">
+                    <div class="history-details">
+                      <h4>${escapeHtml(item.title)}</h4>
+                      <p>⏱️ ${item.progress}% concluído</p>
+                      <p class="history-date">${formatDateBR(
+                        item.lastWatched
+                      )}</p>
+                    </div>
+                  </div>
+                `
+                  )
+                  .join("")}
+              </div>
+            `
+                : `
+              <p class="no-history">📭 Nenhum anime assistido nos últimos 3 dias</p>
+            `
+            }
+          </div>
+
+          <div class="profile-actions">
+            <button onclick="window.location.href='index.html#plans'" class="btn-primary">
+              🚀 Renovar Assinatura
+            </button>
+            <button onclick="closeProfileModal()" class="btn-secondary">
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+  } catch (error) {
+    console.error("❌ Erro ao abrir perfil:", error);
+    showErrorMessage("Erro ao carregar perfil");
+  } finally {
+    hideLoadingState();
+  }
+}
+
+function closeProfileModal(event) {
+  if (event) event.stopPropagation();
+  const modal = document.querySelector(".profile-modal-overlay");
+  if (modal) modal.remove();
+}
 
 console.log("✅ content-streaming.js carregado!");
