@@ -1,46 +1,63 @@
-// api/proxy-stream.js
+// api/proxy-stream.js - Função Serverless do Vercel
 
-import fetch from "node-fetch";
+// Certifique-se de que o Vercel pode usar fetch (requer Node.js 18+)
 
 export default async function (req, res) {
-  const { url } = req.query;
+  // Extrai a URL real do vídeo do parâmetro 'url'
+  const videoUrl = req.query.url;
 
-  if (!url) {
-    return res.status(400).send('Falta o parâmetro "url"');
+  if (!videoUrl) {
+    return res.status(400).send('Parâmetro "url" faltando.');
   }
 
+  // Adiciona o cabeçalho CORS para permitir que seu site acesse
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+
+  // Lida com requisições OPTIONS (pré-voo CORS)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  console.log(`[PROXY] Buscando stream real: ${videoUrl}`);
+
   try {
-    // 1. Faz a requisição ao servidor de vídeo (stormshade84.live)
-    const streamResponse = await fetch(url, {
-      // Adicionar headers para simular um navegador legítimo pode ajudar com o 403
+    // Faz a requisição ao servidor de streaming (server-to-server)
+    const streamResponse = await fetch(videoUrl, {
+      method: "GET",
+      // Simula headers de um navegador para evitar 403 (hotlink protection)
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        Referer: "https://yayanimes.vercel.app/", // Opcional, mas útil para hotlink protection
+        // O Referer pode ser crucial para burlar o hotlink protection
+        Referer: "https://yayanimes.vercel.app/",
       },
     });
 
     if (!streamResponse.ok) {
-      // Retorna o status de erro do servidor de vídeo (por exemplo, 403)
+      console.error(`[PROXY ERROR] Status: ${streamResponse.status}`);
       return res
-        .status(streamResponse.status)
-        .send(`Erro ao buscar stream: ${streamResponse.statusText}`);
+        .status(502)
+        .send(`Erro do servidor de streaming: ${streamResponse.status}`);
     }
 
-    // 2. Copia os cabeçalhos relevantes e adiciona o CORS
-    res.setHeader("Access-Control-Allow-Origin", "*"); // Permite CORS no seu próprio domínio
-    res.setHeader(
-      "Content-Type",
+    // Copia os cabeçalhos do stream (M3U8)
+    const contentType =
       streamResponse.headers.get("Content-Type") ||
-        "application/vnd.apple.mpegurl"
-    );
-    res.setHeader("Cache-Control", "public, max-age=600");
+      "application/vnd.apple.mpegurl";
+    res.setHeader("Content-Type", contentType);
 
-    // Opcional: Copia cabeçalhos de streaming como Content-Length, etc.
+    // Copia cabeçalhos importantes para streaming e cache
     const headersToForward = [
       "Content-Length",
       "Accept-Ranges",
       "Transfer-Encoding",
+      "Cache-Control",
+      "Etag",
     ];
     headersToForward.forEach((header) => {
       if (streamResponse.headers.has(header)) {
@@ -48,10 +65,11 @@ export default async function (req, res) {
       }
     });
 
-    // 3. Envia o corpo do stream de volta ao cliente
-    streamResponse.body.pipe(res);
+    // Envia o corpo da resposta como um stream
+    const buffer = await streamResponse.arrayBuffer();
+    return res.status(200).send(Buffer.from(buffer)); // Use Buffer para Vercel
   } catch (error) {
-    console.error("Erro no proxy:", error);
-    res.status(500).send("Erro interno do proxy");
+    console.error("[PROXY FATAL ERROR]", error);
+    res.status(500).send("Erro interno ao processar o stream.");
   }
 }
