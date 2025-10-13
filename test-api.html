@@ -10,12 +10,15 @@
         background: #0f172a;
         color: white;
         padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
       }
       pre {
         background: #1e293b;
         padding: 15px;
         border-radius: 8px;
         overflow-x: auto;
+        max-height: 600px;
       }
       button {
         background: #667eea;
@@ -25,19 +28,40 @@
         border-radius: 6px;
         cursor: pointer;
         margin: 5px;
+        font-size: 14px;
       }
       button:hover {
         background: #5568d3;
       }
+      .status {
+        padding: 10px;
+        border-radius: 6px;
+        margin: 10px 0;
+      }
+      .success {
+        background: #10b981;
+      }
+      .error {
+        background: #ef4444;
+      }
+      .warning {
+        background: #f59e0b;
+      }
     </style>
   </head>
   <body>
-    <h1>🧪 Teste da API</h1>
+    <h1>🧪 Teste da API YayAnimes</h1>
+
+    <div id="status" class="status warning">Aguardando testes...</div>
 
     <div>
-      <button onclick="testHomepage()">Testar Homepage</button>
-      <button onclick="testSearch()">Testar Busca</button>
-      <button onclick="testAnimeInfo()">Testar Info Anime</button>
+      <button onclick="testHomepage()">📺 Testar Homepage</button>
+      <button onclick="testSearch()">🔍 Testar Busca</button>
+      <button onclick="testAnimeInfo()">ℹ️ Testar Info (One Piece)</button>
+      <button onclick="testAnimeInfoCustom()">
+        ℹ️ Testar Info (Custom ID)
+      </button>
+      <button onclick="testEpisodes()">📋 Testar Episódios</button>
     </div>
 
     <h2>Resultado:</h2>
@@ -45,16 +69,26 @@
 
     <script src="api-service.js"></script>
     <script>
+      const status = document.getElementById("status");
+      const output = document.getElementById("output");
+
+      function setStatus(message, type) {
+        status.textContent = message;
+        status.className = `status ${type}`;
+      }
+
       async function testHomepage() {
-        const output = document.getElementById("output");
-        output.textContent = "Carregando...";
+        output.textContent = "Carregando homepage...";
+        setStatus("Testando...", "warning");
 
         try {
           const data = await window.AnimeAPI.loadContentForHomepage();
           output.textContent = JSON.stringify(data, null, 2);
+          setStatus("✅ Homepage OK!", "success");
           console.log("✅ Homepage data:", data);
         } catch (error) {
           output.textContent = `❌ Erro: ${error.message}\n\n${error.stack}`;
+          setStatus("❌ Erro na Homepage", "error");
           console.error(error);
         }
       }
@@ -63,47 +97,102 @@
         const query = prompt("Digite o nome do anime:", "naruto");
         if (!query) return;
 
-        const output = document.getElementById("output");
-        output.textContent = "Buscando...";
+        output.textContent = `Buscando "${query}"...`;
+        setStatus("Buscando...", "warning");
 
         try {
           const data = await window.AnimeAPI.searchAnimes(query);
           output.textContent = JSON.stringify(data, null, 2);
+          setStatus(
+            `✅ Encontrados ${data.animes?.length || 0} resultados`,
+            "success"
+          );
           console.log("✅ Search results:", data);
         } catch (error) {
           output.textContent = `❌ Erro: ${error.message}\n\n${error.stack}`;
+          setStatus("❌ Erro na Busca", "error");
           console.error(error);
         }
       }
 
       async function testAnimeInfo() {
-        const id = prompt("Digite o ID do anime:", "one-piece-100");
-        if (!id) return;
+        // Usando ID conhecido do One Piece
+        const id = "one-piece-100";
 
-        const output = document.getElementById("output");
-        output.textContent = "Carregando info...";
+        output.textContent = `Carregando info de "${id}"...`;
+        setStatus("Carregando info...", "warning");
 
         try {
           const data = await window.AnimeAPI.getAnimeInfo(id);
           output.textContent = JSON.stringify(data, null, 2);
+          setStatus("✅ Info OK!", "success");
           console.log("✅ Anime info:", data);
         } catch (error) {
+          output.textContent = `❌ Erro: ${error.message}\n\nTente outro ID.\n\n${error.stack}`;
+          setStatus("❌ Erro ao buscar Info", "error");
+          console.error(error);
+        }
+      }
+
+      async function testAnimeInfoCustom() {
+        const id = prompt(
+          "Digite o ID do anime (ex: naruto-shippuden, attack-on-titan-112):",
+          "naruto-shippuden"
+        );
+        if (!id) return;
+
+        output.textContent = `Carregando info de "${id}"...`;
+        setStatus("Carregando info...", "warning");
+
+        try {
+          const data = await window.AnimeAPI.getAnimeInfo(id);
+          output.textContent = JSON.stringify(data, null, 2);
+          setStatus("✅ Info OK!", "success");
+          console.log("✅ Anime info:", data);
+        } catch (error) {
+          output.textContent = `❌ Erro: ${error.message}\n\nID inválido ou anime não encontrado.\n\n${error.stack}`;
+          setStatus("❌ Erro ao buscar Info", "error");
+          console.error(error);
+        }
+      }
+
+      async function testEpisodes() {
+        const id = prompt("Digite o ID do anime:", "one-piece-100");
+        if (!id) return;
+
+        output.textContent = `Carregando episódios de "${id}"...`;
+        setStatus("Carregando episódios...", "warning");
+
+        try {
+          const data = await window.AnimeAPI.getAnimeEpisodes(id);
+          output.textContent = JSON.stringify(data, null, 2);
+          setStatus(
+            `✅ ${data.episodes?.length || 0} episódios encontrados`,
+            "success"
+          );
+          console.log("✅ Episodes:", data);
+        } catch (error) {
           output.textContent = `❌ Erro: ${error.message}\n\n${error.stack}`;
+          setStatus("❌ Erro ao buscar Episódios", "error");
           console.error(error);
         }
       }
 
       // Verificar se API carregou
       window.addEventListener("load", () => {
-        if (window.AnimeAPI) {
-          console.log("✅ API carregada com sucesso!");
-          document.getElementById("output").textContent =
-            "✅ API carregada! Clique nos botões para testar.";
-        } else {
-          console.error("❌ API não foi carregada!");
-          document.getElementById("output").textContent =
-            "❌ Erro: API não carregada!";
-        }
+        setTimeout(() => {
+          if (window.AnimeAPI) {
+            console.log("✅ API carregada com sucesso!");
+            output.textContent =
+              '✅ API carregada!\n\nClique nos botões acima para testar.\n\nDica: Teste "Homepage" primeiro!';
+            setStatus("✅ API Pronta", "success");
+          } else {
+            console.error("❌ API não foi carregada!");
+            output.textContent =
+              "❌ Erro: API não carregada!\n\nVerifique o console.";
+            setStatus("❌ API não carregada", "error");
+          }
+        }, 500);
       });
     </script>
   </body>

@@ -1,98 +1,140 @@
-// /api/v2/hianime/[...slug].js
-// Proxy genérico para Aniwatch API com CORS habilitado
+// api-service.js - CORREÇÃO COMPLETA
 
-const ANIWATCH_BASE = "https://aniwatch-api-dusky.vercel.app/api/v2/hianime";
+const API_BASE_URL = "https://yayapi-delta.vercel.app/api/v2/hianime";
 
-// Cache simples (5 minutos)
-const cache = new Map();
+// ===========================
+// REQUISIÇÕES À API
+// ===========================
 
-function getCache(key) {
-  const cached = cache.get(key);
-  if (!cached) return null;
-
-  if (Date.now() > cached.expiry) {
-    cache.delete(key);
-    return null;
-  }
-
-  return cached.data;
-}
-
-function setCache(key, data) {
-  cache.set(key, {
-    data,
-    expiry: Date.now() + 5 * 60 * 1000, // 5 minutos
-  });
-}
-
-export default async (req, res) => {
-  // Habilitar CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Content-Type", "application/json");
-
-  // Responder a preflight requests
-  if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
-  }
+async function apiRequest(endpoint, options = {}) {
+  const url = `${API_BASE_URL}${endpoint}`;
+  console.log(`📡 Requisição: ${url}`);
 
   try {
-    // Pegar o slug (ex: ['home'] ou ['search'], etc)
-    const { slug } = req.query;
-    const path = slug ? "/" + slug.join("/") : "/home";
-
-    // Construir query string se existir
-    const queryString =
-      Object.keys(req.query).length > 0
-        ? "?" +
-          new URLSearchParams(
-            Object.entries(req.query).filter(([key]) => key !== "slug")
-          ).toString()
-        : "";
-
-    // Verificar cache
-    const cacheKey = `${path}${queryString}`;
-    const cached = getCache(cacheKey);
-
-    if (cached) {
-      console.log(`✅ Cache hit: ${path}`);
-      res.status(200).json(cached);
-      return;
-    }
-
-    // URL completa para a Aniwatch API
-    const url = `${ANIWATCH_BASE}${path}${queryString}`;
-
-    console.log(`🌐 Proxy request: ${url}`);
-
-    // Fazer requisição para Aniwatch
     const response = await fetch(url, {
+      method: options.method || "GET",
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Content-Type": "application/json",
+        ...options.headers,
       },
-      timeout: 10000,
+      ...options,
     });
 
     if (!response.ok) {
-      throw new Error(`Aniwatch API error: ${response.status}`);
+      throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
-
-    // Salvar no cache
-    setCache(cacheKey, data);
-
-    res.status(200).json(data);
+    console.log(`✅ Resposta de ${endpoint}:`, data);
+    return data;
   } catch (error) {
-    console.error("Proxy error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Erro ao buscar dados da API",
-      error: error.message,
-    });
+    console.error(`❌ Erro na requisição ${url}:`, error);
+    throw error;
   }
+}
+
+// ===========================
+// API METHODS
+// ===========================
+
+window.AnimeAPI = {
+  // Homepage - FUNCIONANDO
+  async loadContentForHomepage() {
+    try {
+      const data = await apiRequest("/home");
+      return data;
+    } catch (error) {
+      console.error("Erro ao carregar homepage:", error);
+      throw error;
+    }
+  },
+
+  // Buscar animes - FUNCIONANDO
+  async searchAnimes(query, page = 1) {
+    try {
+      const data = await apiRequest(
+        `/search?q=${encodeURIComponent(query)}&page=${page}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar animes:", error);
+      throw error;
+    }
+  },
+
+  // CORREÇÃO CRÍTICA: Info do anime
+  async getAnimeInfo(animeId) {
+    try {
+      // Remover qualquer parâmetro extra e garantir formato correto
+      const cleanId = animeId.split("?")[0];
+      const data = await apiRequest(`/anime/${cleanId}`);
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar info do anime:", error);
+      throw error;
+    }
+  },
+
+  // Episódios do anime
+  async getAnimeEpisodes(animeId) {
+    try {
+      const cleanId = animeId.split("?")[0];
+      const data = await apiRequest(`/anime/${cleanId}/episodes`);
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar episódios:", error);
+      throw error;
+    }
+  },
+
+  // Servidores de um episódio
+  async getEpisodeServers(episodeId) {
+    try {
+      const data = await apiRequest(
+        `/episode/servers?animeEpisodeId=${episodeId}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar servidores:", error);
+      throw error;
+    }
+  },
+
+  // Streams de um episódio
+  async getEpisodeStreams(episodeId, server = "hd-1", category = "sub") {
+    try {
+      const data = await apiRequest(
+        `/episode/sources?animeEpisodeId=${episodeId}&server=${server}&category=${category}`
+      );
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar streams:", error);
+      throw error;
+    }
+  },
+
+  // Gêneros disponíveis
+  async getGenres() {
+    try {
+      const data = await apiRequest("/genre");
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar gêneros:", error);
+      throw error;
+    }
+  },
+
+  // Produtores
+  async getProducers() {
+    try {
+      const data = await apiRequest("/producer");
+      return data;
+    } catch (error) {
+      console.error("Erro ao buscar produtores:", error);
+      throw error;
+    }
+  },
 };
+
+console.log("✅ API Service carregado!");
+console.log("📺 API Base:", API_BASE_URL);

@@ -324,3 +324,28 @@
     </style>
   </body>
 </html>
+<script>
+  // DEBUG - TEMPORÁRIO
+  console.log("=== DEBUG INFO ===");
+  console.log("currentUser:", localStorage.getItem("currentUser"));
+  console.log(
+    "currentSubscription:",
+    localStorage.getItem("currentSubscription")
+  );
+  console.log("API carregada:", !!window.AnimeAPI);
+  console.log("==================");
+
+  // Se não tiver dados, criar temporariamente para teste
+  if (!localStorage.getItem("currentUser")) {
+    console.warn("⚠️ Criando usuário de teste...");
+    localStorage.setItem(
+      "currentUser",
+      JSON.stringify({
+        email: "teste@premium.com",
+        id: "test-123",
+      })
+    );
+    localStorage.setItem("currentSubscription", "premium");
+    window.location.reload();
+  }
+</script>
