@@ -297,7 +297,6 @@
 
       // ==================== FUNÇÕES PRINCIPAIS ====================
 
-      // Função para carregar informações do anime
       async function loadAnime(animeId, episodeNumber) {
         console.log('📡 Carregando anime:', animeId, 'episódio:', episodeNumber);
 
@@ -305,26 +304,26 @@
           hideError();
           showLoading();
 
-          // Buscar informações do anime
           console.log('📡 Buscando informações...');
           const animeInfo = await api.getAnimeInfo(animeId);
           console.log('✅ Info carregada:', animeInfo);
 
-          if (!animeInfo) {
+          // ✅ ESTRUTURA CORRETA: animeInfo.data
+          if (!animeInfo || !animeInfo.data) {
             throw new Error('Informações do anime não encontradas');
           }
 
-          currentAnimeData = animeInfo;
+          currentAnimeData = animeInfo.data;
 
           // Renderizar informações do anime
-          renderAnimeInfo(animeInfo);
+          renderAnimeInfo(animeInfo.data);
 
-          // Buscar episódios
           console.log('📡 Buscando episódios...');
           const episodesData = await api.getAnimeEpisodes(animeId);
           console.log('📦 Dados de episódios recebidos:', episodesData);
 
-          const episodes = episodesData.episodes || [];
+          // ✅ ESTRUTURA CORRETA: episodesData.data.episodes
+          const episodes = episodesData.data?.episodes || [];
           console.log('✅ Episódios carregados:', episodes.length, episodes);
 
           if (episodes.length === 0) {
@@ -346,7 +345,7 @@
 
           console.log('🎯 Episódio encontrado:', currentEpisode);
 
-          // ✅ CORREÇÃO: Usar o episodeId COMPLETO sem modificações
+          // ✅ Usar o episodeId COMPLETO
           const episodeIdToLoad = currentEpisode.episodeId;
           console.log('🎯 EpisodeId completo a ser carregado:', episodeIdToLoad);
 
@@ -363,7 +362,6 @@
         }
       }
 
-      // ✅ FUNÇÃO CORRIGIDA - Não modificar o episodeId
       async function loadEpisode(episodeId) {
         console.log('==================');
         console.log('🔍 DEBUG loadEpisode');
@@ -378,26 +376,25 @@
           return;
         }
 
-        // Verificar se tem o formato correto
         if (!episodeId.includes('?ep=')) {
           console.warn('⚠️ EpisodeId pode estar incorreto (falta ?ep=)');
         }
 
         try {
-          // ✅ USAR O EPISODEID COMPLETO SEM MODIFICAÇÕES
           console.log('📡 Chamando getEpisodeServers com:', episodeId);
           const serversData = await api.getEpisodeServers(episodeId);
           console.log('✅ Servidores carregados:', serversData);
 
-          if (!serversData) {
+          // ✅ ESTRUTURA CORRETA: serversData.data
+          if (!serversData || !serversData.data) {
             throw new Error('Dados de servidores não encontrados');
           }
 
           // Armazenar dados dos servidores
           episodeServers = {
-            sub: serversData.sub || [],
-            dub: serversData.dub || [],
-            raw: serversData.raw || []
+            sub: serversData.data.sub || [],
+            dub: serversData.data.dub || [],
+            raw: serversData.data.raw || []
           };
 
           console.log('📦 Servidores disponíveis:', episodeServers);
@@ -416,7 +413,6 @@
             console.log(`🎯 Categoria selecionada: ${currentCategory}`);
             console.log(`🎯 Servidor selecionado: ${currentServer}`);
 
-            // ✅ PASSAR O EPISODEID COMPLETO
             await loadVideoSources(episodeId, currentServer, currentCategory);
           } else {
             throw new Error('Nenhum servidor disponível para este episódio');
@@ -428,7 +424,6 @@
         }
       }
 
-      // ✅ FUNÇÃO CORRIGIDA - Receber episodeId como parâmetro
       async function loadVideoSources(episodeId, server, category) {
         console.log('📡 Carregando fontes de vídeo...');
         console.log('📌 EpisodeId:', episodeId);
@@ -436,16 +431,16 @@
         console.log('📌 Category:', category);
 
         try {
-          // ✅ USAR O EPISODEID COMPLETO
           const sources = await api.getEpisodeSources(episodeId, server, category);
           console.log('✅ Fontes carregadas:', sources);
 
-          if (!sources || !sources.sources || sources.sources.length === 0) {
+          // ✅ ESTRUTURA CORRETA: sources.data
+          if (!sources || !sources.data || !sources.data.sources || sources.data.sources.length === 0) {
             throw new Error('Nenhuma fonte de vídeo encontrada');
           }
 
           // Inicializar player com HLS
-          initializePlayer(sources);
+          initializePlayer(sources.data);
 
         } catch (error) {
           console.error('❌ Erro ao carregar fontes:', error);
@@ -453,7 +448,6 @@
         }
       }
 
-      // Inicializar player com HLS.js
       function initializePlayer(sources) {
         console.log('🎬 Inicializando player...');
 
@@ -475,7 +469,6 @@
           if (Hls.isSupported()) {
             hls = new Hls({
               xhrSetup: function (xhr, url) {
-                // Adicionar headers customizados se necessário
                 if (sources.headers) {
                   Object.keys(sources.headers).forEach(key => {
                     xhr.setRequestHeader(key, sources.headers[key]);
@@ -490,7 +483,6 @@
             hls.on(Hls.Events.MANIFEST_PARSED, function () {
               console.log('✅ Manifesto HLS carregado');
               
-              // Inicializar Plyr
               player = new Plyr(videoElement, {
                 controls: [
                   'play-large',
@@ -533,7 +525,6 @@
             });
 
           } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            // Suporte nativo (Safari)
             videoElement.src = videoUrl;
             player = new Plyr(videoElement);
             videoElement.play();
@@ -541,7 +532,6 @@
             showError('HLS não é suportado neste navegador');
           }
         } else {
-          // Vídeo MP4 direto
           videoElement.src = videoUrl;
           player = new Plyr(videoElement);
           videoElement.play();
@@ -550,19 +540,25 @@
 
       // ==================== RENDERIZAÇÃO ====================
 
-      function renderAnimeInfo(animeInfo) {
-        const info = animeInfo.anime.info;
-        const moreInfo = animeInfo.anime.moreInfo;
+      function renderAnimeInfo(animeData) {
+        // ✅ ESTRUTURA CORRETA
+        const info = animeData.anime?.info;
+        const moreInfo = animeData.anime?.moreInfo;
+
+        if (!info) {
+          console.error('❌ Info não encontrado em animeData');
+          return;
+        }
 
         document.getElementById('anime-info').innerHTML = `
           <h2>${info.name}</h2>
           <p>${info.description || 'Sem descrição disponível'}</p>
           <div class="anime-meta">
-            <span class="meta-item">⭐ ${info.stats.rating}</span>
-            <span class="meta-item">📺 ${info.stats.type}</span>
-            <span class="meta-item">⏱️ ${info.stats.duration}</span>
-            <span class="meta-item">🎬 ${moreInfo.status}</span>
-            ${moreInfo.studios ? `<span class="meta-item">🏢 ${moreInfo.studios}</span>` : ''}
+            <span class="meta-item">⭐ ${info.stats?.rating || 'N/A'}</span>
+            <span class="meta-item">📺 ${info.stats?.type || 'N/A'}</span>
+            <span class="meta-item">⏱️ ${info.stats?.duration || 'N/A'}</span>
+            <span class="meta-item">🎬 ${moreInfo?.status || 'N/A'}</span>
+            ${moreInfo?.studios ? `<span class="meta-item">🏢 ${moreInfo.studios}</span>` : ''}
           </div>
         `;
       }
@@ -570,7 +566,6 @@
       function renderServerControls() {
         const controlsHtml = `
           <div class="controls-row">
-            <!-- Category Selection -->
             <div class="control-group">
               <span class="control-label">Idioma:</span>
               ${episodeServers.sub?.length > 0 ? `
@@ -593,7 +588,6 @@
               ` : ''}
             </div>
 
-            <!-- Server Selection -->
             <div class="control-group">
               <span class="control-label">Servidor:</span>
               ${episodeServers[currentCategory]?.map(server => `
@@ -620,7 +614,7 @@
         document.getElementById('episodes-list').innerHTML = listHtml;
       }
 
-      // ==================== CONTROLES DE NAVEGAÇÃO ====================
+      // ==================== CONTROLES ====================
 
       function changeCategory(category) {
         currentCategory = category;
@@ -629,7 +623,6 @@
           currentServer = episodeServers[category][0].serverName;
           renderServerControls();
           
-          // Recarregar vídeo com nova categoria
           const currentEpisode = currentEpisodes.find(ep => ep.number === currentEpisodeNumber);
           if (currentEpisode) {
             loadVideoSources(currentEpisode.episodeId, currentServer, currentCategory);
@@ -641,7 +634,6 @@
         currentServer = serverName;
         renderServerControls();
         
-        // Recarregar vídeo com novo servidor
         const currentEpisode = currentEpisodes.find(ep => ep.number === currentEpisodeNumber);
         if (currentEpisode) {
           loadVideoSources(currentEpisode.episodeId, serverName, currentCategory);
@@ -652,10 +644,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const animeId = urlParams.get('id');
         
-        // Atualizar URL
         window.history.pushState({}, '', `player.html?id=${animeId}&ep=${episodeNumber}`);
-        
-        // Recarregar anime com novo episódio
         loadAnime(animeId, episodeNumber);
       }
 
@@ -679,7 +668,6 @@
         console.log('🎬 Iniciando player...');
 
         try {
-          // Verificar autenticação
           const user = await checkAuth();
           if (!user) {
             window.location.href = 'index.html';
@@ -688,7 +676,6 @@
 
           document.getElementById('user-email').textContent = user.email;
 
-          // Pegar parâmetros da URL
           const urlParams = new URLSearchParams(window.location.search);
           const animeId = urlParams.get('id');
           const episodeNumber = parseInt(urlParams.get('ep')) || 1;
@@ -701,7 +688,6 @@
             return;
           }
 
-          // Carregar anime
           await loadAnime(animeId, episodeNumber);
 
         } catch (error) {
@@ -710,7 +696,6 @@
         }
       }
 
-      // Iniciar quando o DOM estiver pronto
       document.addEventListener('DOMContentLoaded', init);
     </script>
   </body>
