@@ -15,6 +15,13 @@ let watchHistory = [];
 let currentPage = { animes: 1, movies: 1, series: 1 };
 let isLoading = false;
 
+// Banco de dados de conteúdo em memória
+let contentDatabase = {
+  animes: [],
+  movies: [],
+  series: [],
+};
+
 // Inicializar página
 document.addEventListener("DOMContentLoaded", async () => {
   await verifyAccessAndLoadContent();
@@ -133,15 +140,29 @@ async function loadContent() {
       console.log("📡 Carregando da API...");
       const data = await window.AnimeAPI.loadContentForHomepage();
 
-      renderContent("animes-grid", data.animes);
-      renderContent("movies-grid", data.movies);
-      renderContent("series-grid", data.series);
+      // Armazenar no contentDatabase
+      contentDatabase.animes = data.animes || [];
+      contentDatabase.movies = data.movies || [];
+      contentDatabase.series = data.series || [];
+
+      renderContent("animes-grid", contentDatabase.animes);
+      renderContent("movies-grid", contentDatabase.movies);
+      renderContent("series-grid", contentDatabase.series);
     } else {
       // Usar dados mockados
       console.log("💾 Usando dados locais...");
-      renderContent("animes-grid", getMockData("anime"));
-      renderContent("movies-grid", getMockData("movie"));
-      renderContent("series-grid", getMockData("series"));
+      const mockAnimes = getMockData("anime");
+      const mockMovies = getMockData("movie");
+      const mockSeries = getMockData("series");
+
+      // Armazenar no contentDatabase
+      contentDatabase.animes = mockAnimes;
+      contentDatabase.movies = mockMovies;
+      contentDatabase.series = mockSeries;
+
+      renderContent("animes-grid", mockAnimes);
+      renderContent("movies-grid", mockMovies);
+      renderContent("series-grid", mockSeries);
     }
 
     loadContinueWatching();
@@ -152,9 +173,17 @@ async function loadContent() {
     showErrorMessage("Erro ao carregar conteúdo. Usando dados locais.");
 
     // Fallback para dados locais
-    renderContent("animes-grid", getMockData("anime"));
-    renderContent("movies-grid", getMockData("movie"));
-    renderContent("series-grid", getMockData("series"));
+    const mockAnimes = getMockData("anime");
+    const mockMovies = getMockData("movie");
+    const mockSeries = getMockData("series");
+
+    contentDatabase.animes = mockAnimes;
+    contentDatabase.movies = mockMovies;
+    contentDatabase.series = mockSeries;
+
+    renderContent("animes-grid", mockAnimes);
+    renderContent("movies-grid", mockMovies);
+    renderContent("series-grid", mockSeries);
   }
 }
 
@@ -346,7 +375,7 @@ function loadContinueWatching() {
   grid.innerHTML = sortedHistory
     .map(
       (item) => `
-    <div class="content-card" onclick="playContent('${item.id}', '${item.type}')">
+    <div class="content-card" onclick="playContent(${item.id}, '${item.type}')">
       <img src="${item.image}" alt="${item.title}" loading="lazy">
       <div class="progress-bar" style="width: ${item.progress}%"></div>
       <div class="card-overlay">
