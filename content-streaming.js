@@ -1,34 +1,22 @@
 // content-streaming.js
 // Lógica principal da página de streaming
 
-// ==================== VERIFICAÇÃO IMEDIATA DA API ====================
-console.log('🔍 Verificando API no início do script...');
-console.log('🔍 window.api existe?', typeof window.api !== 'undefined');
-console.log('🔍 window.api:', window.api);
-
-// ==================== VARIÁVEIS GLOBAIS ====================
-let currentUser = null;
-let currentSubscription = null;
-let favoriteAnimes = new Set();
-let watchHistory = [];
-let currentFilter = 'all';
-
-// ==================== UTILITÁRIOS ====================
+// ==================== UTILITÁRIOS DE LOADING ====================
 
 function showLoading() {
-  const loadingOverlay = document.getElementById('loading-overlay');
-  if (loadingOverlay) {
-    loadingOverlay.style.display = 'flex';
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    console.log('✅ Loading exibido');
   }
-  console.log('✅ Loading exibido');
 }
 
 function hideLoading() {
-  const loadingOverlay = document.getElementById('loading-overlay');
-  if (loadingOverlay) {
-    loadingOverlay.style.display = 'none';
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+    console.log('✅ Loading ocultado');
   }
-  console.log('✅ Loading ocultado');
 }
 
 function showToast(message, type = 'info') {
@@ -38,15 +26,11 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = 'toast-message';
   toast.textContent = message;
+  toast.style.background = type === 'error' ? '#ef4444' : 
+                          type === 'success' ? '#10b981' : '#667eea';
   
-  if (type === 'error') {
-    toast.style.background = 'rgba(239, 68, 68, 0.9)';
-  } else if (type === 'success') {
-    toast.style.background = 'rgba(16, 185, 129, 0.9)';
-  }
-
   container.appendChild(toast);
-
+  
   setTimeout(() => toast.classList.add('show'), 10);
   
   setTimeout(() => {
@@ -55,35 +39,22 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
-function showErrorMessage(message) {
-  console.log('❌ Erro ao inicializar aplicação');
+function showError(message) {
+  console.error('❌ Erro ao inicializar aplicação');
+  hideLoading();
+  showToast(message, 'error');
   
+  // Mostrar mensagem de erro no container principal
   const mainContent = document.getElementById('main-content');
-  if (!mainContent) return;
-
-  mainContent.innerHTML = `
-    <div style="
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 400px;
-      text-align: center;
-      padding: 40px;
-    ">
-      <div style="font-size: 64px; margin-bottom: 20px;">😔</div>
-      <h2 style="color: #ef4444; margin-bottom: 15px;">Erro ao Carregar</h2>
-      <p style="color: #9ca3af; margin-bottom: 25px; max-width: 500px;">
-        ${message}
-      </p>
-      <button 
-        class="btn-primary" 
-        onclick="location.reload()"
-        style="padding: 12px 30px; font-size: 16px;">
-        🔄 Tentar Novamente
-      </button>
-    </div>
-  `;
+  if (mainContent) {
+    mainContent.innerHTML = `
+      <div class="no-results">
+        <h3>❌ Erro ao carregar conteúdo</h3>
+        <p>${message}</p>
+        <button class="btn-primary" onclick="location.reload()">🔄 Tentar Novamente</button>
+      </div>
+    `;
+  }
 }
 
 // ==================== AUTENTICAÇÃO ====================
@@ -92,21 +63,18 @@ async function checkAuth() {
   try {
     const { data: { user }, error } = await window.supabase.auth.getUser();
     
-    if (error) {
-      console.error('❌ Erro ao verificar autenticação:', error);
-      return null;
-    }
-
+    if (error) throw error;
+    
     if (!user) {
-      console.log('⚠️ Usuário não autenticado');
+      console.log('❌ Usuário não autenticado');
       return null;
     }
-
+    
     console.log('✅ Usuário autenticado:', user.email);
     return user;
-
+    
   } catch (error) {
-    console.error('❌ Erro ao verificar auth:', error);
+    console.error('❌ Erro ao verificar autenticação:', error);
     return null;
   }
 }
@@ -119,110 +87,97 @@ async function checkSubscription(userId) {
       .eq('user_id', userId)
       .eq('status', 'active')
       .single();
-
+    
     if (error) {
-      console.error('❌ Erro ao verificar assinatura:', error);
-      return null;
+      if (error.code === 'PGRST116') {
+        console.log('⚠️ Nenhuma assinatura ativa encontrada');
+        return null;
+      }
+      throw error;
     }
-
+    
     console.log('✅ Assinatura encontrada:', data);
     return data;
-
+    
   } catch (error) {
-    console.error('❌ Erro ao verificar subscription:', error);
+    console.error('❌ Erro ao verificar assinatura:', error);
     return null;
-  }
-}
-
-async function logout() {
-  try {
-    const { error } = await window.supabase.auth.signOut();
-    if (error) throw error;
-    window.location.href = 'index.html';
-  } catch (error) {
-    console.error('❌ Erro ao fazer logout:', error);
-    showToast('Erro ao fazer logout', 'error');
   }
 }
 
 // ==================== FAVORITOS ====================
 
-async function loadFavorites() {
-  if (!currentUser) return;
+let userFavorites = [];
 
+async function loadFavorites(userId) {
   try {
     const { data, error } = await window.supabase
       .from('favorites')
-      .select('anime_id')
-      .eq('user_id', currentUser.id);
-
-    // ✅ Tratar erro de tabela não existente
-    if (error) {
-      if (error.code === 'PGRST205') {
-        console.warn('⚠️ Tabela favorites não existe ainda');
-        favoriteAnimes = new Set();
-        return;
-      }
-      throw error;
-    }
-
-    favoriteAnimes = new Set(data.map(f => f.anime_id));
-    console.log('✅ Favoritos carregados:', favoriteAnimes.size);
-
+      .select('*')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    
+    userFavorites = data.map(fav => fav.anime_id);
+    console.log('✅ Favoritos carregados:', userFavorites.length);
+    
   } catch (error) {
     console.error('❌ Erro ao carregar favoritos:', error);
-    favoriteAnimes = new Set(); // Inicializar vazio em caso de erro
+    userFavorites = [];
   }
 }
 
-async function toggleFavorite(animeId) {
-  if (!currentUser) {
-    showToast('Faça login para adicionar favoritos', 'error');
-    return;
-  }
-
+async function toggleFavorite(animeId, animeData) {
   try {
-    if (favoriteAnimes.has(animeId)) {
-      // Remover
+    const user = await checkAuth();
+    if (!user) return;
+    
+    const isFavorite = userFavorites.includes(animeId);
+    
+    if (isFavorite) {
+      // Remover dos favoritos
       const { error } = await window.supabase
         .from('favorites')
         .delete()
-        .eq('user_id', currentUser.id)
+        .eq('user_id', user.id)
         .eq('anime_id', animeId);
-
+      
       if (error) throw error;
-
-      favoriteAnimes.delete(animeId);
-      showToast('Removido dos favoritos', 'info');
-
+      
+      userFavorites = userFavorites.filter(id => id !== animeId);
+      showToast('❤️ Removido dos favoritos', 'success');
+      
     } else {
-      // Adicionar
+      // Adicionar aos favoritos
       const { error } = await window.supabase
         .from('favorites')
         .insert({
-          user_id: currentUser.id,
-          anime_id: animeId
+          user_id: user.id,
+          anime_id: animeId,
+          anime_name: animeData.name,
+          anime_poster: animeData.poster,
+          added_at: new Date().toISOString()
         });
-
+      
       if (error) throw error;
-
-      favoriteAnimes.add(animeId);
-      showToast('Adicionado aos favoritos ❤️', 'success');
+      
+      userFavorites.push(animeId);
+      showToast('❤️ Adicionado aos favoritos', 'success');
     }
-
+    
     // Atualizar UI
     updateFavoriteButtons();
-
+    
   } catch (error) {
-    console.error('❌ Erro ao toggle favorito:', error);
-    showToast('Erro ao atualizar favorito', 'error');
+    console.error('❌ Erro ao alternar favorito:', error);
+    showToast('Erro ao atualizar favoritos', 'error');
   }
 }
 
 function updateFavoriteButtons() {
   document.querySelectorAll('.card-favorite').forEach(btn => {
     const animeId = btn.dataset.animeId;
-    if (favoriteAnimes.has(animeId)) {
+    if (userFavorites.includes(animeId)) {
       btn.classList.add('active');
       btn.textContent = '❤️';
     } else {
@@ -234,283 +189,276 @@ function updateFavoriteButtons() {
 
 // ==================== HISTÓRICO ====================
 
-async function loadWatchHistory() {
-  if (!currentUser) return;
+let userHistory = [];
 
+async function loadHistory(userId) {
   try {
     const { data, error } = await window.supabase
       .from('watch_history')
       .select('*')
-      .eq('user_id', currentUser.id)
+      .eq('user_id', userId)
       .order('last_watched', { ascending: false })
-      .limit(10);
-
-    // ✅ Tratar erro de tabela não existente
-    if (error) {
-      if (error.code === 'PGRST205') {
-        console.warn('⚠️ Tabela watch_history não existe ainda');
-        watchHistory = [];
-        return;
-      }
-      throw error;
-    }
-
-    watchHistory = data || [];
-    console.log('✅ Histórico carregado:', watchHistory.length);
-
+      .limit(20);
+    
+    if (error) throw error;
+    
+    userHistory = data;
+    console.log('✅ Histórico carregado:', userHistory.length);
+    
+    // Renderizar Continue Assistindo
+    renderContinueWatching();
+    
   } catch (error) {
     console.error('❌ Erro ao carregar histórico:', error);
-    watchHistory = []; // Inicializar vazio em caso de erro
+    userHistory = [];
   }
 }
 
-async function saveWatchHistory(animeId, episodeNumber, progress = 0) {
-  if (!currentUser) return;
-
+async function saveToHistory(userId, animeId, animeData, episodeNumber, progress) {
   try {
-    const { error } = await window.supabase
+    const { data, error } = await window.supabase
       .from('watch_history')
       .upsert({
-        user_id: currentUser.id,
+        user_id: userId,
         anime_id: animeId,
+        anime_name: animeData.name,
+        anime_poster: animeData.poster,
         episode_number: episodeNumber,
-        progress: progress,
+        progress_seconds: Math.floor(progress),
         last_watched: new Date().toISOString()
       }, {
         onConflict: 'user_id,anime_id'
       });
-
+    
     if (error) throw error;
-
-    console.log('✅ Histórico salvo');
-
+    
   } catch (error) {
     console.error('❌ Erro ao salvar histórico:', error);
   }
 }
 
-// ==================== RENDERIZAÇÃO ====================
-
-function createAnimeCard(anime) {
-  const isFavorite = favoriteAnimes.has(anime.id);
+function renderContinueWatching() {
+  const section = document.getElementById('continue-watching-section');
+  const grid = document.getElementById('continue-grid');
   
-  // Garantir que temos um ID válido
-  const animeId = anime.id || anime.animeId || '';
-  const animeName = anime.name || anime.title || 'Sem título';
-  const animePoster = anime.poster || anime.image || 'https://via.placeholder.com/300x450/667eea/ffffff?text=No+Image';
+  if (!section || !grid) return;
   
-  return `
-    <div class="content-card" data-anime-id="${animeId}">
-      <div class="card-image">
-        <img src="${animePoster}" 
-             alt="${animeName}"
-             loading="lazy"
-             onerror="this.src='https://via.placeholder.com/300x450/667eea/ffffff?text=Error'">
-        
-        <div class="card-overlay">
-          <div class="overlay-details">
-            <h4 class="card-title">${animeName}</h4>
-            <div class="card-meta">
-              ${anime.type ? `<span>📺 ${anime.type}</span>` : ''}
-              ${anime.duration ? `<span>⏱️ ${anime.duration}</span>` : ''}
-              ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
-            </div>
-          </div>
-          
-          <div class="card-actions">
-            <button class="btn-play" onclick="watchAnime('${animeId}', 1)">
-              ▶️ Assistir
-            </button>
-            <button class="btn-info" onclick="showAnimeInfo('${animeId}')">
-              ℹ️ Info
-            </button>
+  if (userHistory.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  grid.innerHTML = userHistory.map(item => {
+    const progressPercent = (item.progress_seconds / (item.episode_duration || 1400)) * 100;
+    
+    return `
+      <div class="content-card" onclick="window.location.href='player.html?id=${item.anime_id}&ep=${item.episode_number}'">
+        <div class="card-image">
+          <img src="${item.anime_poster}" alt="${item.anime_name}" loading="lazy">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${progressPercent}%"></div>
           </div>
         </div>
-
-        ${anime.episodes?.sub ? `<div class="card-badge">EP ${anime.episodes.sub}</div>` : ''}
-        ${anime.episodes?.dub ? `<div class="card-badge" style="top: 45px;">DUB EP ${anime.episodes.dub}</div>` : ''}
-      </div>
-
-      <div class="card-info">
-        <h4 class="card-title">${animeName}</h4>
-        <div class="card-meta">
-          ${anime.type ? `<span>${anime.type}</span>` : ''}
-          ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
+        <div class="card-info">
+          <h4 class="card-title">${item.anime_name}</h4>
+          <div class="card-meta">
+            <span>EP ${item.episode_number}</span>
+          </div>
         </div>
       </div>
-
-      <button class="card-favorite ${isFavorite ? 'active' : ''}" 
-              data-anime-id="${animeId}"
-              onclick="toggleFavorite('${animeId}')">
-        ${isFavorite ? '❤️' : '🤍'}
-      </button>
-    </div>
-  `;
-}
-
-function renderAnimeSection(sectionId, title, animes, showSeeAll = false) {
-  const section = document.createElement('section');
-  section.className = 'content-section';
-  section.id = sectionId;
-
-  section.innerHTML = `
-    <div class="section-header">
-      <h3>${title}</h3>
-      ${showSeeAll ? '<button class="btn-see-all">Ver Todos →</button>' : ''}
-    </div>
-    <div class="content-grid">
-      ${animes.map(anime => createAnimeCard(anime)).join('')}
-    </div>
-  `;
-
-  return section;
+    `;
+  }).join('');
 }
 
 // ==================== CARREGAMENTO DE CONTEÚDO ====================
 
 async function loadHomeContent() {
   console.log('📺 Carregando conteúdo home...');
-
+  
   try {
     showLoading();
-
-    // ✅ Verificar se API existe ANTES de usar
-    if (typeof window.api === 'undefined' || !window.api) {
-      throw new Error('API Service não está disponível');
-    }
-
+    
+    // ✅ AGUARDAR 2 SEGUNDOS ANTES DA PRIMEIRA REQUISIÇÃO
+    console.log('⏳ Aguardando 2s antes de fazer requisição...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     const homeData = await window.api.getHome();
-    console.log('✅ Dados home carregados:', homeData);
-    console.log('📊 Estrutura dos dados:', JSON.stringify(homeData.data, null, 2).substring(0, 500));
-
-    // ✅ API retorna { status: 200, data: {...} }
-    if (!homeData || !homeData.data) {
+    
+    if (!homeData || !homeData.success || !homeData.data) {
       throw new Error('Dados da home inválidos');
     }
-
+    
+    console.log('✅ Home data carregada:', homeData);
+    
     const container = document.getElementById('dynamic-content-container');
+    if (!container) {
+      throw new Error('Container não encontrado');
+    }
+    
+    // Limpar container
     container.innerHTML = '';
-
-    // Renderizar seções da API
-    const sections = homeData.data?.sections || [];
     
-    console.log('📦 Total de seções:', sections.length);
+    // Renderizar seções
+    const sections = homeData.data.sections || [];
     
-    if (sections.length === 0) {
-      console.warn('⚠️ Nenhuma seção encontrada nos dados');
-      container.innerHTML = `
-        <div style="text-align: center; padding: 60px 20px; color: white;">
-          <h3 style="font-size: 24px; margin-bottom: 15px;">📺 Nenhum conteúdo disponível</h3>
-          <p style="color: #9ca3af;">Os animes serão carregados em breve.</p>
-        </div>
-      `;
-      hideLoading();
-      return;
-    }
-    
-    sections.forEach((section, index) => {
-      console.log(`📋 Seção ${index + 1}:`, section.title, '- Animes:', section.animes?.length || 0);
+    for (const section of sections) {
+      if (!section.animes || section.animes.length === 0) continue;
       
-      if (section.animes && section.animes.length > 0) {
-        const sectionElement = renderAnimeSection(
-          section.id || 'section-' + Math.random(),
-          section.title || 'Animes',
-          section.animes,
-          true
-        );
-        container.appendChild(sectionElement);
-      }
-    });
-
-    // Renderizar histórico se existir
-    if (watchHistory.length > 0) {
-      await renderContinueWatching();
+      const sectionHtml = `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>${section.title || 'Seção'}</h3>
+          </div>
+          <div class="content-grid">
+            ${section.animes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+      
+      container.innerHTML += sectionHtml;
     }
-
+    
+    // Se não houver seções, mostrar trending
+    if (sections.length === 0) {
+      await loadTrendingAnimes();
+    }
+    
     hideLoading();
-    console.log('✅ Conteúdo home renderizado');
-
+    
   } catch (error) {
     console.error('❌ Erro ao carregar home:', error);
     hideLoading();
-    showErrorMessage('Erro ao carregar conteúdo: ' + error.message);
+    showError(`Não foi possível carregar o conteúdo: ${error.message}`);
   }
 }
 
-async function renderContinueWatching() {
-  if (watchHistory.length === 0) return;
-
-  console.log('📺 Renderizando continue assistindo...');
-
-  const section = document.getElementById('continue-watching-section');
-  const grid = document.getElementById('continue-grid');
-
-  if (!section || !grid) return;
-
-  // Buscar informações dos animes do histórico
-  const animePromises = watchHistory.slice(0, 6).map(async (history) => {
-    try {
-      const animeInfo = await window.api.getAnimeInfo(history.anime_id);
-      return {
-        ...animeInfo.data.anime.info,
-        id: history.anime_id,
-        lastEpisode: history.episode_number,
-        progress: history.progress
-      };
-    } catch (error) {
-      console.error('❌ Erro ao buscar anime:', history.anime_id);
-      return null;
+async function loadTrendingAnimes() {
+  try {
+    const trendingData = await window.api.search('', { type: 'tv', status: 'ongoing' });
+    
+    if (!trendingData || !trendingData.data || !trendingData.data.animes) {
+      console.warn('⚠️ Nenhum anime trending encontrado');
+      return;
     }
-  });
-
-  const animes = (await Promise.all(animePromises)).filter(a => a !== null);
-
-  if (animes.length > 0) {
-    grid.innerHTML = animes.map(anime => createAnimeCard(anime)).join('');
-    section.style.display = 'block';
+    
+    const container = document.getElementById('dynamic-content-container');
+    if (!container) return;
+    
+    container.innerHTML = `
+      <section class="content-section">
+        <div class="section-header">
+          <h3>🔥 Em Alta</h3>
+        </div>
+        <div class="content-grid">
+          ${trendingData.data.animes.map(anime => createAnimeCard(anime)).join('')}
+        </div>
+      </section>
+    `;
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar trending:', error);
   }
+}
+
+function createAnimeCard(anime) {
+  const isFavorite = userFavorites.includes(anime.id);
+  
+  return `
+    <div class="content-card">
+      <div class="card-image">
+        <img src="${anime.poster}" alt="${anime.name}" loading="lazy">
+        
+        ${anime.type ? `<div class="card-badge">${anime.type}</div>` : ''}
+        
+        <div class="card-overlay">
+          <div class="overlay-details">
+            <h4 class="card-title" style="color: white;">${anime.name}</h4>
+            <div class="card-meta">
+              ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
+              ${anime.episodes?.sub ? `<span>📺 ${anime.episodes.sub} eps</span>` : ''}
+            </div>
+          </div>
+          
+          <div class="card-actions">
+            <button class="btn-play" onclick="event.stopPropagation(); window.location.href='player.html?id=${anime.id}&ep=1'">
+              ▶️ Assistir
+            </button>
+            <button class="btn-info" onclick="event.stopPropagation(); showAnimeInfo('${anime.id}')">
+              ℹ️ Info
+            </button>
+          </div>
+        </div>
+        
+        <button class="card-favorite ${isFavorite ? 'active' : ''}" 
+                data-anime-id="${anime.id}"
+                onclick="event.stopPropagation(); toggleFavorite('${anime.id}', ${JSON.stringify(anime).replace(/"/g, '&quot;')})">
+          ${isFavorite ? '❤️' : '🤍'}
+        </button>
+      </div>
+      
+      <div class="card-info">
+        <h4 class="card-title">${anime.name}</h4>
+        <div class="card-meta">
+          ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
+          ${anime.type ? `<span>${anime.type}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // ==================== BUSCA ====================
 
-let searchTimeout = null;
+let searchTimeout;
+
+function setupSearch() {
+  const searchInput = document.getElementById('search-input');
+  if (!searchInput) return;
+  
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+      loadHomeContent();
+      return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+      performSearch(query);
+    }, 500);
+  });
+}
 
 async function performSearch(query) {
-  if (!query || query.length < 2) {
-    loadHomeContent();
-    return;
-  }
-
-  console.log('🔍 Buscando:', query);
-
   try {
     showLoading();
-
-    const results = await window.api.search(query);
-    console.log('✅ Resultados da busca:', results);
-
-    const container = document.getElementById('dynamic-content-container');
-    container.innerHTML = '';
-
-    if (results.data?.animes && results.data.animes.length > 0) {
-      const section = renderAnimeSection(
-        'search-results',
-        `Resultados para "${query}"`,
-        results.data.animes,
-        false
-      );
-      container.appendChild(section);
-    } else {
-      container.innerHTML = `
-        <div class="no-results">
-          <h3>😔 Nenhum resultado encontrado</h3>
-          <p>Tente buscar por outro termo</p>
-        </div>
-      `;
+    
+    const searchData = await window.api.search(query);
+    
+    if (!searchData || !searchData.data || !searchData.data.animes) {
+      throw new Error('Nenhum resultado encontrado');
     }
-
+    
+    const container = document.getElementById('dynamic-content-container');
+    if (!container) return;
+    
+    container.innerHTML = `
+      <section class="content-section">
+        <div class="section-header">
+          <h3>🔍 Resultados para "${query}"</h3>
+        </div>
+        <div class="content-grid">
+          ${searchData.data.animes.map(anime => createAnimeCard(anime)).join('')}
+        </div>
+      </section>
+    `;
+    
     hideLoading();
-
+    
   } catch (error) {
     console.error('❌ Erro na busca:', error);
     hideLoading();
@@ -518,280 +466,418 @@ async function performSearch(query) {
   }
 }
 
-// ==================== AÇÕES DE ANIME ====================
+// ==================== NAVEGAÇÃO ====================
 
-function watchAnime(animeId, episode = 1) {
-  console.log('▶️ Assistir anime:', animeId, 'episódio:', episode);
-  
-  // Salvar no histórico
-  saveWatchHistory(animeId, episode);
-  
-  // Redirecionar para player
-  window.location.href = `player.html?id=${animeId}&ep=${episode}`;
+function setupNavigation() {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      // Remover active de todos
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      
+      // Adicionar active no clicado
+      btn.classList.add('active');
+      
+      const filter = btn.dataset.filter;
+      
+      try {
+        showLoading();
+        
+        switch(filter) {
+          case 'all':
+            await loadHomeContent();
+            break;
+          case 'anime':
+            await loadTrendingAnimes();
+            break;
+          case 'trending':
+            await loadTrendingAnimes();
+            break;
+          case 'favorites':
+            await loadFavoritesView();
+            break;
+          default:
+            await loadHomeContent();
+        }
+        
+        hideLoading();
+        
+      } catch (error) {
+        console.error('❌ Erro na navegação:', error);
+        hideLoading();
+        showError('Erro ao carregar conteúdo');
+      }
+    });
+  });
 }
 
-async function showAnimeInfo(animeId) {
-  console.log('ℹ️ Mostrando info do anime:', animeId);
+async function loadFavoritesView() {
+  const container = document.getElementById('dynamic-content-container');
+  if (!container) return;
+  
+  if (userFavorites.length === 0) {
+    container.innerHTML = `
+      <div class="no-results">
+        <h3>❤️ Nenhum favorito ainda</h3>
+        <p>Adicione animes aos seus favoritos para vê-los aqui!</p>
+      </div>
+    `;
+    return;
+  }
   
   try {
     showLoading();
+    
+    // Carregar informações dos animes favoritos
+    const favoritesPromises = userFavorites.map(animeId => 
+      window.api.getAnimeInfo(animeId).catch(() => null)
+    );
+    
+    const favoritesData = await Promise.all(favoritesPromises);
+    const validFavorites = favoritesData.filter(data => data && data.data);
+    
+    container.innerHTML = `
+      <section class="content-section">
+        <div class="section-header">
+          <h3>❤️ Meus Favoritos</h3>
+        </div>
+        <div class="content-grid">
+          ${validFavorites.map(fav => createAnimeCard(fav.data.anime.info)).join('')}
+        </div>
+      </section>
+    `;
+    
+    hideLoading();
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar favoritos:', error);
+    hideLoading();
+  }
+}
 
-    const animeInfo = await window.api.getAnimeInfo(animeId);
-    console.log('✅ Info do anime:', animeInfo);
+// ==================== LOGOUT ====================
 
-    if (!animeInfo || !animeInfo.success) {
+function setupLogout() {
+  const logoutBtn = document.getElementById('logout-btn');
+  if (!logoutBtn) return;
+  
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      const { error } = await window.supabase.auth.signOut();
+      if (error) throw error;
+      window.location.href = 'index.html';
+    } catch (error) {
+      console.error('❌ Erro ao fazer logout:', error);
+      showToast('Erro ao fazer logout', 'error');
+    }
+  });
+}
+
+// ==================== MODAL DE INFORMAÇÕES ====================
+
+async function showAnimeInfo(animeId) {
+  try {
+    showLoading();
+    
+    const animeData = await window.api.getAnimeInfo(animeId);
+    
+    if (!animeData || !animeData.data) {
       throw new Error('Informações do anime não encontradas');
     }
-
-    const anime = animeInfo.data.anime;
-    const info = anime.info;
-    const moreInfo = anime.moreInfo;
-
-    // Criar modal
-    const modal = document.createElement('div');
-    modal.className = 'info-modal-overlay';
-    modal.innerHTML = `
-      <div class="info-modal">
-        <button class="btn-close" onclick="this.closest('.info-modal-overlay').remove()">✕</button>
-        <div class="info-content">
-          <img src="${info.poster}" alt="${info.name}">
-          <div class="info-details">
-            <h2>${info.name}</h2>
-            <div class="info-meta">
-              <span>⭐ ${info.stats.rating}</span>
-              <span>📺 ${info.stats.type}</span>
-              <span>⏱️ ${info.stats.duration}</span>
-              <span>${moreInfo.status}</span>
+    
+    const anime = animeData.data.anime.info;
+    const moreInfo = animeData.data.anime.moreInfo;
+    const isFavorite = userFavorites.includes(animeId);
+    
+    const modalHtml = `
+      <div class="info-modal-overlay" onclick="closeInfoModal(event)">
+        <div class="info-modal" onclick="event.stopPropagation()">
+          <button class="btn-close" onclick="closeInfoModal()">✕</button>
+          
+          <div class="info-content">
+            <div>
+              <img src="${anime.poster}" alt="${anime.name}">
             </div>
-            <p>${info.description || 'Sem descrição disponível'}</p>
-            <div class="info-actions">
-              <button class="btn-primary" onclick="watchAnime('${animeId}', 1)">
-                ▶️ Assistir Agora
-              </button>
-              <button class="btn-secondary" onclick="toggleFavorite('${animeId}')">
-                ${favoriteAnimes.has(animeId) ? '❤️ Remover' : '🤍 Favoritar'}
-              </button>
+            
+            <div class="info-details">
+              <h2>${anime.name}</h2>
+              
+              <div class="info-meta">
+                ${anime.stats?.rating ? `<span>⭐ ${anime.stats.rating}</span>` : ''}
+                ${anime.stats?.type ? `<span>📺 ${anime.stats.type}</span>` : ''}
+                ${anime.stats?.duration ? `<span>⏱️ ${anime.stats.duration}</span>` : ''}
+                ${moreInfo?.status ? `<span>🎬 ${moreInfo.status}</span>` : ''}
+              </div>
+              
+              <p>${anime.description || 'Sem descrição disponível'}</p>
+              
+              ${moreInfo?.genres ? `
+                <div style="margin-top: 15px;">
+                  <strong style="color: white;">Gêneros:</strong>
+                  <p style="color: #9ca3af;">${moreInfo.genres}</p>
+                </div>
+              ` : ''}
+              
+              ${moreInfo?.studios ? `
+                <div style="margin-top: 10px;">
+                  <strong style="color: white;">Estúdio:</strong>
+                  <p style="color: #9ca3af;">${moreInfo.studios}</p>
+                </div>
+              ` : ''}
+              
+              <div class="info-actions">
+                <button class="btn-primary" onclick="window.location.href='player.html?id=${animeId}&ep=1'">
+                  ▶️ Assistir Agora
+                </button>
+                <button class="btn-secondary" onclick="toggleFavorite('${animeId}', ${JSON.stringify(anime).replace(/"/g, '&quot;')}); closeInfoModal()">
+                  ${isFavorite ? '❤️ Remover dos Favoritos' : '🤍 Adicionar aos Favoritos'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
     `;
-
-    document.body.appendChild(modal);
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
     hideLoading();
-
+    
   } catch (error) {
-    console.error('❌ Erro ao mostrar info:', error);
+    console.error('❌ Erro ao carregar informações:', error);
     hideLoading();
     showToast('Erro ao carregar informações', 'error');
   }
 }
 
-// ==================== FILTROS ====================
-
-function setupFilters() {
-  const navButtons = document.querySelectorAll('.nav-btn');
+function closeInfoModal(event) {
+  if (event && event.target.className !== 'info-modal-overlay') return;
   
-  navButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      // Atualizar botão ativo
-      navButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-
-      // Aplicar filtro
-      const filter = btn.dataset.filter;
-      currentFilter = filter;
-
-      console.log('🔍 Filtro aplicado:', filter);
-
-      if (filter === 'all') {
-        loadHomeContent();
-      } else if (filter === 'favorites') {
-        showFavorites();
-      } else if (filter === 'trending') {
-        loadTrending();
-      }
-    });
-  });
+  const modal = document.querySelector('.info-modal-overlay');
+  if (modal) {
+    modal.remove();
+  }
 }
 
-async function showFavorites() {
-  if (favoriteAnimes.size === 0) {
-    const container = document.getElementById('dynamic-content-container');
-    container.innerHTML = `
-      <div class="no-results">
-        <h3>💔 Nenhum favorito ainda</h3>
-        <p>Adicione seus animes favoritos clicando no ❤️</p>
+// ==================== MODAL DO PERFIL ====================
+
+async function openProfileModal() {
+  try {
+    const user = await checkAuth();
+    if (!user) return;
+    
+    const subscription = await checkSubscription(user.id);
+    
+    const modalHtml = `
+      <div class="profile-modal-overlay" onclick="closeProfileModal(event)">
+        <div class="profile-modal" onclick="event.stopPropagation()">
+          <button class="btn-close" onclick="closeProfileModal()">✕</button>
+          
+          <div class="profile-header">
+            <div class="profile-avatar">
+              ${user.email.charAt(0).toUpperCase()}
+            </div>
+            <div class="profile-info">
+              <h2>${user.email}</h2>
+              ${subscription ? `
+                <span class="profile-badge">
+                  👑 ${window.PLANS[subscription.plan_type]?.name || 'Premium'}
+                </span>
+              ` : '<span style="color: #9ca3af;">Sem assinatura ativa</span>'}
+            </div>
+          </div>
+          
+          <div class="profile-stats">
+            <div class="stat-card">
+              <span class="stat-icon">❤️</span>
+              <div class="stat-info">
+                <h3>${userFavorites.length}</h3>
+                <p>Favoritos</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <span class="stat-icon">📺</span>
+              <div class="stat-info">
+                <h3>${userHistory.length}</h3>
+                <p>Assistidos</p>
+              </div>
+            </div>
+          </div>
+          
+          ${subscription ? `
+            <div class="profile-section">
+              <h3>💳 Assinatura</h3>
+              <div class="payment-info">
+                <p><strong>Plano:</strong> ${window.PLANS[subscription.plan_type]?.name || 'Premium'}</p>
+                <p><strong>Status:</strong> <span class="status-approved">Ativo</span></p>
+                <p><strong>Expira em:</strong> ${new Date(subscription.expires_at).toLocaleDateString('pt-BR')}</p>
+              </div>
+            </div>
+          ` : ''}
+          
+          ${userHistory.length > 0 ? `
+            <div class="profile-section">
+              <h3>⏱️ Histórico Recente</h3>
+              <div class="history-list">
+                ${userHistory.slice(0, 5).map(item => `
+                  <div class="history-item" onclick="window.location.href='player.html?id=${item.anime_id}&ep=${item.episode_number}'">
+                    <img src="${item.anime_poster}" alt="${item.anime_name}">
+                    <div class="history-details">
+                      <h4>${item.anime_name}</h4>
+                      <p>Episódio ${item.episode_number}</p>
+                      <p class="history-date">${new Date(item.last_watched).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : '<div class="no-history">📺 Nenhum histórico ainda</div>'}
+          
+          <div class="profile-actions">
+            <button class="btn-primary" onclick="window.location.href='content.html'">
+              🏠 Página Inicial
+            </button>
+            <button class="btn-secondary" onclick="closeProfileModal()">
+              ✕ Fechar
+            </button>
+          </div>
+        </div>
       </div>
     `;
-    return;
-  }
-
-  console.log('❤️ Carregando favoritos...');
-  showLoading();
-
-  try {
-    const favoritePromises = Array.from(favoriteAnimes).map(async (animeId) => {
-      try {
-        const animeInfo = await window.api.getAnimeInfo(animeId);
-        return { ...animeInfo.data.anime.info, id: animeId };
-      } catch {
-        return null;
-      }
-    });
-
-    const animes = (await Promise.all(favoritePromises)).filter(a => a !== null);
-
-    const container = document.getElementById('dynamic-content-container');
-    container.innerHTML = '';
-
-    const section = renderAnimeSection(
-      'favorites-section',
-      '❤️ Meus Favoritos',
-      animes,
-      false
-    );
-
-    container.appendChild(section);
-    hideLoading();
-
-  } catch (error) {
-    console.error('❌ Erro ao carregar favoritos:', error);
-    hideLoading();
-    showToast('Erro ao carregar favoritos', 'error');
-  }
-}
-
-async function loadTrending() {
-  console.log('🔥 Carregando trending...');
-  // Implementar quando necessário
-  showToast('Funcionalidade em desenvolvimento', 'info');
-}
-
-// ==================== BUSCA ====================
-
-function setupSearch() {
-  const searchInput = document.getElementById('search-input');
-  
-  if (!searchInput) return;
-
-  searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.trim();
-
-    clearTimeout(searchTimeout);
     
-    if (query.length === 0) {
-      loadHomeContent();
-      return;
-    }
-
-    if (query.length < 2) return;
-
-    searchTimeout = setTimeout(() => {
-      performSearch(query);
-    }, 500);
-  });
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+  } catch (error) {
+    console.error('❌ Erro ao abrir perfil:', error);
+    showToast('Erro ao carregar perfil', 'error');
+  }
 }
 
-// ==================== PERFIL ====================
-
-function openProfileModal() {
-  // Implementar modal de perfil
-  console.log('📝 Abrir perfil');
+function closeProfileModal(event) {
+  if (event && event.target.className !== 'profile-modal-overlay') return;
+  
+  const modal = document.querySelector('.profile-modal-overlay');
+  if (modal) {
+    modal.remove();
+  }
 }
+
+// Expor função para o HTML
+window.openProfileModal = openProfileModal;
+window.showAnimeInfo = showAnimeInfo;
+window.toggleFavorite = toggleFavorite;
+window.closeInfoModal = closeInfoModal;
+window.closeProfileModal = closeProfileModal;
 
 // ==================== INICIALIZAÇÃO ====================
 
 async function init() {
   console.log('🚀 Iniciando aplicação...');
-
+  
   try {
-    // ✅ VERIFICAÇÃO SIMPLES E DIRETA DA API
-    if (typeof window.api === 'undefined' || !window.api) {
-      throw new Error('API Service não carregado. Verifique se api-service.js está incluído antes deste script.');
+    // ✅ Verificar se API está disponível
+    if (typeof window.api === 'undefined') {
+      throw new Error('API Service não carregado');
     }
-
-    console.log('✅ API disponível:', window.api);
-
-    // Verificar autenticação
-    currentUser = await checkAuth();
     
-    if (!currentUser) {
+    console.log('✅ API disponível:', window.api);
+    
+    // Verificar autenticação
+    const user = await checkAuth();
+    
+    if (!user) {
       window.location.href = 'index.html';
       return;
     }
-
-    document.getElementById('user-email').textContent = currentUser.email;
-
+    
+    // Mostrar email do usuário
+    const userEmailElement = document.getElementById('user-email');
+    if (userEmailElement) {
+      userEmailElement.textContent = user.email;
+    }
+    
     // Verificar assinatura
-    currentSubscription = await checkSubscription(currentUser.id);
-
-    if (!currentSubscription) {
-      showToast('Assinatura não encontrada', 'error');
-      setTimeout(() => window.location.href = 'index.html', 2000);
+    const subscription = await checkSubscription(user.id);
+    
+    if (!subscription) {
+      showError('Você não possui uma assinatura ativa. Assine para acessar o conteúdo!');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 3000);
       return;
     }
-
+    
+    // Verificar se assinatura expirou
+    const now = new Date();
+    const expiresAt = new Date(subscription.expires_at);
+    
+    if (now > expiresAt) {
+      showError('Sua assinatura expirou. Renove para continuar assistindo!');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 3000);
+      return;
+    }
+    
     console.log('✅ Configurando event listeners...');
     
-    // Setup de eventos
-    setupFilters();
+    // Configurar navegação e busca
+    setupNavigation();
     setupSearch();
-
-    // Botão de logout
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', logout);
-    }
-
-    // Carregar dados
+    setupLogout();
+    
     console.log('📦 Carregando dados do usuário...');
-    await Promise.all([
-      loadFavorites(),
-      loadWatchHistory()
-    ]);
-
-    // Carregar conteúdo
+    
+    // Carregar dados do usuário
+    await loadFavorites(user.id);
+    await loadHistory(user.id);
+    
     console.log('📺 Carregando conteúdo inicial...');
+    
+    // Carregar conteúdo inicial
     await loadHomeContent();
-
+    
     console.log('✅ Aplicação inicializada com sucesso!');
-
+    
   } catch (error) {
-    console.error('❌ Erro na inicialização:', error);
-    hideLoading();
-    showErrorMessage(error.message);
+    console.error('❌ Erro fatal na inicialização:', error);
+    showError(`Erro ao inicializar: ${error.message}`);
   }
 }
 
-// ==================== CARREGAMENTO ====================
+// ==================== AGUARDAR DOM E API ====================
 
-console.log('📄 DOM Carregado');
+console.log('🔍 Verificando API no início do script...');
+console.log('🔍 window.api existe?', typeof window.api !== 'undefined');
+console.log('🔍 window.api:', window.api);
 
-// ✅ INICIALIZAR IMEDIATAMENTE SE API JÁ EXISTE
-if (typeof window.api !== 'undefined' && window.api) {
-  console.log('✅ API já disponível, iniciando...');
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  console.log('⏳ Aguardando API carregar...');
-  // Se a API não existe ainda, aguardar um pouco
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      console.log('🎯 Tentando iniciar após delay...');
-      if (typeof window.api !== 'undefined' && window.api) {
+// Aguardar carregamento do DOM
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('📄 DOM Carregado');
+  
+  // Verificar se API já está disponível
+  if (typeof window.api !== 'undefined') {
+    console.log('✅ API já disponível, iniciando...');
+    init();
+  } else {
+    // Aguardar API ser carregada
+    console.log('⏳ Aguardando API...');
+    let attempts = 0;
+    const maxAttempts = 50;
+    
+    const checkAPI = setInterval(() => {
+      attempts++;
+      
+      if (typeof window.api !== 'undefined') {
+        console.log('✅ API carregada após', attempts, 'tentativas');
+        clearInterval(checkAPI);
         init();
-      } else {
-        console.error('❌ API ainda não disponível');
-        showErrorMessage('Erro ao carregar serviço de API. Recarregue a página.');
+      } else if (attempts >= maxAttempts) {
+        console.error('❌ API não foi carregada após', maxAttempts, 'tentativas');
+        clearInterval(checkAPI);
+        showError('Erro ao carregar serviços da aplicação. Recarregue a página.');
       }
-    }, 500);
-  });
-}
-
-// Tornar funções disponíveis globalmente
-window.watchAnime = watchAnime;
-window.showAnimeInfo = showAnimeInfo;
-window.toggleFavorite = toggleFavorite;
-window.openProfileModal = openProfileModal;
+    }, 100);
+  }
+});
 
 console.log('✅ content-streaming.js carregado!');

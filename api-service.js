@@ -1,5 +1,5 @@
 // api-service.js
-// Serviço de API para HiAnime
+// Serviço de API para HiAnime com sistema de fila e proteção contra rate limit
 
 (function() {
   'use strict';
@@ -9,15 +9,58 @@
     baseURL: 'https://yayapi-delta.vercel.app/api/v2/hianime',
     timeout: 30000,
     cache: {
-      duration: 30 * 60 * 1000, // 30 minutos
+      duration: 60 * 60 * 1000, // 1 hora (aumentado)
       enabled: true
     },
-    // ✅ Delay entre requisições para evitar rate limit
-    requestDelay: 300 // 300ms entre requisições
+    requestDelay: 1000, // 1 segundo entre requisições
+    maxRetries: 3
   };
 
-  // ✅ Controle de tempo da última requisição
-  let lastRequestTime = 0;
+  // ✅ SISTEMA DE FILA DE REQUISIÇÕES
+  class RequestQueue {
+    constructor(delayMs = 1000) {
+      this.queue = [];
+      this.processing = false;
+      this.delay = delayMs;
+      this.lastRequestTime = 0;
+    }
+
+    async add(fn) {
+      return new Promise((resolve, reject) => {
+        this.queue.push({ fn, resolve, reject });
+        this.process();
+      });
+    }
+
+    async process() {
+      if (this.processing || this.queue.length === 0) return;
+
+      this.processing = true;
+      const { fn, resolve, reject } = this.queue.shift();
+
+      try {
+        // Garantir delay mínimo entre requisições
+        const now = Date.now();
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        if (timeSinceLastRequest < this.delay) {
+          await new Promise(r => setTimeout(r, this.delay - timeSinceLastRequest));
+        }
+
+        const result = await fn();
+        this.lastRequestTime = Date.now();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+
+      // Aguardar antes de processar próxima requisição
+      await new Promise(r => setTimeout(r, this.delay));
+      this.processing = false;
+      this.process();
+    }
+  }
+
+  const requestQueue = new RequestQueue(API_CONFIG.requestDelay);
 
   // Cache simples em memória
   const cache = new Map();
@@ -43,6 +86,7 @@
       return null;
     }
     
+    console.log('📦 Retornando do cache:', key);
     return cached.data;
   }
 
@@ -55,14 +99,13 @@
     });
   }
 
-  // Função auxiliar para fazer requisições com retry
+  // ✅ FUNÇÃO DE REQUISIÇÃO MELHORADA
   async function fetchAPI(endpoint, params = {}, retryCount = 0) {
     const cacheKey = getCacheKey(endpoint, params);
     
-    // Verificar cache
+    // Verificar cache PRIMEIRO
     const cached = getFromCache(cacheKey);
     if (cached) {
-      console.log('📦 Retornando do cache:', endpoint);
       return cached;
     }
 
@@ -75,58 +118,62 @@
       ? `${API_CONFIG.baseURL}${endpoint}?${queryString}`
       : `${API_CONFIG.baseURL}${endpoint}`;
 
-    console.log('🌐 Fazendo requisição:', url);
+    // ✅ ADICIONAR À FILA DE REQUISIÇÕES
+    return requestQueue.add(async () => {
+      console.log('🌐 Fazendo requisição:', url);
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeout);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: controller.signal
-      });
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'YayaAnimes/1.0'
+          },
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      // ✅ TRATAR RATE LIMIT (429) COM RETRY
-      if (response.status === 429) {
-        const maxRetries = 3;
-        if (retryCount < maxRetries) {
-          const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff
-          console.warn(`⚠️ Rate limit (429) - Tentando novamente em ${retryDelay}ms (tentativa ${retryCount + 1}/${maxRetries})`);
-          
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return fetchAPI(endpoint, params, retryCount + 1);
+        // ✅ TRATAR RATE LIMIT (429)
+        if (response.status === 429) {
+          if (retryCount < API_CONFIG.maxRetries) {
+            const retryDelay = Math.min(2000 * Math.pow(2, retryCount), 10000);
+            console.warn(`⚠️ Rate limit (429) - Aguardando ${retryDelay}ms (tentativa ${retryCount + 1}/${API_CONFIG.maxRetries})`);
+            
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            return fetchAPI(endpoint, params, retryCount + 1);
+          }
+          throw new Error('Rate limit excedido. Por favor, aguarde alguns minutos.');
         }
-        throw new Error('Rate limit excedido. Aguarde alguns segundos e tente novamente.');
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        // Verificar sucesso da resposta
+        if (data.success === false) {
+          throw new Error(data.message || 'Erro na resposta da API');
+        }
+
+        // Armazenar no cache
+        setCache(cacheKey, data);
+        console.log('✅ Requisição bem-sucedida:', endpoint);
+
+        return data;
+
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Timeout: A requisição demorou muito');
+        }
+        console.error('❌ Erro na requisição:', error);
+        throw error;
       }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      // Verificar se a resposta tem sucesso
-      if (data.success === false) {
-        throw new Error(data.message || 'Erro na resposta da API');
-      }
-
-      // Armazenar no cache
-      setCache(cacheKey, data);
-
-      return data;
-
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        throw new Error('Timeout: A requisição demorou muito');
-      }
-      console.error('❌ Erro na requisição:', error);
-      throw error;
-    }
+    });
   }
 
   // ==================== API PÚBLICA ====================
@@ -151,7 +198,7 @@
       return await fetchAPI(`/qtip/${animeId}`);
     },
 
-    // 4. Anime About Info (PRINCIPAL)
+    // 4. Anime About Info
     async getAnimeInfo(animeId) {
       console.log(`📡 getAnimeInfo(${animeId})`);
       if (!animeId || typeof animeId !== 'string') {
@@ -208,7 +255,7 @@
       return await fetchAPI('/schedule', params);
     },
 
-    // 11. Anime Episodes (PRINCIPAL)
+    // 11. Anime Episodes
     async getAnimeEpisodes(animeId) {
       console.log(`📡 getAnimeEpisodes(${animeId})`);
       if (!animeId || typeof animeId !== 'string') {
@@ -223,21 +270,18 @@
       return await fetchAPI(`/anime/${animeId}/next-episode-schedule`);
     },
 
-    // 13. Episode Servers (PRINCIPAL)
+    // 13. Episode Servers
     async getEpisodeServers(episodeId) {
       console.log(`📡 getEpisodeServers(${episodeId})`);
-      console.log(`📌 Tipo do episodeId: ${typeof episodeId}`);
-      console.log(`📌 Valor completo: "${episodeId}"`);
       
       if (!episodeId || typeof episodeId !== 'string') {
         throw new Error('episodeId inválido');
       }
 
-      // ✅ USAR O EPISODEID COMPLETO SEM MODIFICAÇÕES
       return await fetchAPI('/episode/servers', { animeEpisodeId: episodeId });
     },
 
-    // 14. Episode Streaming Sources (PRINCIPAL)
+    // 14. Episode Streaming Sources
     async getEpisodeSources(episodeId, server = 'vidstreaming', category = 'sub') {
       console.log(`📡 getEpisodeSources(${episodeId}, ${server}, ${category})`);
       
@@ -245,7 +289,6 @@
         throw new Error('episodeId inválido');
       }
 
-      // ✅ USAR O EPISODEID COMPLETO SEM MODIFICAÇÕES
       return await fetchAPI('/episode/sources', {
         animeEpisodeId: episodeId,
         server: server,
@@ -261,19 +304,22 @@
 
     getCacheSize() {
       return cache.size;
+    },
+
+    getQueueSize() {
+      return requestQueue.queue.length;
     }
   };
 
   // ==================== EXPORTAR PARA WINDOW ====================
   
-  // ✅ EXPORTAÇÃO CRÍTICA - Garantir que api está no escopo global
   window.api = APIService;
-  window.APIService = APIService; // Alias alternativo
+  window.APIService = APIService;
 
   console.log('✅ API Service carregado!');
   console.log('📺 API Base:', API_CONFIG.baseURL);
   console.log('💾 Cache duration:', API_CONFIG.cache.duration / 60000, 'minutos');
+  console.log('⏱️ Request delay:', API_CONFIG.requestDelay, 'ms');
   console.log('🔍 window.api:', window.api);
-  console.log('🔍 typeof window.api:', typeof window.api);
 
 })();
