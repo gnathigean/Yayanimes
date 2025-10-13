@@ -308,12 +308,12 @@ function renderContent(gridId, items) {
         </div>
 
         <div class="card-actions">
-          <button onclick="playContent(${item.id}, '${
+           <button onclick="playContent(${item.id}, \'${
         item.type
-      }')" class="btn-play">
+      }\')" class="btn-play">
             ▶️ Assistir
           </button>
-          <button onclick="showInfo(${item.id}, '${
+         <button onclick="showInfo(${item.id}, '${
         item.type
       }')" class="btn-info">
             ℹ️ Info
@@ -409,8 +409,8 @@ function loadContinueWatching() {
               <span>⏱️ ${item.progress}% concluído</span>
             </div>
         </div>
-        <div class="card-actions">
-          <button onclick="playContent(${item.id}, '${item.type}')" class="btn-play">
+       <div class="card-actions">
+          <button onclick="playContent(${item.id}, \'${item.type}\')" class="btn-play">
             ▶️ Continuar
           </button>
         </div>
