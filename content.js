@@ -207,9 +207,9 @@ function createAnimeCard(anime) {
         </div>
 
         <button class="card-favorite ${isFavorite ? "active" : ""}" 
-                onclick="toggleFavorite('${anime.id}', '${
+                onclick="toggleFavorite('${anime.id}', '${(
     anime.name || anime.title
-  }', '${anime.poster || anime.image}')"
+  ).replace(/'/g, "\\'")}', '${anime.poster || anime.image}')"
                 title="Adicionar aos favoritos">
           ${isFavorite ? "❤️" : "🤍"}
         </button>
@@ -407,7 +407,6 @@ function renderSearchResults(animes) {
 }
 
 function applyFilter(filter) {
-  // Implementar filtros (todos, anime, trending, favorites)
   console.log("Filtro aplicado:", filter);
 
   if (filter === "favorites") {
@@ -415,7 +414,6 @@ function applyFilter(filter) {
   } else if (filter === "all") {
     loadPremiumContent();
   }
-  // Adicionar mais filtros conforme necessário
 }
 
 function showFavorites() {
@@ -433,7 +431,6 @@ function showFavorites() {
     return;
   }
 
-  // Renderizar favoritos
   document.getElementById("dynamic-content-container").innerHTML = `
     <section class="content-section">
       <div class="section-header">

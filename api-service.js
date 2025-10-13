@@ -629,8 +629,13 @@ const streaming = {
   // Servidores de um episódio
   async getEpisodeServers(episodeId) {
     try {
+      // CORREÇÃO: Garantir que o episodeId está codificado corretamente
+      console.log(`🎯 getEpisodeServers chamado com: "${episodeId}"`);
+
+      // A API espera o ID completo: "anime-id?ep=123456"
+      const encodedId = encodeURIComponent(episodeId);
       const data = await apiRequest(
-        `/episode/servers?animeEpisodeId=${episodeId}`
+        `/episode/servers?animeEpisodeId=${encodedId}`
       );
       return data;
     } catch (error) {
@@ -642,12 +647,29 @@ const streaming = {
   // Streams de um episódio
   async getEpisodeStreams(episodeId, server = "hd-1", category = "sub") {
     try {
+      // CORREÇÃO CRÍTICA: A API precisa do ID COMPLETO (com ?ep=)
+      // Exemplo correto: "solo-leveling-season-2-arise-from-the-shadow-19413?ep=131394"
+      // Exemplo errado: "131394" (apenas o número)
+
+      console.log(`🎯 getEpisodeStreams chamado com: "${episodeId}"`);
+      console.log(`   - Servidor: ${server}, Categoria: ${category}`);
+
+      // Garantir que o episodeId está codificado corretamente
+      const encodedId = encodeURIComponent(episodeId);
+
+      console.log(
+        `📡 Requisição para: /episode/sources?animeEpisodeId=${encodedId}&server=${server}&category=${category}`
+      );
+
       const data = await apiRequest(
-        `/episode/sources?animeEpisodeId=${episodeId}&server=${server}&category=${category}`
+        `/episode/sources?animeEpisodeId=${encodedId}&server=${server}&category=${category}`
       );
       return data;
     } catch (error) {
-      console.error("Erro ao buscar streams:", error);
+      console.error("❌ Erro ao buscar streams:", error);
+      console.error("   - episodeId:", episodeId);
+      console.error("   - server:", server);
+      console.error("   - category:", category);
       throw error;
     }
   },
