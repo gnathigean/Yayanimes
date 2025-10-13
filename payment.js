@@ -1,5 +1,5 @@
-// payment.js - Mercado Pago Integration (FIXED - Reuse Pending Payment)
-// Sistema de pagamento com Mercado Pago - Reutiliza QR Code pendente
+// payment.js - Mercado Pago Integration (FIXED - Delete Orphan Subscriptions)
+// Sistema de pagamento com Mercado Pago - Remove assinaturas órfãs
 
 console.log("✅ payment.js carregado (Mercado Pago)");
 
@@ -39,17 +39,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("✅ Plano selecionado:", planType);
   displayPlanDetails(planType);
 
-  // Verificar se já existe pagamento pendente
-  await checkPendingPayment(user.id);
+  // Verificar e limpar assinaturas pendentes
+  await checkAndCleanPendingPayments(user.id);
 });
 
 // ===========================
-// VERIFICAR PAGAMENTO PENDENTE
+// VERIFICAR E LIMPAR ASSINATURAS ÓRFÃS
 // ===========================
 
-async function checkPendingPayment(userId) {
+async function checkAndCleanPendingPayments(userId) {
   try {
-    console.log("🔍 Verificando pagamento pendente...");
+    console.log("🔍 Verificando pagamentos pendentes...");
 
     // Buscar assinatura pendente
     const { data: subscription, error: subError } = await supabase
@@ -65,7 +65,7 @@ async function checkPendingPayment(userId) {
     }
 
     if (!subscription) {
-      console.log("ℹ️ Nenhum pagamento pendente encontrado");
+      console.log("✅ Nenhuma assinatura pendente encontrada");
       return;
     }
 
@@ -83,17 +83,48 @@ async function checkPendingPayment(userId) {
 
     if (payError && payError.code !== "PGRST116") {
       console.error("❌ Erro ao buscar pagamento:", payError);
-      return;
     }
 
+    // Se não tem pagamento OU não tem pix_code
     if (!payment || !payment.pix_code) {
-      console.log("ℹ️ Nenhum código PIX encontrado");
+      console.log("⚠️ Assinatura órfã detectada (sem pagamento válido)");
+
+      // Verificar se é antiga (mais de 5 minutos)
+      const createdAt = new Date(subscription.created_at);
+      const now = new Date();
+      const diffMinutes = (now - createdAt) / 1000 / 60;
+
+      if (diffMinutes > 5) {
+        console.log("🗑️ Removendo assinatura órfã antiga...");
+
+        // Deletar assinatura órfã
+        const { error: deleteError } = await supabase
+          .from("subscriptions")
+          .delete()
+          .eq("id", subscription.id);
+
+        if (deleteError) {
+          console.error("❌ Erro ao deletar assinatura órfã:", deleteError);
+          showMessage(
+            "⚠️ Detectada assinatura incompleta. Tente novamente.",
+            "info"
+          );
+        } else {
+          console.log("✅ Assinatura órfã removida com sucesso");
+          showMessage(
+            "ℹ️ Assinatura anterior removida. Gere um novo código.",
+            "info"
+          );
+        }
+      } else {
+        console.log("⏳ Assinatura recente sem pagamento. Aguardando...");
+        showMessage("⏳ Aguarde alguns segundos e tente novamente.", "info");
+      }
+
       return;
     }
 
-    console.log("💳 Pagamento pendente encontrado:", payment.id);
-
-    // Verificar se o pagamento expirou (30 minutos)
+    // Tem pagamento válido - verificar expiração
     const createdAt = new Date(payment.created_at);
     const now = new Date();
     const diffMinutes = (now - createdAt) / 1000 / 60;
@@ -102,6 +133,18 @@ async function checkPendingPayment(userId) {
 
     if (diffMinutes > 30) {
       console.log("⏰ Pagamento expirado (>30min)");
+
+      // Atualizar status para expirado
+      await supabase
+        .from("payments")
+        .update({ status: "expired" })
+        .eq("id", payment.id);
+
+      await supabase
+        .from("subscriptions")
+        .update({ status: "expired" })
+        .eq("id", subscription.id);
+
       showMessage(
         "⏰ O código PIX anterior expirou. Gere um novo código.",
         "info"
@@ -109,14 +152,14 @@ async function checkPendingPayment(userId) {
       return;
     }
 
-    // Pagamento ainda válido - exibir QR Code existente
+    // Pagamento válido - exibir QR Code existente
     console.log(
       "✅ Pagamento válido encontrado! Exibindo QR Code existente..."
     );
 
     const plan = PLANS[subscription.plan_type];
 
-    showMessage("ℹ️ Você já possui um código PIX pendente!", "info");
+    showMessage("✅ Código PIX válido encontrado!", "success");
 
     // Esconder botão de gerar
     const generateBtn = document.getElementById("generate-pix-btn");
@@ -180,67 +223,77 @@ async function generatePixPayment() {
 
     console.log("✅ Usuário autenticado:", user.email);
 
-    // Verificar se já existe pagamento pendente válido
-    const { data: subscription, error: subError } = await supabase
+    // Desabilitar botão
+    const btn = document.getElementById("generate-pix-btn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "⏳ Processando...";
+    }
+
+    // Verificar assinaturas pendentes
+    const { data: subscriptions } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
-      .eq("status", "pending")
-      .maybeSingle();
+      .eq("status", "pending");
 
-    if (subscription) {
-      // Buscar pagamento associado
-      const { data: payment } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("subscription_id", subscription.id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    if (subscriptions && subscriptions.length > 0) {
+      console.log(
+        `🔍 Encontradas ${subscriptions.length} assinatura(s) pendente(s)`
+      );
 
-      if (payment && payment.pix_code) {
-        // Verificar se não expirou
-        const createdAt = new Date(payment.created_at);
-        const now = new Date();
-        const diffMinutes = (now - createdAt) / 1000 / 60;
+      // Buscar pagamento válido
+      for (const sub of subscriptions) {
+        const { data: payment } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("subscription_id", sub.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (diffMinutes <= 30) {
-          console.log("ℹ️ Reutilizando código PIX pendente existente");
+        if (payment && payment.pix_code) {
+          // Verificar se não expirou
+          const createdAt = new Date(payment.created_at);
+          const now = new Date();
+          const diffMinutes = (now - createdAt) / 1000 / 60;
 
-          const plan = PLANS[subscription.plan_type];
+          if (diffMinutes <= 30) {
+            console.log("✅ Reutilizando código PIX pendente existente");
 
-          // Esconder botão
-          const btn = document.getElementById("generate-pix-btn");
-          if (btn) {
-            btn.style.display = "none";
+            const plan = PLANS[sub.plan_type];
+
+            if (btn) btn.style.display = "none";
+
+            displayPixCode(
+              payment.pix_code,
+              payment.qr_code_base64,
+              plan.name,
+              plan.price,
+              diffMinutes
+            );
+
+            startPaymentCheck(sub.id);
+            currentPaymentId = payment.id;
+
+            showMessage("✅ Exibindo código PIX pendente", "success");
+            return;
           }
-
-          displayPixCode(
-            payment.pix_code,
-            payment.qr_code_base64,
-            plan.name,
-            plan.price,
-            diffMinutes
-          );
-
-          startPaymentCheck(subscription.id);
-          currentPaymentId = payment.id;
-
-          showMessage("ℹ️ Exibindo código PIX pendente", "info");
-          return;
-        } else {
-          console.log("⏰ Código anterior expirou, criando novo...");
-          // Atualizar status do pagamento antigo
-          await supabase
-            .from("payments")
-            .update({ status: "expired" })
-            .eq("id", payment.id);
         }
       }
+
+      // Se chegou aqui, todas as assinaturas pendentes não tem pagamento válido
+      console.log("🗑️ Removendo assinaturas órfãs...");
+
+      for (const sub of subscriptions) {
+        await supabase.from("subscriptions").delete().eq("id", sub.id);
+      }
+
+      console.log("✅ Assinaturas órfãs removidas");
     }
 
-    // Obter plano selecionado
+    // Criar novo pagamento
     const planType = localStorage.getItem("selected_plan");
     const plan = PLANS[planType];
 
@@ -248,27 +301,21 @@ async function generatePixPayment() {
       throw new Error("Plano não encontrado");
     }
 
-    console.log("📦 Plano:", plan.name, "- Valor:", plan.price);
+    console.log("📦 Criando novo pagamento para:", plan.name);
 
-    // Desabilitar botão
-    const btn = document.getElementById("generate-pix-btn");
     if (btn) {
-      btn.disabled = true;
       btn.textContent = "⏳ Gerando código PIX...";
     }
 
-    // Preparar dados do pagamento
     const paymentData = {
       user_id: user.id,
       plan_type: planType,
       amount: plan.price,
       email: user.email,
-      force_new: true, // Flag para criar novo pagamento
     };
 
-    console.log("📤 Enviando requisição para criar pagamento...");
+    console.log("📤 Enviando requisição...");
 
-    // Chamar API de criação de pagamento
     const response = await fetch(
       "https://yayanimes.vercel.app/api/create-payment",
       {
@@ -280,10 +327,9 @@ async function generatePixPayment() {
       }
     );
 
-    console.log("📊 Status da resposta:", response.status);
+    console.log("📊 Status:", response.status);
 
     const responseText = await response.text();
-    console.log("📦 Resposta bruta:", responseText);
 
     if (!response.ok) {
       let errorData;
@@ -294,16 +340,24 @@ async function generatePixPayment() {
       }
 
       console.error("❌ Erro da API:", errorData);
-      throw new Error(
-        errorData.error || errorData.details || "Erro ao criar pagamento"
-      );
+
+      // Se ainda der erro de duplicata, significa que a API criou a assinatura mas não removemos
+      if (errorData.details && errorData.details.includes("duplicate key")) {
+        showMessage("⚠️ Erro de sincronização. Recarregando página...", "info");
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        return;
+      }
+
+      throw new Error(errorData.error || "Erro ao criar pagamento");
     }
 
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (e) {
-      console.error("❌ Erro ao fazer parse da resposta:", e);
+      console.error("❌ Erro ao fazer parse:", e);
       throw new Error("Resposta inválida da API");
     }
 
@@ -314,12 +368,13 @@ async function generatePixPayment() {
       throw new Error("Código PIX não foi gerado");
     }
 
-    console.log("✅ Pagamento criado com sucesso!");
+    console.log("✅ Pagamento criado!");
     console.log("🎫 Payment ID:", data.payment.id);
     console.log("💰 Mercado Pago ID:", data.payment.mercadopago_id);
-    console.log("📄 Subscription ID:", data.subscription.id);
 
     currentPaymentId = data.payment.id;
+
+    if (btn) btn.style.display = "none";
 
     displayPixCode(
       data.payment.pix_code,
@@ -333,13 +388,13 @@ async function generatePixPayment() {
 
     showMessage("✅ Código PIX gerado com sucesso!", "success");
   } catch (error) {
-    console.error("💥 Erro ao gerar pagamento:", error);
-    showMessage(`❌ Erro: ${error.message}`, "error");
+    console.error("💥 Erro:", error);
+    showMessage(`❌ ${error.message}`, "error");
 
     const btn = document.getElementById("generate-pix-btn");
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "🔄 Gerar Código PIX";
+      btn.textContent = "🔄 Tentar Novamente";
     }
   }
 }
@@ -356,56 +411,44 @@ function displayPixCode(
   minutesElapsed = 0
 ) {
   console.log("🖼️ Exibindo QR Code...");
-  console.log("  - PIX Code:", pixCode ? "✅" : "❌");
-  console.log("  - QR Base64:", qrCodeBase64 ? "✅" : "❌");
-  console.log("  - Tempo decorrido:", minutesElapsed.toFixed(1), "minutos");
 
-  // Esconder botão de gerar
   const generateBtn = document.getElementById("generate-pix-btn");
   if (generateBtn) {
     generateBtn.style.display = "none";
   }
 
-  // Mostrar seção PIX
   const pixSection = document.getElementById("pix-section");
   if (pixSection) {
     pixSection.style.display = "block";
   }
 
-  // Definir imagem do QR Code
   const qrImg = document.getElementById("pix-qrcode-img");
   if (qrImg) {
     if (qrCodeBase64) {
       qrImg.src = `data:image/png;base64,${qrCodeBase64}`;
-      console.log("✅ QR Code carregado via Base64");
     } else {
       const qrcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
         pixCode
       )}`;
       qrImg.src = qrcodeUrl;
-      console.log("✅ QR Code carregado via API pública");
     }
 
     qrImg.onerror = function () {
-      console.error("❌ Erro ao carregar QR Code");
       this.src = "https://via.placeholder.com/300x300?text=QR+Code+Error";
     };
   }
 
-  // Preencher código PIX
   const pixCodeInput = document.getElementById("pix-code");
   if (pixCodeInput) {
     pixCodeInput.value = pixCode;
   }
 
-  // Calcular tempo restante
   const remainingMinutes = Math.max(0, 30 - minutesElapsed);
   const timeWarning =
     remainingMinutes < 5
       ? `⚠️ Restam apenas ${Math.floor(remainingMinutes)} minutos!`
       : `⏰ Válido por ${Math.floor(remainingMinutes)} minutos`;
 
-  // Mostrar status de pagamento
   const paymentStatus = document.getElementById("payment-status");
   if (paymentStatus) {
     paymentStatus.style.display = "block";
@@ -423,13 +466,13 @@ function displayPixCode(
           Verificando automaticamente a cada 3 segundos
         </p>
         <div style="margin-top: 15px;">
-          <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(102, 126, 234, 0.2); border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+          <div style="width: 40px; height: 40px; border: 4px solid rgba(102, 126, 234, 0.2); border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
         </div>
       </div>
     `;
   }
 
-  console.log("✅ QR Code exibido com sucesso!");
+  console.log("✅ QR Code exibido!");
 }
 
 // ===========================
@@ -437,12 +480,9 @@ function displayPixCode(
 // ===========================
 
 function copyPixCode() {
-  console.log("📋 Copiando código PIX...");
-
   const pixCodeElement = document.getElementById("pix-code");
 
   if (!pixCodeElement) {
-    console.error("❌ Elemento pix-code não encontrado");
     showMessage("❌ Erro ao copiar código", "error");
     return;
   }
@@ -453,11 +493,9 @@ function copyPixCode() {
     navigator.clipboard
       .writeText(pixCode)
       .then(() => {
-        console.log("✅ Código copiado via Clipboard API");
         showMessage("✅ Código PIX copiado!", "success");
       })
-      .catch((err) => {
-        console.error("❌ Erro ao copiar via Clipboard API:", err);
+      .catch(() => {
         copyFallback(pixCodeElement);
       });
   } else {
@@ -470,10 +508,8 @@ function copyFallback(element) {
     element.select();
     element.setSelectionRange(0, 99999);
     document.execCommand("copy");
-    console.log("✅ Código copiado via execCommand");
     showMessage("✅ Código PIX copiado!", "success");
   } catch (err) {
-    console.error("❌ Erro no fallback:", err);
     showMessage("❌ Erro ao copiar. Copie manualmente.", "error");
   }
 }
@@ -486,10 +522,8 @@ async function startPaymentCheck(subscriptionId) {
   let attempts = 0;
   const maxAttempts = 600;
 
-  console.log("🔄 Iniciando verificação automática de pagamento...");
-  console.log("📌 Subscription ID:", subscriptionId);
+  console.log("🔄 Iniciando verificação automática...");
 
-  // Limpar intervalo anterior se existir
   if (paymentCheckInterval) {
     clearInterval(paymentCheckInterval);
   }
@@ -498,21 +532,14 @@ async function startPaymentCheck(subscriptionId) {
     attempts++;
 
     try {
-      const { data: subscription, error } = await supabase
+      const { data: subscription } = await supabase
         .from("subscriptions")
         .select("status")
         .eq("id", subscriptionId)
         .maybeSingle();
 
-      if (error) {
-        console.error("❌ Erro ao verificar pagamento:", error);
-        return;
-      }
-
       console.log(
-        `🔍 Verificação ${attempts}/${maxAttempts}: Status = ${
-          subscription?.status || "não encontrado"
-        }`
+        `🔍 Verificação ${attempts}: ${subscription?.status || "N/A"}`
       );
 
       if (subscription && subscription.status === "active") {
@@ -532,7 +559,7 @@ async function startPaymentCheck(subscriptionId) {
                 Bem-vindo ao YayaAnimes Premium! 🎉
               </p>
               <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                Redirecionando para o conteúdo...
+                Redirecionando...
               </p>
             </div>
           `;
@@ -545,7 +572,6 @@ async function startPaymentCheck(subscriptionId) {
 
       if (attempts >= maxAttempts) {
         clearInterval(paymentCheckInterval);
-        console.warn("⏰ Timeout na verificação de pagamento");
 
         const paymentStatus = document.getElementById("payment-status");
         if (paymentStatus) {
@@ -554,10 +580,7 @@ async function startPaymentCheck(subscriptionId) {
               <p style="color: #dc2626; font-weight: 600; font-size: 16px;">
                 ⏰ Código PIX expirado
               </p>
-              <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                O código PIX expirou. Por favor, gere um novo código.
-              </p>
-              <button onclick="window.location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+              <button onclick="window.location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
                 🔄 Gerar Novo Código
               </button>
             </div>
@@ -575,7 +598,6 @@ async function startPaymentCheck(subscriptionId) {
 // ===========================
 
 async function checkPaymentStatus() {
-  console.log("🔍 Verificação manual iniciada...");
   showMessage("🔄 Verificando pagamento...", "info");
 
   try {
@@ -586,7 +608,7 @@ async function checkPaymentStatus() {
       return;
     }
 
-    const { data: subscription, error } = await supabase
+    const { data: subscription } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
@@ -594,43 +616,30 @@ async function checkPaymentStatus() {
       .limit(1)
       .maybeSingle();
 
-    if (error) {
-      console.error("❌ Erro ao verificar:", error);
-      showMessage("❌ Erro ao verificar pagamento", "error");
-      return;
-    }
-
     if (!subscription) {
-      showMessage("⏳ Nenhum pagamento encontrado ainda", "info");
+      showMessage("⏳ Nenhum pagamento encontrado", "info");
       return;
     }
-
-    console.log("📦 Assinatura encontrada:", subscription);
 
     if (subscription.status === "active") {
-      showMessage("✅ Pagamento confirmado! Redirecionando...", "success");
+      showMessage("✅ Pagamento confirmado!", "success");
       localStorage.removeItem("selected_plan");
       setTimeout(() => {
         window.location.href = "content.html";
       }, 2000);
-    } else if (subscription.status === "pending") {
-      showMessage("⏳ Ainda aguardando confirmação do pagamento", "info");
     } else {
-      showMessage(`❌ Status: ${subscription.status}`, "error");
+      showMessage(`⏳ Status: ${subscription.status}`, "info");
     }
   } catch (error) {
-    console.error("💥 Erro:", error);
-    showMessage("❌ Erro ao verificar status", "error");
+    showMessage("❌ Erro ao verificar", "error");
   }
 }
 
 // ===========================
-// MENSAGENS DE FEEDBACK
+// MENSAGENS
 // ===========================
 
 function showMessage(message, type = "info") {
-  console.log(`📢 Mensagem [${type}]:`, message);
-
   let messageContainer = document.getElementById("message-container");
 
   if (!messageContainer) {
@@ -669,57 +678,36 @@ function showMessage(message, type = "info") {
 
   setTimeout(() => {
     messageEl.style.animation = "slideOut 0.3s ease";
-    setTimeout(() => {
-      messageEl.remove();
-    }, 300);
+    setTimeout(() => messageEl.remove(), 300);
   }, 5000);
 }
 
 // ===========================
-// ANIMAÇÕES CSS
+// ANIMAÇÕES
 // ===========================
 
 const style = document.createElement("style");
 style.textContent = `
   @keyframes slideIn {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
   }
-
   @keyframes slideOut {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
   }
-
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 `;
 document.head.appendChild(style);
 
 // ===========================
-// EXPOR FUNÇÕES GLOBALMENTE
+// EXPOR FUNÇÕES
 // ===========================
 
 window.generatePixPayment = generatePixPayment;
 window.copyPixCode = copyPixCode;
 window.checkPaymentStatus = checkPaymentStatus;
 
-console.log("🎯 Funções payment.js registradas globalmente!");
-console.log("  - generatePixPayment()");
-console.log("  - copyPixCode()");
-console.log("  - checkPaymentStatus()");
+console.log("🎯 Funções registradas!");
