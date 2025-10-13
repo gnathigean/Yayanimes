@@ -325,17 +325,31 @@
   </body>
 </html>
 <script>
-  // DEBUG - TEMPORÁRIO
-  console.log("=== DEBUG INFO ===");
-  console.log("currentUser:", localStorage.getItem("currentUser"));
+  // DEBUG AVANÇADO - TEMPORÁRIO
+  console.log("=== DEBUG COMPLETO ===");
+  console.log("1. User:", localStorage.getItem("currentUser"));
+  console.log("2. Subscription:", localStorage.getItem("currentSubscription"));
+  console.log("3. API carregada:", !!window.AnimeAPI);
   console.log(
-    "currentSubscription:",
-    localStorage.getItem("currentSubscription")
+    "4. API methods:",
+    window.AnimeAPI ? Object.keys(window.AnimeAPI) : "N/A"
   );
-  console.log("API carregada:", !!window.AnimeAPI);
-  console.log("==================");
+  console.log("5. DOM Ready:", document.readyState);
+  console.log("=====================");
 
-  // Se não tiver dados, criar temporariamente para teste
+  // Teste de API rápido
+  if (window.AnimeAPI) {
+    console.log("🧪 Testando API...");
+    window.AnimeAPI.loadContentForHomepage()
+      .then((data) => {
+        console.log("✅ API funcionando! Dados:", data);
+      })
+      .catch((error) => {
+        console.error("❌ API com erro:", error);
+      });
+  }
+
+  // Criar usuário premium se não existir
   if (!localStorage.getItem("currentUser")) {
     console.warn("⚠️ Criando usuário de teste...");
     localStorage.setItem(
@@ -346,6 +360,7 @@
       })
     );
     localStorage.setItem("currentSubscription", "premium");
-    window.location.reload();
+    console.log("✅ Usuário criado. Recarregando...");
+    setTimeout(() => window.location.reload(), 1000);
   }
 </script>
