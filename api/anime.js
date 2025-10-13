@@ -1,7 +1,7 @@
 // /api/anime.js
 // Proxy para Aniwatch API com CORS habilitado
 
-const ANIWATCH_BASE = "https://aniwatch-api-dusky.vercel.app/api/v2/hianime";
+const ANIWATCH_BASE = "https://yayapi-delta.vercel.app/api/v2/hianime";
 
 // Cache simples (5 minutos)
 const cache = new Map();
