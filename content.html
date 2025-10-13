@@ -38,7 +38,13 @@
       <header class="streaming-header">
         <div class="header-content">
           <div class="logo-section">
-            <h1>🎬 YayaAnimes</h1>
+            <a href="#" class="logo-link">
+              <img
+                src="assets/yay-animes-logo.png"
+                alt="Yay! Animes Logo"
+                class="main-logo"
+              />
+            </a>
           </div>
 
           <nav class="main-nav">
@@ -128,35 +134,25 @@
       </section>
 
       <main class="content-main">
-        <section class="content-section">
+        <section class="content-section" id="continue-watching-section">
           <div class="section-header">
             <h3>🔄 Continue Assistindo</h3>
           </div>
           <div class="content-grid continue-watching" id="continue-grid"></div>
         </section>
 
-        <section class="content-section" data-category="animes">
+        <div id="dynamic-content-container"></div>
+
+        <section
+          class="content-section"
+          data-category="animes"
+          id="animes-grid-section"
+        >
           <div class="section-header">
-            <h3>⚡ Animes em Alta</h3>
+            <h3>⚡ Animes em Alta (Fallback)</h3>
             <button class="btn-see-all">Ver Todos →</button>
           </div>
           <div class="content-grid" id="animes-grid"></div>
-        </section>
-
-        <section class="content-section" data-category="movies">
-          <div class="section-header">
-            <h3>🎥 Filmes Populares</h3>
-            <button class="btn-see-all">Ver Todos →</button>
-          </div>
-          <div class="content-grid" id="movies-grid"></div>
-        </section>
-
-        <section class="content-section" data-category="series">
-          <div class="section-header">
-            <h3>📺 Séries do Momento</h3>
-            <button class="btn-see-all">Ver Todos →</button>
-          </div>
-          <div class="content-grid" id="series-grid"></div>
         </section>
       </main>
 
