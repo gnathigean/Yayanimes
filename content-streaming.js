@@ -1,5 +1,5 @@
 // content-streaming.js
-// VERSÃO CORRIGIDA - PROBLEMA DO LOADING INFINITO RESOLVIDO
+// VERSÃO CORRIGIDA E REVISADA - COMPLETA
 
 // ===========================
 // CONFIGURAÇÃO
@@ -209,13 +209,22 @@ async function loadContentFromAPI() {
   console.log("📡 Carregando da API...");
 
   try {
-    const data = await window.AnimeAPI.loadContentForHomepage();
-    console.log("📦 Dados recebidos da API:", data);
+    const response = await window.AnimeAPI.loadContentForHomepage();
+    console.log("📦 Dados recebidos da API:", response);
+    console.log("📊 Estrutura completa:", JSON.stringify(response, null, 2));
 
-    if (!data) {
+    if (!response) {
       throw new Error("Nenhum dado retornado da API");
     }
 
+    // A API retorna { status: 200, data: {...} }
+    const data = response.data || response;
+
+    if (!data) {
+      throw new Error("Estrutura de dados inválida");
+    }
+
+    // Mapear as seções conforme a estrutura real da API
     const sections = [
       {
         title: "⭐ Animes em Destaque",
@@ -228,7 +237,7 @@ async function loadContentFromAPI() {
         id: "trending",
       },
       {
-        title: "📺 Animes Populares",
+        title: "📺 Animes Mais Vistos",
         data: data.mostPopularAnimes,
         id: "popular",
       },
@@ -237,8 +246,16 @@ async function loadContentFromAPI() {
         data: data.mostFavoriteAnimes,
         id: "favorites",
       },
-      { title: "🏆 Top 10 Animes", data: data.top10Animes, id: "top10" },
-      { title: "📡 No Ar Agora", data: data.topAiringAnimes, id: "airing" },
+      {
+        title: "🏆 Top 10 Hoje",
+        data: data.top10Animes?.today,
+        id: "top10",
+      },
+      {
+        title: "📡 Top Animes no Ar",
+        data: data.topAiringAnimes,
+        id: "airing",
+      },
       {
         title: "🆕 Últimos Episódios",
         data: data.latestEpisodeAnimes,
@@ -266,22 +283,25 @@ async function loadContentFromAPI() {
     dynamicContainer.innerHTML = "";
     let renderedSections = 0;
 
-    sections.forEach(({ title, data, id }) => {
-      if (data && Array.isArray(data) && data.length > 0) {
-        console.log(`✅ Renderizando: ${title} (${data.length} itens)`);
-        renderSection(title, data, dynamicContainer, id);
+    sections.forEach(({ title, data: sectionData, id }) => {
+      console.log(`🔍 Verificando ${title}:`, sectionData);
+
+      if (sectionData && Array.isArray(sectionData) && sectionData.length > 0) {
+        console.log(`✅ Renderizando: ${title} (${sectionData.length} itens)`);
+        renderSection(title, sectionData, dynamicContainer, id);
         renderedSections++;
 
-        // Armazenar trending para busca
-        if (id === "trending") {
-          contentDatabase.animes = data;
+        // Armazenar dados para busca
+        if (id === "trending" || id === "popular") {
+          contentDatabase.animes = [...contentDatabase.animes, ...sectionData];
         }
       } else {
-        console.warn(`⚠️ Sem dados para: ${title}`);
+        console.warn(`⚠️ Sem dados válidos para: ${title}`, sectionData);
       }
     });
 
     if (renderedSections === 0) {
+      console.error("❌ Nenhuma seção renderizada. Dados recebidos:", data);
       throw new Error("Nenhuma seção com dados válidos");
     }
 
@@ -291,7 +311,7 @@ async function loadContentFromAPI() {
       fallbackSection.style.display = "none";
     }
 
-    console.log(`✅ ${renderedSections} seções renderizadas!`);
+    console.log(`✅ ${renderedSections} seções renderizadas com sucesso!`);
   } catch (error) {
     console.error("❌ Erro em loadContentFromAPI:", error);
     throw error;
@@ -816,9 +836,6 @@ window.showFavorites = showFavorites;
 // ===========================
 // INICIALIZAÇÃO AUTOMÁTICA - CORRIGIDO
 // ===========================
-
-// Remover a inicialização automática antiga
-// Adicionar nova lógica
 
 document.addEventListener("DOMContentLoaded", function () {
   console.log("📄 DOM Carregado");
