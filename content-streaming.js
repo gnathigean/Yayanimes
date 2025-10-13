@@ -282,7 +282,9 @@ function renderContent(gridId, items) {
     .map(
       (item) => `
     <div class="content-card" data-id="${item.id}" data-type="${item.type}">
-      <img src="${item.image}" alt="${item.title}" loading="lazy">
+     <div class="card-image">
+        <img src="${item.image}" alt="${item.title}" loading="lazy">
+      </div>
       ${item.new ? '<span class="card-badge badge-new">NOVO</span>' : ""}
       ${item.hd ? '<span class="card-badge badge-hd">HD</span>' : ""}
       <div class="card-overlay">
