@@ -387,7 +387,13 @@
       </div>
     </div>
 
+    <!-- HLS.js para suporte a streaming .m3u8 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <!-- Carregar api-service.js ANTES do código do player -->
     <script src="api-service.js"></script>
+
+    <!-- Script do player -->
     <script>
       let currentAnime = null;
       let currentEpisodes = [];
@@ -400,15 +406,32 @@
       const animeId = urlParams.get("id");
       const episodeNumber = parseInt(urlParams.get("ep") || "1");
 
+      // Verificar se window.AnimeAPI existe
+      function checkAPIReady() {
+        if (!window.AnimeAPI) {
+          console.error("❌ API não carregada ainda!");
+          showMessage("❌ Erro: API não disponível. Aguarde...", "error");
+          setTimeout(checkAPIReady, 500);
+          return false;
+        }
+        return true;
+      }
+
       // Inicializar
       if (animeId) {
-        loadAnime(animeId, episodeNumber);
+        if (checkAPIReady()) {
+          loadAnime(animeId, episodeNumber);
+        }
       } else {
         showMessage("❌ ID do anime não fornecido", "error");
       }
 
       async function loadAnime(animeId, episodeNum = 1) {
         try {
+          if (!window.AnimeAPI) {
+            throw new Error("API não está disponível");
+          }
+
           showLoading();
 
           // Carregar informações do anime e episódios
@@ -417,12 +440,12 @@
             window.AnimeAPI.getAnimeEpisodes(animeId),
           ]);
 
-          currentAnime = animeData.anime.info;
+          currentAnime = animeData.anime?.info || animeData;
           currentEpisodes = episodesData.episodes || [];
 
           // Atualizar informações do anime
           document.getElementById("anime-title").textContent =
-            currentAnime.name;
+            currentAnime.name || currentAnime.title || "Anime";
           document.getElementById("anime-jname").textContent =
             currentAnime.jname || "";
 
@@ -491,6 +514,10 @@
 
       async function loadEpisode(episodeId, episodeNum, title) {
         try {
+          if (!window.AnimeAPI) {
+            throw new Error("API não está disponível");
+          }
+
           currentEpisodeId = episodeId;
 
           document.getElementById(
@@ -592,7 +619,7 @@
 
           if (source.isM3U8) {
             // É um stream HLS (.m3u8)
-            if (Hls.isSupported()) {
+            if (window.Hls && Hls.isSupported()) {
               const hls = new Hls();
               hls.loadSource(source.url);
               hls.attachMedia(videoPlayer);
@@ -769,8 +796,5 @@
         }
       });
     </script>
-
-    <!-- HLS.js para suporte a streaming .m3u8 -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   </body>
 </html>
