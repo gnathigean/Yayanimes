@@ -6,7 +6,6 @@
     <title>Player - YayaAnimes</title>
     <link rel="stylesheet" href="streaming.css" />
     <style>
-      /* Player Styles */
       body {
         margin: 0;
         padding: 0;
@@ -64,11 +63,10 @@
         overflow: hidden;
         margin-bottom: 20px;
         position: relative;
-        padding-top: 56.25%; /* 16:9 */
+        padding-top: 56.25%;
       }
 
-      .video-wrapper iframe,
-      .video-wrapper video {
+      .video-wrapper iframe {
         position: absolute;
         top: 0;
         left: 0;
@@ -194,28 +192,6 @@
         }
       }
 
-      @keyframes slideIn {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-
-      @keyframes slideOut {
-        from {
-          transform: translateX(0);
-          opacity: 1;
-        }
-        to {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-      }
-
       @media (max-width: 768px) {
         .player-header {
           flex-direction: column;
@@ -231,7 +207,6 @@
   </head>
   <body>
     <div class="player-container">
-      <!-- Header -->
       <div class="player-header">
         <div class="player-title">
           <h1 id="anime-title">Carregando...</h1>
@@ -242,7 +217,6 @@
         <a href="content.html" class="btn-back">← Voltar</a>
       </div>
 
-      <!-- Video Player -->
       <div class="video-wrapper" id="video-container">
         <div class="loading-state">
           <div class="loading-spinner"></div>
@@ -250,13 +224,11 @@
         </div>
       </div>
 
-      <!-- Server Selector -->
       <div class="server-selector" id="server-selector" style="display: none">
         <h3>🎬 Selecionar Servidor</h3>
         <div class="servers-grid" id="servers-grid"></div>
       </div>
 
-      <!-- Episode Selector -->
       <div class="episode-selector">
         <h3>📺 Episódios</h3>
         <div class="episodes-grid" id="episodes-grid">
@@ -268,16 +240,12 @@
       </div>
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="config.js"></script>
     <script src="api-service.js"></script>
 
     <script>
-      // ===========================
-      // VARIÁVEIS GLOBAIS
-      // ===========================
       let currentAnimeId = null;
       let currentEpisodeNumber = 1;
       let animeInfo = null;
@@ -286,27 +254,21 @@
       let currentServer = "hd-1";
       let currentCategory = "sub";
 
-      // ===========================
-      // INICIALIZAÇÃO
-      // ===========================
       document.addEventListener("DOMContentLoaded", async () => {
         console.log("🎬 Iniciando player...");
 
-        // Verificar autenticação
         const user = await checkAuth();
         if (!user) {
           window.location.href = "login.html";
           return;
         }
 
-        // Verificar assinatura
         const subscription = await checkSubscription(user.id);
         if (!subscription) {
           window.location.href = "index.html";
           return;
         }
 
-        // Extrair parâmetros da URL
         const params = new URLSearchParams(window.location.search);
         currentAnimeId = params.get("id");
         currentEpisodeNumber = parseInt(params.get("ep")) || 1;
@@ -319,109 +281,76 @@
           return;
         }
 
-        // Verificar se API está disponível
         if (!window.AnimeAPI) {
           showError("API não carregada. Recarregue a página.");
           return;
         }
 
         console.log("✅ API disponível");
-
-        // Carregar anime
         await loadAnime();
       });
 
-      // ===========================
-      // CARREGAR ANIME
-      // ===========================
       async function loadAnime() {
         try {
-          console.log(
-            `📡 Carregando anime: ${currentAnimeId}, episódio: ${currentEpisodeNumber}`
-          );
+          console.log("📡 Carregando anime:", currentAnimeId);
 
-          // 1. Buscar informações do anime
-          console.log("📡 Buscando informações...");
           const infoResponse = await window.AnimeAPI.getAnimeInfo(
             currentAnimeId
           );
-
           if (!infoResponse || !infoResponse.data) {
             throw new Error("Dados do anime inválidos");
           }
 
           animeInfo = infoResponse.data.anime.info;
           console.log("✅ Info carregada:", animeInfo);
-
-          // Atualizar título
           document.getElementById("anime-title").textContent = animeInfo.name;
 
-          // 2. Buscar episódios
-          console.log("📡 Buscando episódios...");
           const episodesResponse = await window.AnimeAPI.getAnimeEpisodes(
             currentAnimeId
           );
-
           if (!episodesResponse || !episodesResponse.episodes) {
             throw new Error("Lista de episódios inválida");
           }
 
           allEpisodes = episodesResponse.episodes;
-          console.log(
-            `✅ ${allEpisodes.length} episódios carregados`,
-            allEpisodes
-          );
+          console.log("✅ Episódios carregados:", allEpisodes.length);
 
-          // Renderizar episódios
           renderEpisodes();
-
-          // 3. Carregar episódio atual
           await loadEpisode(currentEpisodeNumber);
         } catch (error) {
           console.error("❌ Erro ao carregar anime:", error);
-          showError(`Erro ao carregar: ${error.message}`);
+          showError("Erro ao carregar: " + error.message);
         }
       }
 
-      // ===========================
-      // CARREGAR EPISÓDIO
-      // ===========================
       async function loadEpisode(episodeNumber) {
         try {
-          console.log(`📡 Carregando episódio ${episodeNumber}...`);
+          console.log("📡 Carregando episódio", episodeNumber);
 
-          // Encontrar episódio
           const episode = allEpisodes.find((ep) => ep.number === episodeNumber);
-
           if (!episode) {
-            throw new Error(`Episódio ${episodeNumber} não encontrado`);
+            throw new Error("Episódio " + episodeNumber + " não encontrado");
           }
 
           console.log("✅ Episódio encontrado:", episode);
 
-          // **CORREÇÃO CRÍTICA: Usar o episodeId COMPLETO**
           const fullEpisodeId = episode.episodeId;
-          console.log(`🎯 Usando episodeId completo: "${fullEpisodeId}"`);
+          console.log("🎯 Usando episodeId:", fullEpisodeId);
 
-          // Atualizar UI
-          document.getElementById(
-            "episode-info"
-          ).textContent = `Episódio ${episodeNumber} - ${
-            episode.title || "Sem título"
-          }`;
+          document.getElementById("episode-info").textContent =
+            "Episódio " +
+            episodeNumber +
+            " - " +
+            (episode.title || "Sem título");
           currentEpisodeNumber = episodeNumber;
 
-          // 1. Buscar servidores disponíveis
-          console.log("📡 Buscando servidores...");
           const serversResponse = await window.AnimeAPI.getEpisodeServers(
             fullEpisodeId
           );
-
           if (!serversResponse || !serversResponse.data) {
             throw new Error("Servidores não disponíveis");
           }
 
-          // Extrair servidores SUB
           availableServers = serversResponse.data.sub || [];
           console.log("✅ Servidores disponíveis:", availableServers);
 
@@ -429,32 +358,23 @@
             throw new Error("Nenhum servidor disponível");
           }
 
-          // Renderizar servidores
           renderServers();
 
-          // 2. Buscar streams do primeiro servidor
           const firstServer = availableServers[0].serverName;
           currentServer = firstServer;
-          console.log(`🎯 Servidor selecionado: ${currentServer}`);
+          console.log("🎯 Servidor selecionado:", currentServer);
 
           await loadStream(fullEpisodeId, currentServer);
-
-          // Salvar no histórico
           saveToHistory(episodeNumber);
         } catch (error) {
           console.error("❌ Erro ao carregar episódio:", error);
-          showError(`Erro ao carregar episódio: ${error.message}`);
+          showError("Erro ao carregar episódio: " + error.message);
         }
       }
 
-      // ===========================
-      // CARREGAR STREAM
-      // ===========================
       async function loadStream(episodeId, server) {
         try {
-          console.log(
-            `📡 Carregando stream: ${episodeId} (servidor: ${server})`
-          );
+          console.log("📡 Carregando stream:", episodeId, "servidor:", server);
 
           const streamsResponse = await window.AnimeAPI.getEpisodeStreams(
             episodeId,
@@ -467,31 +387,19 @@
           }
 
           console.log("✅ Stream carregado:", streamsResponse.data);
-
-          // Renderizar player
           renderPlayer(streamsResponse.data);
         } catch (error) {
           console.error("❌ Erro ao carregar stream:", error);
-          showError(`Erro ao carregar vídeo: ${error.message}`);
+          showError("Erro ao carregar vídeo: " + error.message);
         }
       }
 
-      // ===========================
-      // RENDERIZAR PLAYER
-      // ===========================
       function renderPlayer(streamData) {
         const container = document.getElementById("video-container");
 
-        // Prioridade: sources[0].url ou tracks com qualidade
         let videoUrl = null;
-
         if (streamData.sources && streamData.sources.length > 0) {
           videoUrl = streamData.sources[0].url;
-        } else if (streamData.tracks && streamData.tracks.length > 0) {
-          const bestTrack =
-            streamData.tracks.find((t) => t.kind === "captions") ||
-            streamData.tracks[0];
-          videoUrl = bestTrack.file;
         }
 
         if (!videoUrl) {
@@ -500,109 +408,47 @@
         }
 
         console.log("🎥 URL do vídeo:", videoUrl);
-        console.log(
-          "🎥 Tipo:",
-          videoUrl.includes(".m3u8") ? "HLS Stream" : "Vídeo direto"
-        );
 
-        // Criar elemento de vídeo
-        container.innerHTML = `
-        <video 
-          id="video-player" 
-          controls 
-          autoplay 
-          style="width: 100%; height: 100%;"
-          poster="${animeInfo.poster || ""}"
-        >
-          Seu navegador não suporta o player de vídeo.
-        </video>
-      `;
+        const subtitles =
+          streamData.tracks?.filter(
+            (t) => t.kind === "captions" || t.kind === "subtitles"
+          ) || [];
+        const playerHTML = createPlayerHTML(videoUrl, subtitles);
+        const blob = new Blob([playerHTML], { type: "text/html" });
+        const blobUrl = URL.createObjectURL(blob);
 
-        const video = document.getElementById("video-player");
+        container.innerHTML =
+          '<iframe src="' +
+          blobUrl +
+          '" allowfullscreen frameborder="0" style="width: 100%; height: 100%; border: none;" allow="autoplay; fullscreen"></iframe>';
 
-        // Verificar se é HLS (.m3u8)
-        if (videoUrl.includes(".m3u8")) {
-          console.log("🎬 Usando HLS.js para reproduzir stream");
-
-          if (Hls.isSupported()) {
-            // HLS.js é suportado
-            const hls = new Hls({
-              debug: false,
-              enableWorker: true,
-              lowLatencyMode: true,
-              backBufferLength: 90,
-            });
-
-            hls.loadSource(videoUrl);
-            hls.attachMedia(video);
-
-            hls.on(Hls.Events.MANIFEST_PARSED, function () {
-              console.log("✅ Stream HLS carregado, iniciando reprodução...");
-              video.play().catch((err) => {
-                console.warn("⚠️ Autoplay bloqueado:", err);
-                showToast("Clique no play para iniciar", "info");
-              });
-            });
-
-            hls.on(Hls.Events.ERROR, function (event, data) {
-              console.error("❌ Erro HLS:", data);
-
-              if (data.fatal) {
-                switch (data.type) {
-                  case Hls.ErrorTypes.NETWORK_ERROR:
-                    console.log("🔄 Erro de rede, tentando recuperar...");
-                    hls.startLoad();
-                    break;
-                  case Hls.ErrorTypes.MEDIA_ERROR:
-                    console.log("🔄 Erro de mídia, tentando recuperar...");
-                    hls.recoverMediaError();
-                    break;
-                  default:
-                    console.error("❌ Erro fatal irrecuperável");
-                    showError("Erro ao carregar vídeo. Tente outro servidor.");
-                    break;
-                }
-              }
-            });
-
-            // Salvar instância para cleanup
-            window.currentHls = hls;
-          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-            // Safari nativo suporta HLS
-            console.log("🍎 Usando suporte nativo do Safari para HLS");
-            video.src = videoUrl;
-            video.addEventListener("loadedmetadata", function () {
-              console.log("✅ Metadados carregados");
-              video.play().catch((err) => {
-                console.warn("⚠️ Autoplay bloqueado:", err);
-              });
-            });
-          } else {
-            showError(
-              "Seu navegador não suporta HLS. Tente usar Chrome, Firefox ou Safari."
-            );
-          }
-        } else {
-          // Vídeo direto (MP4, etc)
-          console.log("📹 Usando reprodução direta de vídeo");
-          video.src = videoUrl;
-          video.play().catch((err) => {
-            console.warn("⚠️ Autoplay bloqueado:", err);
-          });
-        }
-
-        // Salvar progresso a cada 10 segundos
-        video.addEventListener("timeupdate", saveProgress);
+        setupProgressTracking();
       }
 
-      // Salvar progresso do vídeo
-      function saveProgress() {
-        const video = document.getElementById("video-player");
-        if (!video) return;
+      function createPlayerHTML(videoUrl, subtitles) {
+        const subsJSON = JSON.stringify(subtitles);
+        const urlJSON = JSON.stringify(videoUrl);
 
-        const progress = (video.currentTime / video.duration) * 100;
+        return (
+          '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;overflow:hidden}#video-container{width:100vw;height:100vh;position:relative}video{width:100%;height:100%;object-fit:contain}.loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center}.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,.3);border-top-color:#667eea;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 15px}@keyframes spin{to{transform:rotate(360deg)}}.error-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(239,68,68,.9);color:#fff;padding:20px 30px;border-radius:8px;text-align:center;display:none}</style></head><body><div id="video-container"><div class="loading"><div class="spinner"></div><p>Carregando...</p></div><video id="video" controls preload="auto"></video><div class="error-msg" id="error"><h3>Erro ao carregar</h3><p>Tente outro servidor</p></div></div><script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script><script>const videoUrl=' +
+          urlJSON +
+          ";const subtitles=" +
+          subsJSON +
+          ';const video=document.getElementById("video");const loading=document.querySelector(".loading");const errorMsg=document.getElementById("error");function hideLoading(){loading.style.display="none"}function showError(msg){hideLoading();errorMsg.style.display="block";errorMsg.querySelector("p").textContent=msg||"Erro ao carregar"}subtitles.forEach((sub,i)=>{const track=document.createElement("track");track.kind=sub.kind||"subtitles";track.label=sub.label||"Portuguese";track.srclang=sub.srclang||"pt";track.src=sub.file;if(i===0)track.default=true;video.appendChild(track)});if(videoUrl.includes(".m3u8")){if(Hls.isSupported()){const hls=new Hls({debug:false,enableWorker:true,xhrSetup:function(xhr){xhr.withCredentials=false}});hls.loadSource(videoUrl);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))});hls.on(Hls.Events.ERROR,function(event,data){console.error("Erro HLS:",data);if(data.fatal){switch(data.type){case Hls.ErrorTypes.NETWORK_ERROR:hls.startLoad();setTimeout(()=>{if(video.paused)showError("Servidor indisponível")},5000);break;case Hls.ErrorTypes.MEDIA_ERROR:hls.recoverMediaError();break;default:showError("Erro fatal. Tente outro servidor");break}}});video.addEventListener("timeupdate",function(){if(window.parent){window.parent.postMessage({type:"progress",currentTime:video.currentTime,duration:video.duration,progress:(video.currentTime/video.duration)*100},"*")}})}else if(video.canPlayType("application/vnd.apple.mpegurl")){video.src=videoUrl;video.addEventListener("loadedmetadata",function(){hideLoading();video.play().catch(e=>console.warn("Autoplay bloqueado"))})}else{showError("Navegador não suporta HLS")}}else{video.src=videoUrl;video.addEventListener("loadedmetadata",()=>hideLoading());video.play().catch(e=>console.warn("Autoplay bloqueado"))}setTimeout(()=>{if(video.readyState===0)showError("Tempo esgotado")},10000)<\/script></body></html>'
+        );
+      }
 
-        // Atualizar histórico
+      function setupProgressTracking() {
+        window.addEventListener("message", (event) => {
+          if (event.data.type === "progress") {
+            saveProgressData(event.data);
+          }
+        });
+      }
+
+      function saveProgressData(data) {
+        if (!currentAnimeId || !currentEpisodeNumber) return;
+
         const history = JSON.parse(
           localStorage.getItem("watch_history") || "[]"
         );
@@ -612,26 +458,15 @@
         );
 
         if (index > -1) {
-          history[index].progress = Math.round(progress);
-          history[index].currentTime = video.currentTime;
+          history[index].progress = Math.round(data.progress || 0);
+          history[index].currentTime = data.currentTime || 0;
           history[index].timestamp = Date.now();
           localStorage.setItem("watch_history", JSON.stringify(history));
         }
       }
 
-      // Cleanup ao sair
-      window.addEventListener("beforeunload", () => {
-        if (window.currentHls) {
-          window.currentHls.destroy();
-        }
-      });
-
-      // ===========================
-      // RENDERIZAR EPISÓDIOS
-      // ===========================
       function renderEpisodes() {
         const grid = document.getElementById("episodes-grid");
-
         const watchedEpisodes = getWatchedEpisodes();
 
         grid.innerHTML = allEpisodes
@@ -639,24 +474,23 @@
             const isActive = ep.number === currentEpisodeNumber;
             const isWatched = watchedEpisodes.includes(ep.number);
 
-            return `
-          <button 
-            class="episode-btn ${isActive ? "active" : ""} ${
-              isWatched ? "watched" : ""
-            }"
-            onclick="changeEpisode(${ep.number})"
-            title="${ep.title || `Episódio ${ep.number}`}"
-          >
-            ${ep.number}
-          </button>
-        `;
+            return (
+              '<button class="episode-btn ' +
+              (isActive ? "active" : "") +
+              " " +
+              (isWatched ? "watched" : "") +
+              '" onclick="changeEpisode(' +
+              ep.number +
+              ')" title="' +
+              (ep.title || "Episódio " + ep.number) +
+              '">' +
+              ep.number +
+              "</button>"
+            );
           })
           .join("");
       }
 
-      // ===========================
-      // RENDERIZAR SERVIDORES
-      // ===========================
       function renderServers() {
         const container = document.getElementById("server-selector");
         const grid = document.getElementById("servers-grid");
@@ -667,32 +501,27 @@
           grid.innerHTML = availableServers
             .map((server) => {
               const isActive = server.serverName === currentServer;
-
-              return `
-            <button 
-              class="server-btn ${isActive ? "active" : ""}"
-              onclick="changeServer('${server.serverName}')"
-            >
-              ${server.serverName}
-            </button>
-          `;
+              return (
+                '<button class="server-btn ' +
+                (isActive ? "active" : "") +
+                '" onclick="changeServer(\'' +
+                server.serverName +
+                "')\">" +
+                server.serverName +
+                "</button>"
+              );
             })
             .join("");
         }
       }
 
-      // ===========================
-      // AÇÕES
-      // ===========================
       window.changeEpisode = async function (episodeNumber) {
         if (episodeNumber === currentEpisodeNumber) return;
 
-        // Atualizar URL
         const url = new URL(window.location);
         url.searchParams.set("ep", episodeNumber);
         window.history.pushState({}, "", url);
 
-        // Carregar novo episódio
         await loadEpisode(episodeNumber);
         renderEpisodes();
       };
@@ -701,25 +530,19 @@
         if (serverName === currentServer) return;
 
         currentServer = serverName;
-
         const episode = allEpisodes.find(
           (ep) => ep.number === currentEpisodeNumber
         );
         if (episode) {
           await loadStream(episode.episodeId, serverName);
         }
-
         renderServers();
       };
 
-      // ===========================
-      // HISTÓRICO
-      // ===========================
       function saveToHistory(episodeNumber) {
         const history = JSON.parse(
           localStorage.getItem("watch_history") || "[]"
         );
-
         const existingIndex = history.findIndex(
           (h) => h.animeId === currentAnimeId
         );
@@ -739,7 +562,6 @@
           history.unshift(entry);
         }
 
-        // Manter apenas últimos 20
         localStorage.setItem(
           "watch_history",
           JSON.stringify(history.slice(0, 20))
@@ -756,49 +578,12 @@
         return animeHistory.map((h) => h.episode);
       }
 
-      // ===========================
-      // ERRO
-      // ===========================
       function showError(message) {
         const container = document.getElementById("video-container");
-        container.innerHTML = `
-        <div class="error-message">
-          <h3>❌ Erro</h3>
-          <p>${message}</p>
-          <button onclick="location.reload()" class="btn-back" style="margin-top: 15px;">
-            🔄 Tentar Novamente
-          </button>
-        </div>
-      `;
-      }
-
-      function showToast(message, type = "info") {
-        const toast = document.createElement("div");
-        toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${
-          type === "success"
-            ? "#10b981"
-            : type === "error"
-            ? "#ef4444"
-            : "#667eea"
-        };
-        color: white;
-        padding: 15px 25px;
-        border-radius: 8px;
-        z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        animation: slideIn 0.3s ease-out;
-      `;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-          toast.style.animation = "slideOut 0.3s ease-out";
-          setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        container.innerHTML =
+          '<div class="error-message"><h3>❌ Erro</h3><p>' +
+          message +
+          '</p><button onclick="location.reload()" class="btn-back" style="margin-top:15px">🔄 Tentar Novamente</button></div>';
       }
 
       console.log("✅ Player.js carregado!");
