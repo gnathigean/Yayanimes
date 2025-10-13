@@ -274,6 +274,8 @@ function renderContinueWatching() {
 
 // ==================== CARREGAMENTO DE CONTEÚDO ====================
 
+// ==================== CARREGAMENTO DE CONTEÚDO ====================
+
 async function loadHomeContent() {
   console.log('📺 Carregando conteúdo home...');
   
@@ -287,31 +289,10 @@ async function loadHomeContent() {
     const homeData = await window.api.getHome();
     
     console.log('✅ Home data recebida:', homeData);
-    console.log('📊 Estrutura completa:', JSON.stringify(homeData, null, 2));
     
-    // ✅ VALIDAÇÃO MELHORADA - Verificar múltiplas estruturas possíveis
-    if (!homeData) {
+    if (!homeData || !homeData.data) {
       throw new Error('Nenhum dado retornado da API');
     }
-    
-    // Tentar diferentes estruturas de resposta
-    let sections = [];
-    
-    if (homeData.data && homeData.data.sections) {
-      // Estrutura: { success: true, data: { sections: [...] } }
-      sections = homeData.data.sections;
-    } else if (homeData.sections) {
-      // Estrutura: { success: true, sections: [...] }
-      sections = homeData.sections;
-    } else if (Array.isArray(homeData.data)) {
-      // Estrutura: { success: true, data: [...] }
-      sections = homeData.data;
-    } else if (Array.isArray(homeData)) {
-      // Estrutura: [...]
-      sections = homeData;
-    }
-    
-    console.log('📦 Seções encontradas:', sections.length, sections);
     
     const container = document.getElementById('dynamic-content-container');
     if (!container) {
@@ -321,35 +302,132 @@ async function loadHomeContent() {
     // Limpar container
     container.innerHTML = '';
     
-    // Se não encontrou seções válidas, tentar carregar trending
-    if (!sections || sections.length === 0) {
-      console.warn('⚠️ Nenhuma seção encontrada, carregando trending...');
-      await loadTrendingAnimes();
-      hideLoading();
-      return;
-    }
+    // ✅ ESTRUTURA CORRETA DA API: homeData.data tem várias propriedades
+    const data = homeData.data;
     
-    // Renderizar seções
-    for (const section of sections) {
-      if (!section.animes || section.animes.length === 0) {
-        console.warn('⚠️ Seção sem animes:', section.title);
-        continue;
-      }
-      
-      console.log('✅ Renderizando seção:', section.title, `(${section.animes.length} animes)`);
-      
-      const sectionHtml = `
+    // 1. Spotlight Animes (Destaques)
+    if (data.spotlightAnimes && data.spotlightAnimes.length > 0) {
+      console.log('✅ Renderizando Spotlight:', data.spotlightAnimes.length);
+      container.innerHTML += `
         <section class="content-section">
           <div class="section-header">
-            <h3>${section.title || 'Seção'}</h3>
+            <h3>🌟 Em Destaque</h3>
           </div>
           <div class="content-grid">
-            ${section.animes.map(anime => createAnimeCard(anime)).join('')}
+            ${data.spotlightAnimes.map(anime => createAnimeCard(anime)).join('')}
           </div>
         </section>
       `;
-      
-      container.innerHTML += sectionHtml;
+    }
+    
+    // 2. Trending Animes
+    if (data.trendingAnimes && data.trendingAnimes.length > 0) {
+      console.log('✅ Renderizando Trending:', data.trendingAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>🔥 Em Alta</h3>
+          </div>
+          <div class="content-grid">
+            ${data.trendingAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 3. Latest Episodes
+    if (data.latestEpisodeAnimes && data.latestEpisodeAnimes.length > 0) {
+      console.log('✅ Renderizando Latest:', data.latestEpisodeAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>🆕 Últimos Episódios</h3>
+          </div>
+          <div class="content-grid">
+            ${data.latestEpisodeAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 4. Top Upcoming Animes
+    if (data.topUpcomingAnimes && data.topUpcomingAnimes.length > 0) {
+      console.log('✅ Renderizando Upcoming:', data.topUpcomingAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>📅 Em Breve</h3>
+          </div>
+          <div class="content-grid">
+            ${data.topUpcomingAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 5. Top Airing Animes
+    if (data.topAiringAnimes && data.topAiringAnimes.length > 0) {
+      console.log('✅ Renderizando Top Airing:', data.topAiringAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>⭐ Melhores em Exibição</h3>
+          </div>
+          <div class="content-grid">
+            ${data.topAiringAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 6. Most Popular Animes
+    if (data.mostPopularAnimes && data.mostPopularAnimes.length > 0) {
+      console.log('✅ Renderizando Popular:', data.mostPopularAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>👥 Mais Populares</h3>
+          </div>
+          <div class="content-grid">
+            ${data.mostPopularAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 7. Most Favorite Animes
+    if (data.mostFavoriteAnimes && data.mostFavoriteAnimes.length > 0) {
+      console.log('✅ Renderizando Favorites:', data.mostFavoriteAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>💖 Mais Favoritados</h3>
+          </div>
+          <div class="content-grid">
+            ${data.mostFavoriteAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 8. Latest Completed Animes
+    if (data.latestCompletedAnimes && data.latestCompletedAnimes.length > 0) {
+      console.log('✅ Renderizando Completed:', data.latestCompletedAnimes.length);
+      container.innerHTML += `
+        <section class="content-section">
+          <div class="section-header">
+            <h3>✅ Recém Finalizados</h3>
+          </div>
+          <div class="content-grid">
+            ${data.latestCompletedAnimes.map(anime => createAnimeCard(anime)).join('')}
+          </div>
+        </section>
+      `;
+    }
+    
+    // 9. Genres (se houver)
+    if (data.genres && data.genres.length > 0) {
+      console.log('✅ Gêneros disponíveis:', data.genres.length);
     }
     
     console.log('✅ Conteúdo renderizado com sucesso!');
@@ -357,7 +435,6 @@ async function loadHomeContent() {
     
   } catch (error) {
     console.error('❌ Erro ao carregar home:', error);
-    console.error('📊 Stack trace:', error.stack);
     hideLoading();
     showError(`Não foi possível carregar o conteúdo: ${error.message}`);
   }
@@ -365,10 +442,22 @@ async function loadHomeContent() {
 
 async function loadTrendingAnimes() {
   try {
-    const trendingData = await window.api.search('', { type: 'tv', status: 'ongoing' });
+    // ✅ BUSCAR SEM QUERY (permite busca vazia com filtros)
+    const trendingData = await window.api.search('anime', { page: 1 });
     
     if (!trendingData || !trendingData.data || !trendingData.data.animes) {
       console.warn('⚠️ Nenhum anime trending encontrado');
+      
+      // Fallback: mostrar mensagem amigável
+      const container = document.getElementById('dynamic-content-container');
+      if (container) {
+        container.innerHTML = `
+          <div class="no-results">
+            <h3>📺 Bem-vindo ao YayaAnimes!</h3>
+            <p>Explore nosso catálogo de animes usando a busca acima.</p>
+          </div>
+        `;
+      }
       return;
     }
     
@@ -378,7 +467,7 @@ async function loadTrendingAnimes() {
     container.innerHTML = `
       <section class="content-section">
         <div class="section-header">
-          <h3>🔥 Em Alta</h3>
+          <h3>🔥 Animes em Alta</h3>
         </div>
         <div class="content-grid">
           ${trendingData.data.animes.map(anime => createAnimeCard(anime)).join('')}
@@ -388,25 +477,45 @@ async function loadTrendingAnimes() {
     
   } catch (error) {
     console.error('❌ Erro ao carregar trending:', error);
+    
+    // Fallback: mostrar mensagem amigável
+    const container = document.getElementById('dynamic-content-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="no-results">
+          <h3>⚠️ Erro ao carregar conteúdo</h3>
+          <p>Tente recarregar a página ou use a busca acima.</p>
+          <button class="btn-primary" onclick="location.reload()">🔄 Recarregar</button>
+        </div>
+      `;
+    }
   }
 }
 
 function createAnimeCard(anime) {
   const isFavorite = userFavorites.includes(anime.id);
   
+  // ✅ Suporte para diferentes estruturas de episódios
+  const episodesText = anime.episodes?.sub 
+    ? `📺 ${anime.episodes.sub} eps` 
+    : anime.episodes?.total 
+    ? `📺 ${anime.episodes.total} eps`
+    : '';
+  
   return `
     <div class="content-card">
       <div class="card-image">
-        <img src="${anime.poster}" alt="${anime.name}" loading="lazy">
+        <img src="${anime.poster}" alt="${anime.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/200x300?text=No+Image'">
         
         ${anime.type ? `<div class="card-badge">${anime.type}</div>` : ''}
+        ${anime.rank ? `<div class="card-badge" style="left: auto; right: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">#${anime.rank}</div>` : ''}
         
         <div class="card-overlay">
           <div class="overlay-details">
             <h4 class="card-title" style="color: white;">${anime.name}</h4>
             <div class="card-meta">
               ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
-              ${anime.episodes?.sub ? `<span>📺 ${anime.episodes.sub} eps</span>` : ''}
+              ${episodesText ? `<span>${episodesText}</span>` : ''}
             </div>
           </div>
           
