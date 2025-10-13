@@ -64,7 +64,6 @@
         bottom: 0;
         background: rgba(0, 0, 0, 0.9);
         z-index: 9999;
-        display: flex;
         align-items: center;
         justify-content: center;
       "
@@ -124,6 +123,8 @@
     ></div>
 
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="api-service.js"></script>
     <script src="content-streaming.js"></script>
 
@@ -149,92 +150,6 @@
       .toast-message.show {
         opacity: 1;
         transform: translateX(0);
-      }
-
-      .video-player-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.95);
-        z-index: 9999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-      }
-
-      .video-player-container {
-        background: #1e293b;
-        border-radius: 12px;
-        max-width: 1200px;
-        width: 100%;
-        max-height: 90vh;
-        overflow: hidden;
-      }
-
-      .player-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        border-bottom: 2px solid #334155;
-      }
-
-      .player-header h3 {
-        color: white;
-        font-size: 20px;
-      }
-
-      .btn-close {
-        background: #ef4444;
-        color: white;
-        border: none;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 20px;
-        transition: all 0.3s;
-      }
-
-      .btn-close:hover {
-        background: #dc2626;
-        transform: scale(1.1);
-      }
-
-      .player-content {
-        padding: 20px;
-        text-align: center;
-      }
-
-      .player-placeholder {
-        padding: 60px 20px;
-        color: white;
-      }
-
-      .player-controls {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        padding: 20px;
-        border-top: 2px solid #334155;
-      }
-
-      .btn-control {
-        background: #667eea;
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 16px;
-        transition: all 0.3s;
-      }
-
-      .btn-control:hover {
-        background: #5568d3;
       }
 
       .info-modal-overlay {

@@ -104,51 +104,89 @@ function waitForAPI() {
 }
 
 // ===========================
-// CONTROLE DE ACESSO
+// CONTROLE DE ACESSO - INTEGRADO COM SUPABASE
 // ===========================
 
 async function verifyAccessAndLoadContent() {
   console.log("🔐 Verificando acesso...");
 
-  const savedUser = localStorage.getItem("currentUser");
-  const savedSubscription = localStorage.getItem("currentSubscription");
-
-  console.log("👤 User:", savedUser);
-  console.log("💎 Subscription:", savedSubscription);
-
-  if (!savedUser || !savedSubscription) {
-    console.log("❌ Sem dados de usuário/assinatura");
-    showAccessDenied();
-    return;
-  }
-
   try {
-    currentUser = JSON.parse(savedUser);
-    currentSubscription =
-      savedSubscription === "premium"
-        ? "premium"
-        : JSON.parse(savedSubscription);
-
-    // Atualizar email do usuário
-    const userEmail = document.getElementById("user-email");
-    if (userEmail && currentUser.email) {
-      userEmail.textContent = currentUser.email;
+    // Verificar se Supabase está disponível
+    if (!window.supabase) {
+      throw new Error("Supabase não carregado");
     }
 
-    // Verificar se é premium
-    const isPremium =
-      currentSubscription === "premium" ||
-      (typeof currentSubscription === "object" &&
-        currentSubscription.status === "active");
+    // Verificar autenticação do Supabase
+    const {
+      data: { user },
+      error: authError,
+    } = await window.supabase.auth.getUser();
 
-    if (isPremium) {
-      console.log("✅ Acesso premium confirmado");
-      showPremiumContent();
-      await loadContent();
-    } else {
-      console.log("❌ Não é premium");
+    if (authError || !user) {
+      console.log("❌ Usuário não autenticado");
       showAccessDenied();
+      return;
     }
+
+    console.log("✅ Usuário autenticado:", user.email);
+    currentUser = {
+      id: user.id,
+      email: user.email,
+    };
+
+    // Atualizar email no header
+    const userEmail = document.getElementById("user-email");
+    if (userEmail) {
+      userEmail.textContent = user.email;
+    }
+
+    // Salvar no localStorage para compatibilidade
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+
+    // Verificar assinatura no Supabase
+    const { data: subscription, error: subError } = await window.supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single();
+
+    if (subError && subError.code !== "PGRST116") {
+      throw subError;
+    }
+
+    if (!subscription) {
+      console.log("❌ Nenhuma assinatura ativa");
+      showAccessDenied();
+      return;
+    }
+
+    // Verificar se a assinatura expirou
+    const now = new Date();
+    const expiresAt = new Date(subscription.expires_at);
+
+    if (now > expiresAt) {
+      console.log("❌ Assinatura expirada");
+
+      // Atualizar status no banco
+      await window.supabase
+        .from("subscriptions")
+        .update({ status: "expired" })
+        .eq("id", subscription.id);
+
+      showAccessDenied();
+      return;
+    }
+
+    console.log("✅ Assinatura ativa:", subscription);
+    currentSubscription = subscription;
+
+    // Salvar no localStorage
+    localStorage.setItem("currentSubscription", JSON.stringify(subscription));
+
+    // Exibir conteúdo premium
+    showPremiumContent();
+    await loadContent();
   } catch (error) {
     console.error("❌ Erro ao verificar acesso:", error);
     showAccessDenied();
@@ -780,9 +818,27 @@ function viewAllSection(sectionId) {
 
 function logout() {
   if (confirm("Deseja realmente sair?")) {
-    localStorage.removeItem("currentUser");
-    localStorage.removeItem("currentSubscription");
-    window.location.href = "index.html";
+    // Fazer logout do Supabase
+    if (window.supabase) {
+      window.supabase.auth
+        .signOut()
+        .then(() => {
+          localStorage.removeItem("currentUser");
+          localStorage.removeItem("currentSubscription");
+          window.location.href = "index.html";
+        })
+        .catch((error) => {
+          console.error("Erro no logout:", error);
+          // Mesmo com erro, redirecionar
+          localStorage.removeItem("currentUser");
+          localStorage.removeItem("currentSubscription");
+          window.location.href = "index.html";
+        });
+    } else {
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("currentSubscription");
+      window.location.href = "index.html";
+    }
   }
 }
 
