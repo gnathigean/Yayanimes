@@ -2,15 +2,26 @@
 
 const API_BASE_URL = "https://yayapi-delta.vercel.app/api/v2/hianime";
 
-// ===========================
-// FUNÇÃO DE REQUISIÇÃO
-// ===========================
+// Cache de requisições
+const apiCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
 async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+
+  // Verificar cache
+  const cached = apiCache.get(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log(`💾 Retornando do cache: ${endpoint}`);
+    return cached.data;
+  }
+
   console.log(`📡 Requisição: ${url}`);
 
   try {
+    // Delay para evitar rate limit
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     const response = await fetch(url, {
       method: options.method || "GET",
       headers: {
@@ -21,14 +32,34 @@ async function apiRequest(endpoint, options = {}) {
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        console.warn("⚠️ Rate limit atingido. Aguardando 60s...");
+        await new Promise((resolve) => setTimeout(resolve, 60000));
+        return apiRequest(endpoint, options); // Tentar novamente
+      }
       throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log(`✅ Resposta de ${endpoint}:`, data);
+
+    // Salvar no cache
+    apiCache.set(url, {
+      data: data,
+      timestamp: Date.now(),
+    });
+
     return data;
   } catch (error) {
     console.error(`❌ Erro na requisição ${url}:`, error);
+
+    // Se tiver cache antigo, usar
+    const oldCache = apiCache.get(url);
+    if (oldCache) {
+      console.warn("⚠️ Usando cache antigo devido ao erro");
+      return oldCache.data;
+    }
+
     throw error;
   }
 }
