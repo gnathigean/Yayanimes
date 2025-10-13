@@ -1,18 +1,6 @@
-/* styles.css - Estilos gerais */
+/* styles.css - Ajustado para o Tema Escuro do Streaming */
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
-  color: #333;
-}
-
+/* Reset e Base (Removidos daqui, pois estão no streaming.css) */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -20,14 +8,14 @@ body {
 }
 
 header {
-  background: white;
+  background: #1e293b; /* Fundo Escuro */
   padding: 20px;
   border-radius: 10px;
   margin-bottom: 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 header h1 {
@@ -43,7 +31,7 @@ header h1 {
   align-items: center;
 }
 
-/* Botões */
+/* Botões (Reutilizando as cores do tema) */
 .btn-primary,
 .btn-secondary {
   padding: 12px 24px;
@@ -67,12 +55,13 @@ header h1 {
 }
 
 .btn-secondary {
-  background: #e0e7ff;
+  background: #1e293b; /* Fundo Escuro Suave */
   color: #667eea;
+  border: 1px solid #667eea;
 }
 
 .btn-secondary:hover {
-  background: #c7d2fe;
+  background: #0f172a;
 }
 
 .full-width {
@@ -82,37 +71,37 @@ header h1 {
 
 /* Hero Section */
 .hero {
-  background: white;
+  background: #1e293b; /* Fundo Escuro */
   padding: 40px;
   border-radius: 10px;
   text-align: center;
   margin-bottom: 30px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .hero h2 {
-  color: #667eea;
+  color: white;
   font-size: 36px;
   margin-bottom: 15px;
 }
 
 .hero p {
   font-size: 18px;
-  color: #666;
+  color: #9ca3af;
 }
 
 /* Planos */
 .plans {
-  background: white;
+  background: #1e293b; /* Fundo Escuro */
   padding: 40px;
   border-radius: 10px;
   margin-bottom: 30px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .plans h3 {
   text-align: center;
-  color: #667eea;
+  color: white;
   font-size: 28px;
   margin-bottom: 30px;
 }
@@ -124,18 +113,19 @@ header h1 {
 }
 
 .plan-card {
-  background: #f8f9ff;
+  background: #0f172a; /* Fundo Escuro Mais Fundo */
   padding: 30px;
   border-radius: 10px;
   text-align: center;
-  border: 2px solid #e0e7ff;
+  border: 2px solid #334155;
   transition: all 0.3s ease;
   position: relative;
+  color: white;
 }
 
 .plan-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
   border-color: #667eea;
 }
 
@@ -177,25 +167,25 @@ header h1 {
 }
 
 .description {
-  color: #666;
+  color: #9ca3af;
   margin-bottom: 20px;
 }
 
 /* Assinatura Info */
 #subscription-info {
-  background: white;
+  background: #1e293b; /* Fundo Escuro */
   padding: 30px;
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 #subscription-info h3 {
-  color: #667eea;
+  color: white;
   margin-bottom: 20px;
 }
 
 .subscription-card {
-  background: #f8f9ff;
+  background: #0f172a; /* Fundo Escuro Mais Fundo */
   padding: 20px;
   border-radius: 8px;
   border-left: 4px solid #667eea;
@@ -204,6 +194,7 @@ header h1 {
 .subscription-card p {
   margin: 10px 0;
   font-size: 16px;
+  color: #e2e8f0;
 }
 
 .status-active {
@@ -215,15 +206,15 @@ header h1 {
 .auth-container {
   max-width: 400px;
   margin: 50px auto;
-  background: white;
+  background: #1e293b; /* Fundo Escuro */
   padding: 40px;
   border-radius: 10px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .auth-container h1 {
   text-align: center;
-  color: #667eea;
+  color: white;
   margin-bottom: 30px;
 }
 
@@ -234,17 +225,19 @@ header h1 {
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: #333;
+  color: white;
   font-weight: 600;
 }
 
 .form-group input {
   width: 100%;
   padding: 12px;
-  border: 2px solid #e0e7ff;
+  border: 2px solid #334155;
   border-radius: 6px;
   font-size: 16px;
   transition: border-color 0.3s ease;
+  background: #0f172a;
+  color: white;
 }
 
 .form-group input:focus {
@@ -255,7 +248,7 @@ header h1 {
 .form-group small {
   display: block;
   margin-top: 5px;
-  color: #666;
+  color: #9ca3af;
   font-size: 14px;
 }
 
@@ -271,7 +264,7 @@ header h1 {
 .auth-link {
   text-align: center;
   margin-top: 20px;
-  color: #666;
+  color: #9ca3af;
 }
 
 .auth-link a {
@@ -288,20 +281,20 @@ header h1 {
 .payment-container {
   max-width: 600px;
   margin: 30px auto;
-  background: white;
+  background: #1e293b; /* Fundo Escuro */
   padding: 40px;
   border-radius: 10px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
 }
 
 .payment-container h1 {
   text-align: center;
-  color: #667eea;
+  color: white;
   margin-bottom: 30px;
 }
 
 .plan-details {
-  background: #f8f9ff;
+  background: #0f172a; /* Fundo Escuro Mais Fundo */
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 30px;
@@ -309,13 +302,14 @@ header h1 {
 }
 
 .plan-details h3 {
-  color: #667eea;
+  color: white;
   margin-bottom: 15px;
 }
 
 .plan-details p {
   margin: 10px 0;
   font-size: 16px;
+  color: #e2e8f0;
 }
 
 .plan-details .total {
@@ -324,11 +318,11 @@ header h1 {
   color: #667eea;
   margin-top: 15px;
   padding-top: 15px;
-  border-top: 2px solid #e0e7ff;
+  border-top: 2px solid #334155;
 }
 
 .pix-container {
-  background: #f8f9ff;
+  background: #0f172a; /* Fundo Escuro Mais Fundo */
   padding: 30px;
   border-radius: 8px;
   margin: 20px 0;
@@ -341,10 +335,10 @@ header h1 {
 
 .pix-qrcode img {
   max-width: 200px;
-  border: 2px solid #e0e7ff;
+  border: 2px solid #334155;
   border-radius: 8px;
   padding: 10px;
-  background: white;
+  background: #1e293b;
 }
 
 .pix-code {
@@ -355,34 +349,37 @@ header h1 {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
-  color: #333;
+  color: white;
 }
 
 .pix-code textarea {
   width: 100%;
   padding: 12px;
-  border: 2px solid #e0e7ff;
+  border: 2px solid #334155;
   border-radius: 6px;
   font-family: monospace;
   font-size: 12px;
   resize: vertical;
   min-height: 80px;
+  background: #1e293b;
+  color: #e2e8f0;
 }
 
 .pix-instructions {
-  background: white;
+  background: #1e293b;
   padding: 20px;
   border-radius: 8px;
   margin-top: 20px;
 }
 
 .pix-instructions h4 {
-  color: #667eea;
+  color: white;
   margin-bottom: 15px;
 }
 
 .pix-instructions ol {
   padding-left: 20px;
+  color: #e2e8f0;
 }
 
 .pix-instructions li {
@@ -390,8 +387,8 @@ header h1 {
 }
 
 .warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: #92400e;
+  color: #fef3c7;
   padding: 10px;
   border-radius: 6px;
   margin-top: 15px;
@@ -402,19 +399,19 @@ header h1 {
 .payment-status {
   text-align: center;
   padding: 20px;
-  background: #e0f2fe;
+  background: #1e293b;
   border-radius: 8px;
   margin-top: 20px;
 }
 
 .payment-status p {
-  color: #0369a1;
+  color: #e0f2fe;
   font-weight: 600;
   margin-bottom: 10px;
 }
 
 .loading-spinner {
-  border: 4px solid #e0e7ff;
+  border: 4px solid #334155;
   border-top: 4px solid #667eea;
   border-radius: 50%;
   width: 40px;
@@ -432,13 +429,13 @@ header h1 {
   }
 }
 
-/* Content Page */
+/* Content Page (Estilos Básicos - Estilos de Cards movidos para streaming.css) */
 .access-denied {
-  background: white;
+  background: #1e293b;
   padding: 60px 40px;
   border-radius: 10px;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .access-denied h2 {
@@ -449,12 +446,12 @@ header h1 {
 
 .access-denied p {
   font-size: 18px;
-  color: #666;
+  color: #9ca3af;
   margin-bottom: 30px;
 }
 
 .subscription-info {
-  background: #f0fdf4;
+  background: #166534;
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 30px;
@@ -464,22 +461,23 @@ header h1 {
 .subscription-info p {
   margin: 8px 0;
   font-size: 16px;
-  color: #166534;
+  color: #f0fdf4;
 }
 
 .content-section {
-  background: white;
+  background: #1e293b;
   padding: 40px;
   border-radius: 10px;
   margin-bottom: 30px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .content-section h2 {
-  color: #667eea;
+  color: white;
   margin-bottom: 30px;
 }
 
+/* O grid e card abaixo foram mantidos para evitar quebrar páginas que não carregam streaming.css, mas o streaming.css sobrescreve */
 .content-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -487,10 +485,10 @@ header h1 {
 }
 
 .content-card {
-  background: #f8f9ff;
+  background: #0f172a;
   padding: 25px;
   border-radius: 8px;
-  border: 2px solid #e0e7ff;
+  border: 2px solid #334155;
   transition: all 0.3s ease;
 }
 
@@ -506,7 +504,7 @@ header h1 {
 }
 
 .content-card p {
-  color: #666;
+  color: #9ca3af;
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -517,12 +515,13 @@ header h1 {
 }
 
 .resource-list li {
-  background: #f8f9ff;
+  background: #0f172a;
   padding: 15px;
   margin-bottom: 10px;
   border-radius: 6px;
   border-left: 4px solid #667eea;
   font-size: 16px;
+  color: #e2e8f0;
 }
 
 /* Responsivo */
@@ -536,9 +535,7 @@ header h1 {
     grid-template-columns: 1fr;
   }
 
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
+  /* Removido content-grid responsivo daqui pois o streaming.css cuida */
 
   .hero h2 {
     font-size: 28px;

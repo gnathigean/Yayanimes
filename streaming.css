@@ -309,7 +309,8 @@ body {
 .section-header h3 {
   font-size: 24px;
   font-weight: 700;
-  color: rgb(0, 0, 0);
+  /* CORRIGIDO para garantir a visibilidade no tema escuro */
+  color: white;
 }
 
 .btn-see-all {
@@ -329,6 +330,7 @@ body {
 
 /* Grid de Conteúdo */
 .content-grid {
+  /* O grid original já estava correto e é o que alinha os cards */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
@@ -471,14 +473,15 @@ body {
   padding: 15px;
 }
 
+/* AJUSTE PARA ALINHAMENTO: Força o título a ser em uma linha com reticências */
 .card-title {
   font-size: 15px;
   font-weight: 600;
   color: white;
   margin-bottom: 8px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .card-meta {
