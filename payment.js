@@ -1,5 +1,5 @@
-// payment.js - Mercado Pago Integration (FIXED)
-// Sistema de pagamento com Mercado Pago - Versão Corrigida
+// payment.js - Mercado Pago Integration (FIXED - Reuse Pending Payment)
+// Sistema de pagamento com Mercado Pago - Reutiliza QR Code pendente
 
 console.log("✅ payment.js carregado (Mercado Pago)");
 
@@ -26,9 +26,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("✅ Usuário autenticado:", user.email);
 
-  // Verificar se já existe assinatura ativa
-  await checkExistingSubscription(user.id);
-
   const planType = localStorage.getItem("selected_plan");
   if (!planType || !PLANS[planType]) {
     console.warn("❌ Plano não selecionado ou inválido");
@@ -41,46 +38,107 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("✅ Plano selecionado:", planType);
   displayPlanDetails(planType);
+
+  // Verificar se já existe pagamento pendente
+  await checkPendingPayment(user.id);
 });
 
 // ===========================
-// VERIFICAR ASSINATURA EXISTENTE
+// VERIFICAR PAGAMENTO PENDENTE
 // ===========================
 
-async function checkExistingSubscription(userId) {
+async function checkPendingPayment(userId) {
   try {
-    const { data: subscription, error } = await supabase
+    console.log("🔍 Verificando pagamento pendente...");
+
+    // Buscar assinatura pendente
+    const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
+      .eq("status", "pending")
       .maybeSingle();
 
-    if (error && error.code !== "PGRST116") {
-      console.error("❌ Erro ao verificar assinatura:", error);
+    if (subError && subError.code !== "PGRST116") {
+      console.error("❌ Erro ao buscar assinatura:", subError);
       return;
     }
 
-    if (subscription) {
-      console.log("📦 Assinatura existente encontrada:", subscription.status);
-
-      if (subscription.status === "active") {
-        showMessage("✅ Você já tem uma assinatura ativa!", "info");
-        setTimeout(() => {
-          window.location.href = "content.html";
-        }, 2000);
-        return;
-      }
-
-      if (subscription.status === "pending") {
-        showMessage(
-          "⏳ Você tem um pagamento pendente. Aguardando confirmação...",
-          "info"
-        );
-        // Permitir gerar novo código se o pendente expirou
-      }
+    if (!subscription) {
+      console.log("ℹ️ Nenhum pagamento pendente encontrado");
+      return;
     }
+
+    console.log("📦 Assinatura pendente encontrada:", subscription.id);
+
+    // Buscar pagamento associado
+    const { data: payment, error: payError } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("subscription_id", subscription.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (payError && payError.code !== "PGRST116") {
+      console.error("❌ Erro ao buscar pagamento:", payError);
+      return;
+    }
+
+    if (!payment || !payment.pix_code) {
+      console.log("ℹ️ Nenhum código PIX encontrado");
+      return;
+    }
+
+    console.log("💳 Pagamento pendente encontrado:", payment.id);
+
+    // Verificar se o pagamento expirou (30 minutos)
+    const createdAt = new Date(payment.created_at);
+    const now = new Date();
+    const diffMinutes = (now - createdAt) / 1000 / 60;
+
+    console.log(`⏱️ Tempo decorrido: ${diffMinutes.toFixed(1)} minutos`);
+
+    if (diffMinutes > 30) {
+      console.log("⏰ Pagamento expirado (>30min)");
+      showMessage(
+        "⏰ O código PIX anterior expirou. Gere um novo código.",
+        "info"
+      );
+      return;
+    }
+
+    // Pagamento ainda válido - exibir QR Code existente
+    console.log(
+      "✅ Pagamento válido encontrado! Exibindo QR Code existente..."
+    );
+
+    const plan = PLANS[subscription.plan_type];
+
+    showMessage("ℹ️ Você já possui um código PIX pendente!", "info");
+
+    // Esconder botão de gerar
+    const generateBtn = document.getElementById("generate-pix-btn");
+    if (generateBtn) {
+      generateBtn.style.display = "none";
+    }
+
+    // Exibir QR Code existente
+    displayPixCode(
+      payment.pix_code,
+      payment.qr_code_base64,
+      plan.name,
+      plan.price,
+      diffMinutes
+    );
+
+    // Iniciar verificação automática
+    startPaymentCheck(subscription.id);
+
+    currentPaymentId = payment.id;
   } catch (error) {
-    console.error("💥 Erro ao verificar assinatura:", error);
+    console.error("💥 Erro ao verificar pagamento pendente:", error);
   }
 }
 
@@ -122,6 +180,66 @@ async function generatePixPayment() {
 
     console.log("✅ Usuário autenticado:", user.email);
 
+    // Verificar se já existe pagamento pendente válido
+    const { data: subscription, error: subError } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (subscription) {
+      // Buscar pagamento associado
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("subscription_id", subscription.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (payment && payment.pix_code) {
+        // Verificar se não expirou
+        const createdAt = new Date(payment.created_at);
+        const now = new Date();
+        const diffMinutes = (now - createdAt) / 1000 / 60;
+
+        if (diffMinutes <= 30) {
+          console.log("ℹ️ Reutilizando código PIX pendente existente");
+
+          const plan = PLANS[subscription.plan_type];
+
+          // Esconder botão
+          const btn = document.getElementById("generate-pix-btn");
+          if (btn) {
+            btn.style.display = "none";
+          }
+
+          displayPixCode(
+            payment.pix_code,
+            payment.qr_code_base64,
+            plan.name,
+            plan.price,
+            diffMinutes
+          );
+
+          startPaymentCheck(subscription.id);
+          currentPaymentId = payment.id;
+
+          showMessage("ℹ️ Exibindo código PIX pendente", "info");
+          return;
+        } else {
+          console.log("⏰ Código anterior expirou, criando novo...");
+          // Atualizar status do pagamento antigo
+          await supabase
+            .from("payments")
+            .update({ status: "expired" })
+            .eq("id", payment.id);
+        }
+      }
+    }
+
     // Obter plano selecionado
     const planType = localStorage.getItem("selected_plan");
     const plan = PLANS[planType];
@@ -139,17 +257,16 @@ async function generatePixPayment() {
       btn.textContent = "⏳ Gerando código PIX...";
     }
 
-    // Preparar dados do pagamento com flag para atualizar assinatura existente
+    // Preparar dados do pagamento
     const paymentData = {
       user_id: user.id,
       plan_type: planType,
       amount: plan.price,
       email: user.email,
-      update_existing: true, // NOVO: Flag para atualizar assinatura existente
+      force_new: true, // Flag para criar novo pagamento
     };
 
     console.log("📤 Enviando requisição para criar pagamento...");
-    console.log("📦 Dados:", paymentData);
 
     // Chamar API de criação de pagamento
     const response = await fetch(
@@ -165,11 +282,9 @@ async function generatePixPayment() {
 
     console.log("📊 Status da resposta:", response.status);
 
-    // Ler resposta
     const responseText = await response.text();
     console.log("📦 Resposta bruta:", responseText);
 
-    // Verificar erro
     if (!response.ok) {
       let errorData;
       try {
@@ -179,20 +294,11 @@ async function generatePixPayment() {
       }
 
       console.error("❌ Erro da API:", errorData);
-
-      // Mensagem específica para assinatura duplicada
-      if (errorData.details && errorData.details.includes("duplicate key")) {
-        throw new Error(
-          "Você já possui uma assinatura. Aguarde o pagamento atual ou contate o suporte."
-        );
-      }
-
       throw new Error(
         errorData.error || errorData.details || "Erro ao criar pagamento"
       );
     }
 
-    // Parse da resposta
     let data;
     try {
       data = JSON.parse(responseText);
@@ -203,7 +309,6 @@ async function generatePixPayment() {
 
     console.log("✅ Dados recebidos:", data);
 
-    // Validar dados recebidos
     if (!data.payment || !data.payment.pix_code) {
       console.error("❌ Dados incompletos:", data);
       throw new Error("Código PIX não foi gerado");
@@ -214,18 +319,16 @@ async function generatePixPayment() {
     console.log("💰 Mercado Pago ID:", data.payment.mercadopago_id);
     console.log("📄 Subscription ID:", data.subscription.id);
 
-    // Salvar ID do pagamento
     currentPaymentId = data.payment.id;
 
-    // Exibir QR Code
     displayPixCode(
       data.payment.pix_code,
       data.payment.qr_code_base64,
       plan.name,
-      plan.price
+      plan.price,
+      0
     );
 
-    // Iniciar verificação automática
     startPaymentCheck(data.subscription.id);
 
     showMessage("✅ Código PIX gerado com sucesso!", "success");
@@ -233,7 +336,6 @@ async function generatePixPayment() {
     console.error("💥 Erro ao gerar pagamento:", error);
     showMessage(`❌ Erro: ${error.message}`, "error");
 
-    // Reabilitar botão
     const btn = document.getElementById("generate-pix-btn");
     if (btn) {
       btn.disabled = false;
@@ -246,10 +348,17 @@ async function generatePixPayment() {
 // EXIBIR QR CODE
 // ===========================
 
-function displayPixCode(pixCode, qrCodeBase64, planName, planPrice) {
+function displayPixCode(
+  pixCode,
+  qrCodeBase64,
+  planName,
+  planPrice,
+  minutesElapsed = 0
+) {
   console.log("🖼️ Exibindo QR Code...");
   console.log("  - PIX Code:", pixCode ? "✅" : "❌");
   console.log("  - QR Base64:", qrCodeBase64 ? "✅" : "❌");
+  console.log("  - Tempo decorrido:", minutesElapsed.toFixed(1), "minutos");
 
   // Esconder botão de gerar
   const generateBtn = document.getElementById("generate-pix-btn");
@@ -270,7 +379,6 @@ function displayPixCode(pixCode, qrCodeBase64, planName, planPrice) {
       qrImg.src = `data:image/png;base64,${qrCodeBase64}`;
       console.log("✅ QR Code carregado via Base64");
     } else {
-      // Fallback: usar API pública
       const qrcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
         pixCode
       )}`;
@@ -290,18 +398,12 @@ function displayPixCode(pixCode, qrCodeBase64, planName, planPrice) {
     pixCodeInput.value = pixCode;
   }
 
-  // Atualizar informações do plano
-  const planInfoEl = document.getElementById("plan-info");
-  if (planInfoEl) {
-    planInfoEl.innerHTML = `
-      <p style="color: #666; font-size: 14px; margin: 5px 0;">
-        <strong>Plano:</strong> ${planName}
-      </p>
-      <p style="color: #666; font-size: 14px; margin: 5px 0;">
-        <strong>Valor:</strong> ${formatCurrency(planPrice)}
-      </p>
-    `;
-  }
+  // Calcular tempo restante
+  const remainingMinutes = Math.max(0, 30 - minutesElapsed);
+  const timeWarning =
+    remainingMinutes < 5
+      ? `⚠️ Restam apenas ${Math.floor(remainingMinutes)} minutos!`
+      : `⏰ Válido por ${Math.floor(remainingMinutes)} minutos`;
 
   // Mostrar status de pagamento
   const paymentStatus = document.getElementById("payment-status");
@@ -312,7 +414,12 @@ function displayPixCode(pixCode, qrCodeBase64, planName, planPrice) {
         <p style="color: #0369a1; font-weight: 600; font-size: 16px; margin-bottom: 10px;">
           ⏳ Aguardando pagamento...
         </p>
-        <p style="color: #666; font-size: 14px;">
+        <p style="color: ${
+          remainingMinutes < 5 ? "#dc2626" : "#666"
+        }; font-size: 14px; font-weight: 600;">
+          ${timeWarning}
+        </p>
+        <p style="color: #666; font-size: 13px; margin-top: 8px;">
           Verificando automaticamente a cada 3 segundos
         </p>
         <div style="margin-top: 15px;">
@@ -342,7 +449,6 @@ function copyPixCode() {
 
   const pixCode = pixCodeElement.value;
 
-  // Tentar copiar usando API moderna
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard
       .writeText(pixCode)
@@ -355,7 +461,6 @@ function copyPixCode() {
         copyFallback(pixCodeElement);
       });
   } else {
-    // Fallback para navegadores antigos
     copyFallback(pixCodeElement);
   }
 }
@@ -379,10 +484,15 @@ function copyFallback(element) {
 
 async function startPaymentCheck(subscriptionId) {
   let attempts = 0;
-  const maxAttempts = 600; // 30 minutos (600 * 3s = 1800s = 30min)
+  const maxAttempts = 600;
 
   console.log("🔄 Iniciando verificação automática de pagamento...");
   console.log("📌 Subscription ID:", subscriptionId);
+
+  // Limpar intervalo anterior se existir
+  if (paymentCheckInterval) {
+    clearInterval(paymentCheckInterval);
+  }
 
   paymentCheckInterval = setInterval(async () => {
     attempts++;
@@ -409,10 +519,8 @@ async function startPaymentCheck(subscriptionId) {
         clearInterval(paymentCheckInterval);
         console.log("🎉 PAGAMENTO CONFIRMADO!");
 
-        // Remover plano selecionado
         localStorage.removeItem("selected_plan");
 
-        // Atualizar status
         const paymentStatus = document.getElementById("payment-status");
         if (paymentStatus) {
           paymentStatus.innerHTML = `
@@ -430,13 +538,11 @@ async function startPaymentCheck(subscriptionId) {
           `;
         }
 
-        // Redirecionar
         setTimeout(() => {
           window.location.href = "content.html";
         }, 2000);
       }
 
-      // Timeout
       if (attempts >= maxAttempts) {
         clearInterval(paymentCheckInterval);
         console.warn("⏰ Timeout na verificação de pagamento");
@@ -446,12 +552,12 @@ async function startPaymentCheck(subscriptionId) {
           paymentStatus.innerHTML = `
             <div style="text-align: center; padding: 20px; background: #fee2e2; border-radius: 8px; margin-top: 20px;">
               <p style="color: #dc2626; font-weight: 600; font-size: 16px;">
-                ⏰ Tempo esgotado
+                ⏰ Código PIX expirado
               </p>
               <p style="color: #666; font-size: 14px; margin-top: 10px;">
                 O código PIX expirou. Por favor, gere um novo código.
               </p>
-              <button onclick="window.location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+              <button onclick="window.location.reload()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
                 🔄 Gerar Novo Código
               </button>
             </div>
@@ -461,7 +567,7 @@ async function startPaymentCheck(subscriptionId) {
     } catch (error) {
       console.error("💥 Erro na verificação:", error);
     }
-  }, 3000); // Verificar a cada 3 segundos
+  }, 3000);
 }
 
 // ===========================
@@ -480,7 +586,6 @@ async function checkPaymentStatus() {
       return;
     }
 
-    // Buscar assinatura mais recente
     const { data: subscription, error } = await supabase
       .from("subscriptions")
       .select("*")
@@ -526,7 +631,6 @@ async function checkPaymentStatus() {
 function showMessage(message, type = "info") {
   console.log(`📢 Mensagem [${type}]:`, message);
 
-  // Criar elemento de mensagem se não existir
   let messageContainer = document.getElementById("message-container");
 
   if (!messageContainer) {
@@ -563,7 +667,6 @@ function showMessage(message, type = "info") {
 
   messageContainer.appendChild(messageEl);
 
-  // Remover após 5 segundos
   setTimeout(() => {
     messageEl.style.animation = "slideOut 0.3s ease";
     setTimeout(() => {
