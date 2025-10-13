@@ -1,5 +1,5 @@
-// payment.js - Mercado Pago Integration
-// Sistema de pagamento com Mercado Pago
+// payment.js - Mercado Pago Integration (FIXED)
+// Sistema de pagamento com Mercado Pago - Versão Corrigida
 
 console.log("✅ payment.js carregado (Mercado Pago)");
 
@@ -26,6 +26,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   console.log("✅ Usuário autenticado:", user.email);
 
+  // Verificar se já existe assinatura ativa
+  await checkExistingSubscription(user.id);
+
   const planType = localStorage.getItem("selected_plan");
   if (!planType || !PLANS[planType]) {
     console.warn("❌ Plano não selecionado ou inválido");
@@ -39,6 +42,47 @@ document.addEventListener("DOMContentLoaded", async () => {
   console.log("✅ Plano selecionado:", planType);
   displayPlanDetails(planType);
 });
+
+// ===========================
+// VERIFICAR ASSINATURA EXISTENTE
+// ===========================
+
+async function checkExistingSubscription(userId) {
+  try {
+    const { data: subscription, error } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("❌ Erro ao verificar assinatura:", error);
+      return;
+    }
+
+    if (subscription) {
+      console.log("📦 Assinatura existente encontrada:", subscription.status);
+
+      if (subscription.status === "active") {
+        showMessage("✅ Você já tem uma assinatura ativa!", "info");
+        setTimeout(() => {
+          window.location.href = "content.html";
+        }, 2000);
+        return;
+      }
+
+      if (subscription.status === "pending") {
+        showMessage(
+          "⏳ Você tem um pagamento pendente. Aguardando confirmação...",
+          "info"
+        );
+        // Permitir gerar novo código se o pendente expirou
+      }
+    }
+  } catch (error) {
+    console.error("💥 Erro ao verificar assinatura:", error);
+  }
+}
 
 // ===========================
 // EXIBIR DETALHES DO PLANO
@@ -95,12 +139,13 @@ async function generatePixPayment() {
       btn.textContent = "⏳ Gerando código PIX...";
     }
 
-    // Preparar dados do pagamento
+    // Preparar dados do pagamento com flag para atualizar assinatura existente
     const paymentData = {
       user_id: user.id,
       plan_type: planType,
       amount: plan.price,
       email: user.email,
+      update_existing: true, // NOVO: Flag para atualizar assinatura existente
     };
 
     console.log("📤 Enviando requisição para criar pagamento...");
@@ -134,6 +179,14 @@ async function generatePixPayment() {
       }
 
       console.error("❌ Erro da API:", errorData);
+
+      // Mensagem específica para assinatura duplicada
+      if (errorData.details && errorData.details.includes("duplicate key")) {
+        throw new Error(
+          "Você já possui uma assinatura. Aguarde o pagamento atual ou contate o suporte."
+        );
+      }
+
       throw new Error(
         errorData.error || errorData.details || "Erro ao criar pagamento"
       );
