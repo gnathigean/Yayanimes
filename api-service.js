@@ -1,13 +1,13 @@
 // api-service.js
-// Serviço para integração com SugoiAPI (https://github.com/yzPeedro/SugoiAPI)
+// Serviço para integração com Aniwatch API (https://github.com/ghoshRitesh12/aniwatch-api)
 
 // ===========================
-// CONFIGURAÇÃO DA SUGOI API
+// CONFIGURAÇÃO DA ANIWATCH API
 // ===========================
 
 const API_CONFIG = {
-  // URL base da SugoiAPI
-  baseURL: "https://sugoi-api.vercel.app/anime",
+  // URL base da Aniwatch API (já hospedada no Vercel)
+  baseURL: "https://aniwatch-api-dusky.vercel.app/api/v2/hianime", // Altere para sua instância
 
   headers: {
     "Content-Type": "application/json",
@@ -15,16 +15,6 @@ const API_CONFIG = {
 
   // Cache de requisições (em segundos)
   cacheTime: 300, // 5 minutos
-
-  // Endpoints disponíveis
-  endpoints: {
-    popular: "/popular", // Animes populares
-    recent: "/recent", // Animes recentes
-    search: "/search", // Buscar animes
-    info: "/info", // Informações do anime
-    episodes: "/episodes", // Episódios de um anime
-    watch: "/watch", // Links de reprodução
-  },
 };
 
 // ===========================
@@ -96,21 +86,18 @@ async function apiRequest(endpoint, options = {}) {
       throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const result = await response.json();
 
-    console.log("✅ Resposta recebida:", {
-      endpoint,
-      type: typeof data,
-      isArray: Array.isArray(data),
-      keys: Object.keys(data).slice(0, 5),
-      length: Array.isArray(data) ? data.length : "N/A",
-      firstItem: Array.isArray(data) ? data[0] : data.results?.[0],
-    });
+    if (!result.success) {
+      throw new Error(result.message || "Erro na API");
+    }
+
+    console.log("✅ Resposta recebida:", result);
 
     // Salvar no cache
-    cache.set(cacheKey, data, API_CONFIG.cacheTime);
+    cache.set(cacheKey, result.data, API_CONFIG.cacheTime);
 
-    return data;
+    return result.data;
   } catch (error) {
     console.error("❌ Erro na API:", error);
     throw error;
@@ -118,138 +105,125 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // ===========================
-// FUNÇÕES ESPECÍFICAS - SUGOI API
+// FUNÇÕES ESPECÍFICAS - ANIWATCH API
 // ===========================
 
-// Buscar animes populares
-async function getPopularAnimes(page = 1) {
-  return await apiRequest(`/popular?page=${page}`);
+// Buscar página inicial com animes em destaque, populares, etc
+async function getHomePage() {
+  return await apiRequest("/home");
 }
 
-// Buscar animes recentes
-async function getRecentAnimes(page = 1) {
-  return await apiRequest(`/recent?page=${page}`);
+// Buscar animes por categoria
+// Categorias: "most-favorite", "most-popular", "subbed-anime", "dubbed-anime",
+// "recently-updated", "recently-added", "top-upcoming", "top-airing", "movie",
+// "special", "ova", "ona", "tv", "completed"
+async function getAnimesByCategory(category = "most-popular", page = 1) {
+  return await apiRequest(`/category/${category}?page=${page}`);
 }
 
-// Buscar anime por query
-async function searchAnimes(query) {
-  const encodedQuery = encodeURIComponent(query);
-  return await apiRequest(`/search?query=${encodedQuery}`);
+// Buscar animes por gênero
+async function getAnimesByGenre(genre, page = 1) {
+  return await apiRequest(`/genre/${genre}?page=${page}`);
+}
+
+// Buscar anime por query (busca avançada disponível)
+async function searchAnimes(query, page = 1, filters = {}) {
+  let endpoint = `/search?q=${encodeURIComponent(query)}&page=${page}`;
+
+  // Adicionar filtros se existirem
+  if (filters.type) endpoint += `&type=${filters.type}`;
+  if (filters.status) endpoint += `&status=${filters.status}`;
+  if (filters.rated) endpoint += `&rated=${filters.rated}`;
+  if (filters.score) endpoint += `&score=${filters.score}`;
+  if (filters.season) endpoint += `&season=${filters.season}`;
+  if (filters.language) endpoint += `&language=${filters.language}`;
+  if (filters.genres) endpoint += `&genres=${filters.genres}`;
+  if (filters.sort) endpoint += `&sort=${filters.sort}`;
+  if (filters.start_date) endpoint += `&start_date=${filters.start_date}`;
+  if (filters.end_date) endpoint += `&end_date=${filters.end_date}`;
+
+  return await apiRequest(endpoint);
+}
+
+// Buscar sugestões de busca
+async function getSearchSuggestions(query) {
+  return await apiRequest(`/search/suggestion?q=${encodeURIComponent(query)}`);
 }
 
 // Buscar informações detalhadas do anime
 async function getAnimeInfo(animeId) {
-  return await apiRequest(`/info/${animeId}`);
+  return await apiRequest(`/anime/${animeId}`);
 }
 
 // Buscar episódios de um anime
 async function getAnimeEpisodes(animeId) {
-  return await apiRequest(`/episodes/${animeId}`);
+  return await apiRequest(`/anime/${animeId}/episodes`);
 }
 
-// Buscar links de reprodução de um episódio
-async function getEpisodeWatch(episodeId) {
-  return await apiRequest(`/watch/${episodeId}`);
+// Buscar servidores disponíveis para um episódio
+async function getEpisodeServers(episodeId) {
+  return await apiRequest(`/episode/servers?animeEpisodeId=${episodeId}`);
 }
 
-// Função legada (mantida para compatibilidade)
-async function getAnimes(params = {}) {
-  // SugoiAPI não tem endpoint /animes, usar /popular
-  return await getPopularAnimes(params.page || 1);
+// Buscar links de streaming de um episódio
+async function getEpisodeStreams(episodeId, server = "hd-1", category = "sub") {
+  return await apiRequest(
+    `/episode/sources?animeEpisodeId=${episodeId}&server=${server}&category=${category}`
+  );
 }
 
-// Função legada
-async function getAnimeById(id) {
-  return await getAnimeInfo(id);
+// Buscar agenda de lançamentos
+async function getSchedule(date) {
+  // date format: yyyy-mm-dd
+  return await apiRequest(`/schedule?date=${date}`);
 }
 
-// Função legada
-async function getEpisodes(animeId) {
-  return await getAnimeEpisodes(animeId);
-}
-
-// Função legada
-async function getEpisode(animeId, episodeId) {
-  return await getEpisodeWatch(episodeId);
-}
-
-// Não aplicável para SugoiAPI (focada em animes)
-async function getAnimesByGenre(genre, page = 1) {
-  // SugoiAPI não tem busca por gênero específica
-  // Usar busca normal
-  return await searchAnimes(genre);
-}
-
-async function getMovies(page = 1) {
-  // SugoiAPI é focada em animes, usar recent como alternativa
-  return await getRecentAnimes(page);
-}
-
-async function getSeries(page = 1) {
-  // SugoiAPI é focada em animes, usar popular como alternativa
-  return await getPopularAnimes(page);
+// Buscar lista A-Z
+async function getAZList(letter = "all", page = 1) {
+  return await apiRequest(`/azlist/${letter}?page=${page}`);
 }
 
 // ===========================
-// NORMALIZAÇÃO DE DADOS - SUGOI API
+// NORMALIZAÇÃO DE DADOS
 // ===========================
 
-// Adaptar dados da SugoiAPI para o formato do site
+// Normalizar dados da Aniwatch API para o formato do site
 function normalizeAnimeData(apiData) {
-  // Estrutura da SugoiAPI:
-  // {
-  //   id: string,
-  //   title: string,
-  //   image: string,
-  //   releaseDate: string,
-  //   totalEpisodes: number,
-  //   rating: number,
-  //   genres: string[],
-  //   description: string
-  // }
-
   return {
-    id: apiData.id || apiData.animeId,
-    title: apiData.title || apiData.name || "Sem título",
-    rating: parseFloat(apiData.rating) || 0,
-    year: extractYear(apiData.releaseDate),
-    episodes: apiData.totalEpisodes || apiData.episodes || 0,
-    image:
-      apiData.image ||
-      apiData.thumbnail ||
-      "https://via.placeholder.com/400x600?text=No+Image",
-    type: "anime",
-    description:
-      apiData.description || apiData.synopsis || "Descrição não disponível",
-    genres: apiData.genres || [],
-    status: apiData.status || "ongoing",
-    new: isNew(apiData.releaseDate),
-    releaseDate: apiData.releaseDate,
+    id: apiData.id,
+    title: apiData.name || apiData.title,
+    jname: apiData.jname,
+    rating: parseFloat(apiData.rating || apiData.stats?.rating || 0),
+    year: extractYear(apiData.moreInfo?.aired || apiData.aired),
+    episodes: apiData.episodes?.sub || apiData.stats?.episodes?.sub || 0,
+    episodesDub: apiData.episodes?.dub || apiData.stats?.episodes?.dub || 0,
+    image: apiData.poster,
+    type: apiData.type || "TV",
+    description: apiData.description || "Descrição não disponível",
+    genres: apiData.moreInfo?.genres || apiData.genres || [],
+    status: apiData.moreInfo?.status || apiData.status,
+    duration: apiData.duration || apiData.moreInfo?.duration,
+    quality: apiData.quality || apiData.stats?.quality,
+    new: isRecent(apiData.moreInfo?.aired || apiData.aired),
   };
 }
 
-// Extrair ano da data de lançamento
-function extractYear(releaseDate) {
-  if (!releaseDate) return new Date().getFullYear();
+// Extrair ano da string de data
+function extractYear(airedString) {
+  if (!airedString) return new Date().getFullYear();
 
-  try {
-    // Pode vir como "2023", "2023-01-01", ou outros formatos
-    const year = parseInt(releaseDate.toString().substring(0, 4));
-    return isNaN(year) ? new Date().getFullYear() : year;
-  } catch (e) {
-    return new Date().getFullYear();
-  }
+  const match = airedString.match(/\d{4}/);
+  return match ? parseInt(match[0]) : new Date().getFullYear();
 }
 
-// Verificar se é novo (lançado nos últimos 6 meses)
-function isNew(releaseDate) {
-  if (!releaseDate) return false;
+// Verificar se é recente (últimos 6 meses)
+function isRecent(airedString) {
+  if (!airedString) return false;
 
-  const release = new Date(releaseDate);
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const year = extractYear(airedString);
+  const currentYear = new Date().getFullYear();
 
-  return release > sixMonthsAgo;
+  return year >= currentYear - 1;
 }
 
 // Normalizar lista de animes
@@ -265,68 +239,48 @@ function normalizeAnimeList(apiList) {
 // Carregar conteúdo para a página principal
 async function loadContentForHomepage() {
   try {
-    console.log("📡 Buscando animes da SugoiAPI...");
+    console.log("📡 Buscando animes da Aniwatch API...");
 
-    // SugoiAPI retorna direto os animes em formato { results: [...] }
-    const [popularData, recentData] = await Promise.all([
-      getPopularAnimes(1),
-      getRecentAnimes(1),
-    ]);
+    const homeData = await getHomePage();
 
-    console.log("✅ Dados recebidos:", { popularData, recentData });
-
-    // A SugoiAPI retorna { results: [...] } ou array direto
-    const popular = popularData.results || popularData;
-    const recent = recentData.results || recentData;
-
-    // Garantir que são arrays
-    const popularArray = Array.isArray(popular) ? popular : [];
-    const recentArray = Array.isArray(recent) ? recent : [];
-
-    console.log(`📊 Popular: ${popularArray.length} animes`);
-    console.log(`📊 Recentes: ${recentArray.length} animes`);
+    console.log("✅ Dados recebidos da home:", homeData);
 
     return {
-      animes: normalizeAnimeList(popularArray.slice(0, 12)),
-      movies: normalizeAnimeList(recentArray.slice(0, 6)),
-      series: normalizeAnimeList(popularArray.slice(6, 12)),
+      animes: normalizeAnimeList(homeData.trendingAnimes || []),
+      movies: normalizeAnimeList(
+        homeData.latestEpisodeAnimes?.slice(0, 6) || []
+      ),
+      series: normalizeAnimeList(homeData.mostPopularAnimes?.slice(0, 6) || []),
+      spotlight: normalizeAnimeList(homeData.spotlightAnimes || []),
+      topAiring: normalizeAnimeList(homeData.topAiringAnimes || []),
+      top10: homeData.top10Animes,
     };
   } catch (error) {
-    console.error("❌ Erro ao carregar da SugoiAPI:", error.message);
-
-    // Retornar dados vazios em caso de erro
-    return {
-      animes: [],
-      movies: [],
-      series: [],
-    };
+    console.error("❌ Erro ao carregar da Aniwatch API:", error.message);
+    throw error;
   }
 }
 
 // Buscar com paginação
-async function loadMoreContent(type, page) {
+async function loadMoreContent(type, page = 1) {
   try {
-    let data;
+    let categoryMap = {
+      anime: "most-popular",
+      movie: "movie",
+      series: "tv",
+      recent: "recently-added",
+      popular: "most-popular",
+      airing: "top-airing",
+    };
 
-    switch (type) {
-      case "anime":
-        data = await getAnimes({ page, limit: 20 });
-        break;
-      case "movie":
-        data = await getMovies(page);
-        break;
-      case "series":
-        data = await getSeries(page);
-        break;
-      default:
-        throw new Error("Tipo inválido");
-    }
+    const category = categoryMap[type] || "most-popular";
+    const data = await getAnimesByCategory(category, page);
 
     return {
-      items: normalizeAnimeList(data.data || data.results || data),
-      hasMore: data.hasNextPage || data.currentPage < data.totalPages,
-      currentPage: data.currentPage || page,
-      totalPages: data.totalPages || 1,
+      items: normalizeAnimeList(data.animes || []),
+      hasMore: data.hasNextPage,
+      currentPage: data.currentPage,
+      totalPages: data.totalPages,
     };
   } catch (error) {
     console.error("Erro ao carregar mais conteúdo:", error);
@@ -339,70 +293,97 @@ async function loadAnimeDetails(animeId) {
   try {
     const [info, episodes] = await Promise.all([
       getAnimeInfo(animeId),
-      getAnimeEpisodes(animeId).catch(() => []),
+      getAnimeEpisodes(animeId).catch(() => ({ episodes: [] })),
     ]);
 
-    const normalized = normalizeAnimeData(info);
-
-    // Normalizar episódios da SugoiAPI
-    const episodesList = Array.isArray(episodes)
-      ? episodes
-      : episodes.episodes || [];
+    const normalized = normalizeAnimeData(info.anime.info);
 
     return {
       ...normalized,
-      episodes: episodesList.map((ep, index) => ({
-        id: ep.id || ep.episodeId,
-        number: ep.number || index + 1,
-        title: ep.title || `Episódio ${index + 1}`,
-        thumbnail: ep.image || normalized.image,
-        duration: "24 min", // SugoiAPI não retorna duração
-      })),
+      moreInfo: info.anime.moreInfo,
+      episodes: episodes.episodes || [],
+      totalEpisodes: episodes.totalEpisodes || 0,
+      recommendedAnimes: normalizeAnimeList(info.recommendedAnimes || []),
+      relatedAnimes: normalizeAnimeList(info.relatedAnimes || []),
+      seasons: info.seasons || [],
     };
   } catch (error) {
-    console.error("Erro ao carregar detalhes da SugoiAPI:", error);
+    console.error("Erro ao carregar detalhes:", error);
     throw error;
   }
 }
 
-// Carregar links de reprodução do episódio
-async function loadEpisodeStreams(episodeId) {
+// Carregar episódio para reprodução
+async function loadEpisodeForPlayer(
+  episodeId,
+  server = "hd-1",
+  category = "sub"
+) {
   try {
-    const data = await getEpisodeWatch(episodeId);
+    const [servers, streams] = await Promise.all([
+      getEpisodeServers(episodeId),
+      getEpisodeStreams(episodeId, server, category),
+    ]);
 
-    // SugoiAPI retorna { sources: [...], download: "..." }
     return {
-      sources: data.sources || [],
-      download: data.download || "",
+      episodeId: episodeId,
+      episodeNo: servers.episodeNo,
+      servers: servers,
+      streams: streams,
+      availableServers: {
+        sub: servers.sub || [],
+        dub: servers.dub || [],
+        raw: servers.raw || [],
+      },
     };
   } catch (error) {
-    console.error("Erro ao carregar streams:", error);
-    return { sources: [], download: "" };
+    console.error("Erro ao carregar episódio:", error);
+    throw error;
   }
+}
+
+// ===========================
+// FUNÇÕES DE COMPATIBILIDADE
+// ===========================
+
+// Funções legadas (compatibilidade com content-streaming.js)
+async function getAnimes(params = {}) {
+  const data = await getAnimesByCategory("most-popular", params.page || 1);
+  return normalizeAnimeList(data.animes || []);
+}
+
+async function getAnimeById(id) {
+  const data = await getAnimeInfo(id);
+  return normalizeAnimeData(data.anime.info);
+}
+
+async function getEpisodes(animeId) {
+  const data = await getAnimeEpisodes(animeId);
+  return data.episodes || [];
+}
+
+async function getMovies(page = 1) {
+  const data = await getAnimesByCategory("movie", page);
+  return normalizeAnimeList(data.animes || []);
+}
+
+async function getSeries(page = 1) {
+  const data = await getAnimesByCategory("tv", page);
+  return normalizeAnimeList(data.animes || []);
 }
 
 // ===========================
 // TRATAMENTO DE ERROS
 // ===========================
 
-class APIError extends Error {
-  constructor(message, status, data) {
-    super(message);
-    this.name = "APIError";
-    this.status = status;
-    this.data = data;
-  }
-}
-
-// Mostrar erro para o usuário
 function showErrorToUser(error) {
   let message = "Erro ao carregar dados. Tente novamente.";
 
   if (error.message.includes("Failed to fetch")) {
-    message = "Sem conexão com a internet. Verifique sua conexão.";
-  } else if (error.status === 404) {
+    message = "Sem conexão com a API. Verifique sua conexão.";
+  } else if (error.message.includes("404")) {
     message = "Conteúdo não encontrado.";
-  } else if (error.status === 429) {
+  } else if (error.message.includes("429")) {
     message = "Muitas requisições. Aguarde um momento.";
   }
 
@@ -419,6 +400,7 @@ function showErrorToUser(error) {
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     z-index: 9999;
     max-width: 300px;
+    animation: slideIn 0.3s ease;
   `;
   notification.innerHTML = `
     <strong>❌ Erro</strong><br>
@@ -431,6 +413,29 @@ function showErrorToUser(error) {
 }
 
 // ===========================
+// UTILITÁRIOS
+// ===========================
+
+// Obter data atual no formato yyyy-mm-dd
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Buscar agenda de hoje
+async function getTodaySchedule() {
+  try {
+    return await getSchedule(getTodayDate());
+  } catch (error) {
+    console.error("Erro ao buscar agenda:", error);
+    return { scheduledAnimes: [] };
+  }
+}
+
+// ===========================
 // EXPORTAR FUNÇÕES
 // ===========================
 
@@ -438,28 +443,30 @@ window.AnimeAPI = {
   // Configuração
   setBaseURL: (url) => {
     API_CONFIG.baseURL = url;
-  },
-  setHeaders: (headers) => {
-    Object.assign(API_CONFIG.headers, headers);
+    console.log(`✅ URL da API atualizada para: ${url}`);
   },
 
   // Cache
   clearCache: () => cache.clear(),
 
-  // Requisições SugoiAPI
-  getPopularAnimes,
-  getRecentAnimes,
+  // Requisições Aniwatch API
+  getHomePage,
+  getAnimesByCategory,
+  getAnimesByGenre,
   searchAnimes,
+  getSearchSuggestions,
   getAnimeInfo,
   getAnimeEpisodes,
-  getEpisodeWatch,
+  getEpisodeServers,
+  getEpisodeStreams,
+  getSchedule,
+  getTodaySchedule,
+  getAZList,
 
   // Funções legadas (compatibilidade)
   getAnimes,
   getAnimeById,
   getEpisodes,
-  getEpisode,
-  getAnimesByGenre,
   getMovies,
   getSeries,
 
@@ -467,12 +474,17 @@ window.AnimeAPI = {
   loadContentForHomepage,
   loadMoreContent,
   loadAnimeDetails,
-  loadEpisodeStreams,
+  loadEpisodeForPlayer,
 
   // Utilitários
   normalizeAnimeData,
   normalizeAnimeList,
   showErrorToUser,
+  getTodayDate,
 };
 
-console.log("✅ SugoiAPI Service carregado!");
+console.log("✅ Aniwatch API Service carregado!");
+console.log(
+  "🔧 Para configurar URL customizada: window.AnimeAPI.setBaseURL('sua-url')"
+);
+console.log("📺 API Base: " + API_CONFIG.baseURL);

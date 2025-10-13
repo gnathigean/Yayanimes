@@ -463,7 +463,7 @@ function playContent(id, type) {
   addToWatchHistory(item);
 
   // Redirecionar para o player
-  window.location.href = `player.html?id=${id}&type=${type}`;
+  window.location.href = `player.html?id=${id}&ep=1`;
 }
 
 // Mostrar informações detalhadas
