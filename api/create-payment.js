@@ -44,7 +44,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // Validar Access Token
+    // Validar variáveis de ambiente
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+      console.error("❌ Variáveis Supabase não configuradas");
+      return res.status(500).json({
+        error: "Configuração do servidor incompleta (Supabase)",
+      });
+    }
+
     if (
       !MERCADOPAGO_ACCESS_TOKEN ||
       MERCADOPAGO_ACCESS_TOKEN === "SEU_ACCESS_TOKEN_AQUI"
@@ -59,20 +66,29 @@ export default async function handler(req, res) {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
     // Verificar se já tem assinatura ativa
-    const { data: existingSub } = await supabase
+    const { data: existingSub, error: checkError } = await supabase
       .from("subscriptions")
-      .select("id")
+      .select("id, status")
       .eq("user_id", user_id)
       .eq("status", "active")
-      .single();
+      .maybeSingle(); // MUDANÇA: usar maybeSingle()
 
-    if (existingSub) {
-      return res
-        .status(400)
-        .json({ error: "Usuário já possui assinatura ativa" });
+    if (checkError && checkError.code !== "PGRST116") {
+      console.error("❌ Erro ao verificar assinatura:", checkError);
+      return res.status(500).json({
+        error: "Erro ao verificar assinatura existente",
+        details: checkError.message,
+      });
     }
 
-    console.log("🔄 Criando pagamento no Mercado Pago...");
+    if (existingSub) {
+      return res.status(400).json({
+        error: "Usuário já possui assinatura ativa",
+        subscription_id: existingSub.id,
+      });
+    }
+
+    console.log("📄 Criando pagamento no Mercado Pago...");
 
     // Criar pagamento no Mercado Pago
     const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
@@ -116,10 +132,11 @@ export default async function handler(req, res) {
       .insert([
         {
           user_id: user_id,
-          amount: amount,
+          amount: parseFloat(amount),
           status: "pending",
           payment_method: "pix",
-          pix_code: mpData.point_of_interaction.transaction_data.qr_code,
+          pix_code:
+            mpData.point_of_interaction?.transaction_data?.qr_code || null,
         },
       ])
       .select()
@@ -127,13 +144,16 @@ export default async function handler(req, res) {
 
     if (paymentError) {
       console.error("❌ Erro ao salvar pagamento:", paymentError);
-      return res.status(500).json({ error: "Erro ao salvar pagamento" });
+      return res.status(500).json({
+        error: "Erro ao salvar pagamento",
+        details: paymentError.message,
+      });
     }
 
     // Criar assinatura pendente
     const plans = { "7_dias": 7, "30_dias": 30 };
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + plans[plan_type]);
+    expiresAt.setDate(expiresAt.getDate() + (plans[plan_type] || 7));
 
     const { data: subscription, error: subError } = await supabase
       .from("subscriptions")
@@ -151,7 +171,14 @@ export default async function handler(req, res) {
 
     if (subError) {
       console.error("❌ Erro ao criar assinatura:", subError);
-      return res.status(500).json({ error: "Erro ao criar assinatura" });
+
+      // Se falhar, deletar o pagamento criado
+      await supabase.from("payments").delete().eq("id", payment.id);
+
+      return res.status(500).json({
+        error: "Erro ao criar assinatura",
+        details: subError.message,
+      });
     }
 
     console.log("✅ Tudo criado com sucesso");
@@ -162,9 +189,10 @@ export default async function handler(req, res) {
       payment: {
         id: payment.id,
         mercadopago_id: mpData.id,
-        pix_code: mpData.point_of_interaction.transaction_data.qr_code,
+        pix_code:
+          mpData.point_of_interaction?.transaction_data?.qr_code || null,
         qr_code_base64:
-          mpData.point_of_interaction.transaction_data.qr_code_base64,
+          mpData.point_of_interaction?.transaction_data?.qr_code_base64 || null,
       },
       subscription: {
         id: subscription.id,
@@ -172,10 +200,11 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    console.error("💥 Erro:", error);
+    console.error("💥 Erro crítico:", error);
     return res.status(500).json({
       error: "Erro interno do servidor",
       details: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 }

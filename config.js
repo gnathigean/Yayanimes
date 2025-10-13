@@ -76,13 +76,15 @@ async function checkSubscription(userId) {
       return null;
     }
 
+    const now = new Date().toISOString();
+
     const { data, error } = await window.supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
       .eq("status", "active")
-      .gte("expires_at", new Date().toISOString())
-      .single();
+      .gte("expires_at", now)
+      .maybeSingle(); // MUDANÇA: usar maybeSingle() ao invés de single()
 
     if (error) {
       if (error.code === "PGRST116") {
@@ -93,7 +95,12 @@ async function checkSubscription(userId) {
       return null;
     }
 
-    console.log("✅ Assinatura ativa encontrada:", data);
+    if (data) {
+      console.log("✅ Assinatura ativa encontrada:", data);
+    } else {
+      console.log("ℹ️ Nenhuma assinatura ativa encontrada");
+    }
+
     return data;
   } catch (error) {
     console.error("❌ Exceção em checkSubscription:", error);
