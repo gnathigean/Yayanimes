@@ -292,20 +292,12 @@ async function saveWatchHistory(animeId, episodeNumber, progress = 0) {
 // ==================== RENDERIZAÇÃO ====================
 
 function createAnimeCard(anime) {
+  const isFavorite = favoriteAnimes.has(anime.id);
+  
   // Garantir que temos um ID válido
   const animeId = anime.id || anime.animeId || '';
-  const isFavorite = favoriteAnimes.has(animeId);
-  
-  // Extrair dados com fallbacks
   const animeName = anime.name || anime.title || 'Sem título';
   const animePoster = anime.poster || anime.image || 'https://via.placeholder.com/300x450/667eea/ffffff?text=No+Image';
-  const animeType = anime.type || '';
-  const animeDuration = anime.duration || '';
-  const animeRating = anime.rating || '';
-  
-  // Informações de episódios
-  const subEpisodes = anime.episodes?.sub || anime.subCount || '';
-  const dubEpisodes = anime.episodes?.dub || anime.dubCount || '';
   
   return `
     <div class="content-card" data-anime-id="${animeId}">
@@ -317,11 +309,11 @@ function createAnimeCard(anime) {
         
         <div class="card-overlay">
           <div class="overlay-details">
-            <h4 class="card-title" title="${animeName}">${animeName}</h4>
+            <h4 class="card-title">${animeName}</h4>
             <div class="card-meta">
-              ${animeType ? `<span>📺 ${animeType}</span>` : ''}
-              ${animeDuration ? `<span>⏱️ ${animeDuration}</span>` : ''}
-              ${animeRating ? `<span>⭐ ${animeRating}</span>` : ''}
+              ${anime.type ? `<span>📺 ${anime.type}</span>` : ''}
+              ${anime.duration ? `<span>⏱️ ${anime.duration}</span>` : ''}
+              ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
             </div>
           </div>
           
@@ -335,15 +327,15 @@ function createAnimeCard(anime) {
           </div>
         </div>
 
-        ${subEpisodes ? `<div class="card-badge">SUB ${subEpisodes}</div>` : ''}
-        ${dubEpisodes ? `<div class="card-badge" style="top: 45px; background: rgba(239, 68, 68, 0.9);">DUB ${dubEpisodes}</div>` : ''}
+        ${anime.episodes?.sub ? `<div class="card-badge">EP ${anime.episodes.sub}</div>` : ''}
+        ${anime.episodes?.dub ? `<div class="card-badge" style="top: 45px;">DUB EP ${anime.episodes.dub}</div>` : ''}
       </div>
 
       <div class="card-info">
-        <h4 class="card-title" title="${animeName}">${animeName}</h4>
+        <h4 class="card-title">${animeName}</h4>
         <div class="card-meta">
-          ${animeType ? `<span>${animeType}</span>` : ''}
-          ${animeRating ? `<span>⭐ ${animeRating}</span>` : ''}
+          ${anime.type ? `<span>${anime.type}</span>` : ''}
+          ${anime.rating ? `<span>⭐ ${anime.rating}</span>` : ''}
         </div>
       </div>
 
@@ -399,55 +391,36 @@ async function loadHomeContent() {
     const container = document.getElementById('dynamic-content-container');
     container.innerHTML = '';
 
-    const data = homeData.data;
+    // Renderizar seções da API
+    const sections = homeData.data?.sections || [];
     
-    console.log('📊 Chaves disponíveis:', Object.keys(data));
-
-    // ✅ A API retorna objetos diretos, não um array de sections
-    const contentSections = [
-      { id: 'spotlight', title: '🌟 Em Destaque', animes: data.spotlightAnimes || [] },
-      { id: 'trending', title: '🔥 Populares', animes: data.trendingAnimes || [] },
-      { id: 'latest-episodes', title: '🆕 Últimos Episódios', animes: data.latestEpisodeAnimes || [] },
-      { id: 'top-upcoming', title: '📅 Próximos Lançamentos', animes: data.topUpcomingAnimes || [] },
-      { id: 'top-airing', title: '📺 Em Exibição', animes: data.topAiringAnimes || [] },
-      { id: 'most-popular', title: '⭐ Mais Populares', animes: data.mostPopularAnimes || [] },
-      { id: 'most-favorite', title: '❤️ Mais Favoritos', animes: data.mostFavoriteAnimes || [] },
-      { id: 'latest-completed', title: '✅ Recém Finalizados', animes: data.latestCompletedAnimes || [] },
-      { id: 'top-10', title: '🏆 Top 10', animes: data.top10Animes?.today || [] }
-    ];
+    console.log('📦 Total de seções:', sections.length);
     
-    console.log('📦 Seções encontradas:', contentSections.length);
-    
-    let totalAnimes = 0;
-    
-    contentSections.forEach((section, index) => {
-      const animes = section.animes;
-      
-      if (animes && animes.length > 0) {
-        console.log(`📋 Seção ${index + 1}: ${section.title} - ${animes.length} animes`);
-        totalAnimes += animes.length;
-        
-        const sectionElement = renderAnimeSection(
-          section.id,
-          section.title,
-          animes,
-          true
-        );
-        container.appendChild(sectionElement);
-      }
-    });
-    
-    console.log('✅ Total de animes renderizados:', totalAnimes);
-    
-    if (totalAnimes === 0) {
-      console.warn('⚠️ Nenhum anime encontrado para renderizar');
+    if (sections.length === 0) {
+      console.warn('⚠️ Nenhuma seção encontrada nos dados');
       container.innerHTML = `
         <div style="text-align: center; padding: 60px 20px; color: white;">
           <h3 style="font-size: 24px; margin-bottom: 15px;">📺 Nenhum conteúdo disponível</h3>
           <p style="color: #9ca3af;">Os animes serão carregados em breve.</p>
         </div>
       `;
+      hideLoading();
+      return;
     }
+    
+    sections.forEach((section, index) => {
+      console.log(`📋 Seção ${index + 1}:`, section.title, '- Animes:', section.animes?.length || 0);
+      
+      if (section.animes && section.animes.length > 0) {
+        const sectionElement = renderAnimeSection(
+          section.id || 'section-' + Math.random(),
+          section.title || 'Animes',
+          section.animes,
+          true
+        );
+        container.appendChild(sectionElement);
+      }
+    });
 
     // Renderizar histórico se existir
     if (watchHistory.length > 0) {

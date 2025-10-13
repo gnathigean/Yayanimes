@@ -444,13 +444,7 @@
 
         } catch (error) {
           console.error('❌ Erro ao carregar fontes:', error);
-          
-          // ✅ Mensagem específica para rate limit
-          if (error.message.includes('Rate limit') || error.message.includes('429')) {
-            showError('⏳ Muitas requisições. Aguarde 10 segundos e clique em "Tentar Novamente".');
-          } else {
-            showError(`Erro ao carregar vídeo: ${error.message}`);
-          }
+          showError(`Erro ao carregar vídeo: ${error.message}`);
         }
       }
 
