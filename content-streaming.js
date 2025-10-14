@@ -1,6 +1,4 @@
-// content-streaming.js
-// VERSÃO CORRIGIDA E REVISADA - COMPLETA
-
+// content-streaming.js - VERSÃO CORRIGIDA
 // ===========================
 // CONFIGURAÇÃO
 // ===========================
@@ -104,7 +102,7 @@ function waitForAPI() {
 }
 
 // ===========================
-// CONTROLE DE ACESSO - INTEGRADO COM SUPABASE
+// CONTROLE DE ACESSO
 // ===========================
 
 async function verifyAccessAndLoadContent() {
@@ -116,7 +114,7 @@ async function verifyAccessAndLoadContent() {
       throw new Error("Supabase não carregado");
     }
 
-    // Verificar autenticação do Supabase
+    // Verificar autenticação
     const {
       data: { user },
       error: authError,
@@ -140,10 +138,9 @@ async function verifyAccessAndLoadContent() {
       userEmail.textContent = user.email;
     }
 
-    // Salvar no localStorage para compatibilidade
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
 
-    // Verificar assinatura no Supabase
+    // Verificar assinatura
     const { data: subscription, error: subError } = await window.supabase
       .from("subscriptions")
       .select("*")
@@ -161,14 +158,12 @@ async function verifyAccessAndLoadContent() {
       return;
     }
 
-    // Verificar se a assinatura expirou
+    // Verificar se expirou
     const now = new Date();
     const expiresAt = new Date(subscription.expires_at);
 
     if (now > expiresAt) {
       console.log("❌ Assinatura expirada");
-
-      // Atualizar status no banco
       await window.supabase
         .from("subscriptions")
         .update({ status: "expired" })
@@ -180,11 +175,8 @@ async function verifyAccessAndLoadContent() {
 
     console.log("✅ Assinatura ativa:", subscription);
     currentSubscription = subscription;
-
-    // Salvar no localStorage
     localStorage.setItem("currentSubscription", JSON.stringify(subscription));
 
-    // Exibir conteúdo premium
     showPremiumContent();
     await loadContent();
   } catch (error) {
@@ -218,7 +210,7 @@ function showPremiumContent() {
 }
 
 // ===========================
-// CARREGAMENTO DE CONTEÚDO
+// CARREGAMENTO DE CONTEÚDO - CORRIGIDO
 // ===========================
 
 async function loadContent() {
@@ -248,21 +240,29 @@ async function loadContentFromAPI() {
 
   try {
     const response = await window.AnimeAPI.loadContentForHomepage();
-    console.log("📦 Dados recebidos da API:", response);
-    console.log("📊 Estrutura completa:", JSON.stringify(response, null, 2));
+    console.log("📦 Resposta da API:", response);
 
-    if (!response) {
-      throw new Error("Nenhum dado retornado da API");
+    if (!response || response.status !== 200) {
+      throw new Error("Resposta inválida da API");
     }
 
-    // A API retorna { status: 200, data: {...} }
-    const data = response.data || response;
+    const data = response.data;
+    console.log("📊 Dados processados:", data);
 
     if (!data) {
       throw new Error("Estrutura de dados inválida");
     }
 
-    // Mapear as seções conforme a estrutura real da API
+    const dynamicContainer = document.getElementById(
+      "dynamic-content-container"
+    );
+    if (!dynamicContainer) {
+      throw new Error("Container dinâmico não encontrado");
+    }
+
+    dynamicContainer.innerHTML = "";
+
+    // Mapear seções
     const sections = [
       {
         title: "⭐ Animes em Destaque",
@@ -282,13 +282,9 @@ async function loadContentFromAPI() {
       {
         title: "❤️ Mais Favoritados",
         data: data.mostFavoriteAnimes,
-        id: "favorites",
+        id: "favorites-api",
       },
-      {
-        title: "🏆 Top 10 Hoje",
-        data: data.top10Animes?.today,
-        id: "top10",
-      },
+      { title: "🏆 Top 10 Hoje", data: data.top10Animes?.today, id: "top10" },
       {
         title: "📡 Top Animes no Ar",
         data: data.topAiringAnimes,
@@ -305,41 +301,30 @@ async function loadContentFromAPI() {
         id: "completed",
       },
       {
-        title: "🔜 Próximos Lançamentos",
+        title: "📜 Próximos Lançamentos",
         data: data.topUpcomingAnimes,
         id: "upcoming",
       },
     ];
 
-    const dynamicContainer = document.getElementById(
-      "dynamic-content-container"
-    );
-    if (!dynamicContainer) {
-      throw new Error("Container dinâmico não encontrado");
-    }
-
-    dynamicContainer.innerHTML = "";
     let renderedSections = 0;
 
     sections.forEach(({ title, data: sectionData, id }) => {
-      console.log(`🔍 Verificando ${title}:`, sectionData);
-
       if (sectionData && Array.isArray(sectionData) && sectionData.length > 0) {
         console.log(`✅ Renderizando: ${title} (${sectionData.length} itens)`);
         renderSection(title, sectionData, dynamicContainer, id);
         renderedSections++;
 
-        // Armazenar dados para busca
+        // Armazenar para busca
         if (id === "trending" || id === "popular") {
           contentDatabase.animes = [...contentDatabase.animes, ...sectionData];
         }
       } else {
-        console.warn(`⚠️ Sem dados válidos para: ${title}`, sectionData);
+        console.warn(`⚠️ Sem dados para: ${title}`);
       }
     });
 
     if (renderedSections === 0) {
-      console.error("❌ Nenhuma seção renderizada. Dados recebidos:", data);
       throw new Error("Nenhuma seção com dados válidos");
     }
 
@@ -349,7 +334,7 @@ async function loadContentFromAPI() {
       fallbackSection.style.display = "none";
     }
 
-    console.log(`✅ ${renderedSections} seções renderizadas com sucesso!`);
+    console.log(`✅ ${renderedSections} seções renderizadas!`);
   } catch (error) {
     console.error("❌ Erro em loadContentFromAPI:", error);
     throw error;
@@ -358,10 +343,8 @@ async function loadContentFromAPI() {
 
 function loadContentFromMock() {
   console.log("💾 Carregando dados mock...");
-
   const mockAnimes = getMockData();
   contentDatabase.animes = mockAnimes;
-
   renderContent("animes-grid", mockAnimes);
 
   const animesSection = document.getElementById("animes-grid-section");
@@ -373,7 +356,7 @@ function loadContentFromMock() {
 function handleLoadError(error) {
   console.error("❌ Tratando erro de carregamento:", error);
   hideLoadingState();
-  showErrorMessage("Erro ao carregar conteúdo da API. Usando dados locais.");
+  showErrorMessage("Erro ao carregar API. Usando dados locais.");
   loadContentFromMock();
   loadContinueWatching();
 }
@@ -552,7 +535,8 @@ async function searchContent(query) {
   try {
     if (window.AnimeAPI) {
       const results = await window.AnimeAPI.searchAnimes(query);
-      displaySearchResults(results.animes || [], query);
+      const animes = results.data?.animes || results.animes || [];
+      displaySearchResults(animes, query);
     } else {
       const results = contentDatabase.animes.filter((item) =>
         (item.name || item.title || "")
@@ -577,7 +561,7 @@ function displaySearchResults(results, query) {
 
   if (results.length === 0) {
     dynamicContainer.innerHTML = `
-      <div class="no-results">
+      <div class="no-results" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <h3>😕 Nenhum resultado encontrado</h3>
         <p>Não encontramos nada para "${escapeHtml(query)}"</p>
         <p>Tente pesquisar com outros termos.</p>
@@ -624,13 +608,15 @@ function filterContent(type) {
 
 function showFavorites() {
   const favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
+  const dynamicContainer = document.getElementById("dynamic-content-container");
+
+  if (!dynamicContainer) return;
+
+  dynamicContainer.innerHTML = "";
 
   if (favorites.length === 0) {
-    const dynamicContainer = document.getElementById(
-      "dynamic-content-container"
-    );
     dynamicContainer.innerHTML = `
-      <div class="no-results">
+      <div class="no-results" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         <h3>💔 Nenhum favorito ainda</h3>
         <p>Adicione seus animes favoritos clicando no botão ❤️</p>
       </div>
@@ -659,26 +645,27 @@ async function showInfo(id, type) {
       throw new Error("API não disponível");
     }
 
-    console.log(`📡 Buscando anime: ${id}`);
-    const animeData = await window.AnimeAPI.getAnimeInfo(id);
-    console.log("📦 Dados recebidos:", animeData);
-
-    const anime = animeData.anime?.info || animeData;
+    const response = await window.AnimeAPI.getAnimeInfo(id);
+    const anime =
+      response.data?.anime?.info || response.anime?.info || response;
 
     if (!anime) {
       throw new Error("Dados do anime não encontrados");
     }
 
     const infoHTML = `
-      <div class="info-modal-overlay" onclick="closeInfoModal(event)">
-        <div class="info-modal" onclick="event.stopPropagation()">
-          <button onclick="closeInfoModal()" class="btn-close" style="position: absolute; top: 20px; right: 20px; z-index: 10;">✕</button>
-          <div class="info-content">
+      <div class="info-modal-overlay" onclick="closeInfoModal(event)" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div class="info-modal" onclick="event.stopPropagation()" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 30px;">
+          <button onclick="closeInfoModal()" class="btn-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; z-index: 10;">✕</button>
+          <div class="info-content" style="display: flex; gap: 30px; flex-wrap: wrap;">
             <img src="${anime.poster || "https://via.placeholder.com/300x450"}" 
                  alt="${escapeHtml(anime.name || anime.title)}"
+                 style="width: 250px; height: 375px; object-fit: cover; border-radius: 12px;"
                  onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
-            <div class="info-details">
-              <h2>${escapeHtml(anime.name || anime.title || "Sem título")}</h2>
+            <div class="info-details" style="flex: 1; min-width: 300px;">
+              <h2 style="color: white; font-size: 28px; margin: 0 0 10px 0;">${escapeHtml(
+                anime.name || anime.title || "Sem título"
+              )}</h2>
               ${
                 anime.jname
                   ? `<p style="color: #9ca3af; margin-bottom: 15px;">${escapeHtml(
@@ -686,34 +673,38 @@ async function showInfo(id, type) {
                     )}</p>`
                   : ""
               }
-              <div class="info-meta">
-                <span>⭐ ${anime.rating || "N/A"}</span>
+              <div class="info-meta" style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                <span style="background: rgba(102, 126, 234, 0.2); padding: 8px 15px; border-radius: 8px; color: white;">⭐ ${
+                  anime.rating || "N/A"
+                }</span>
                 ${
                   anime.stats?.episodes?.sub
-                    ? `<span>📺 ${anime.stats.episodes.sub} eps</span>`
+                    ? `<span style="background: rgba(102, 126, 234, 0.2); padding: 8px 15px; border-radius: 8px; color: white;">📺 ${anime.stats.episodes.sub} eps</span>`
                     : ""
                 }
                 ${
-                  anime.stats?.type ? `<span>📅 ${anime.stats.type}</span>` : ""
+                  anime.stats?.type
+                    ? `<span style="background: rgba(102, 126, 234, 0.2); padding: 8px 15px; border-radius: 8px; color: white;">📅 ${anime.stats.type}</span>`
+                    : ""
                 }
                 ${
                   anime.stats?.status
-                    ? `<span>${anime.stats.status}</span>`
+                    ? `<span style="background: rgba(102, 126, 234, 0.2); padding: 8px 15px; border-radius: 8px; color: white;">${anime.stats.status}</span>`
                     : ""
                 }
               </div>
-              <p style="margin: 20px 0; line-height: 1.6;">${escapeHtml(
+              <p style="margin: 20px 0; line-height: 1.6; color: #d1d5db;">${escapeHtml(
                 anime.description || "Descrição não disponível."
               )}</p>
-              <div class="info-actions">
+              <div class="info-actions" style="display: flex; gap: 15px; margin-top: 25px;">
                 <button onclick="playContent('${escapeHtml(
                   id
-                )}', '${type}'); closeInfoModal();" class="btn-play">
+                )}', '${type}'); closeInfoModal();" class="btn-play" style="flex: 1; padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
                   ▶️ Assistir Agora
                 </button>
                 <button onclick="addToFavorites('${escapeHtml(
                   id
-                )}', '${type}')" class="btn-secondary">
+                )}', '${type}')" class="btn-secondary" style="padding: 12px 20px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
                   ❤️ Favoritar
                 </button>
               </div>
@@ -724,7 +715,6 @@ async function showInfo(id, type) {
     `;
 
     document.body.insertAdjacentHTML("beforeend", infoHTML);
-    console.log("✅ Modal de info exibido");
   } catch (error) {
     console.error("❌ Erro ao carregar informações:", error);
     showErrorMessage(`Erro: ${error.message}`);
@@ -780,7 +770,6 @@ function showLoadingState() {
   const loader = document.getElementById("loading-overlay");
   if (loader) {
     loader.style.display = "flex";
-    console.log("🔄 Loading exibido");
   }
 }
 
@@ -788,7 +777,6 @@ function hideLoadingState() {
   const loader = document.getElementById("loading-overlay");
   if (loader) {
     loader.style.display = "none";
-    console.log("✅ Loading ocultado");
   }
 }
 
@@ -797,13 +785,12 @@ function showMessage(message) {
   const toast = document.createElement("div");
   toast.className = "toast-message";
   toast.textContent = message;
+  toast.style.cssText =
+    "background: #667eea; color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 10px; animation: slideIn 0.3s ease;";
+
   container.appendChild(toast);
 
-  setTimeout(() => toast.classList.add("show"), 100);
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  setTimeout(() => toast.remove(), 3000);
 }
 
 function showErrorMessage(message) {
@@ -818,32 +805,26 @@ function viewAllSection(sectionId) {
 
 function logout() {
   if (confirm("Deseja realmente sair?")) {
-    // Fazer logout do Supabase
     if (window.supabase) {
       window.supabase.auth
         .signOut()
         .then(() => {
-          localStorage.removeItem("currentUser");
-          localStorage.removeItem("currentSubscription");
+          localStorage.clear();
           window.location.href = "index.html";
         })
-        .catch((error) => {
-          console.error("Erro no logout:", error);
-          // Mesmo com erro, redirecionar
-          localStorage.removeItem("currentUser");
-          localStorage.removeItem("currentSubscription");
+        .catch(() => {
+          localStorage.clear();
           window.location.href = "index.html";
         });
     } else {
-      localStorage.removeItem("currentUser");
-      localStorage.removeItem("currentSubscription");
+      localStorage.clear();
       window.location.href = "index.html";
     }
   }
 }
 
 // ===========================
-// DADOS MOCK (FALLBACK)
+// DADOS MOCK
 // ===========================
 
 function getMockData() {
@@ -888,27 +869,36 @@ window.logout = logout;
 window.closeInfoModal = closeInfoModal;
 window.viewAllSection = viewAllSection;
 window.showFavorites = showFavorites;
-// ADICIONAR AO FINAL DO ARQUIVO (na seção de exposição global):
 window.openProfileModal = openProfileModal;
 window.closeProfileModal = closeProfileModal;
 
 // ===========================
-// INICIALIZAÇÃO AUTOMÁTICA - CORRIGIDO
-// ===========================
-
-document.addEventListener("DOMContentLoaded", function () {
-  console.log("📄 DOM Carregado");
-
-  // Pequeno delay para garantir que scripts carregaram
-  setTimeout(() => {
-    console.log("🎯 Chamando init()...");
-    init();
-  }, 100);
-});
-
-// ===========================
 // MODAL DO PERFIL
 // ===========================
+
+function formatDateBR(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+
+const PLANS = {
+  monthly: { name: "Mensal Premium" },
+  quarterly: { name: "Trimestral Premium" },
+  annual: { name: "Anual Premium" },
+};
 
 async function openProfileModal() {
   if (!currentUser || !currentSubscription) {
@@ -924,14 +914,10 @@ async function openProfileModal() {
     const expiresAt = new Date(currentSubscription.expires_at);
     const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
 
-    // Buscar histórico recente (últimos 3 dias)
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
+    // Buscar histórico recente
     const recentHistory = watchHistory
-      .filter((item) => new Date(item.lastWatched) >= threeDaysAgo)
       .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
-      .slice(0, 10);
+      .slice(0, 5);
 
     // Buscar última compra
     let lastPayment = null;
@@ -949,42 +935,49 @@ async function openProfileModal() {
     }
 
     const modalHTML = `
-      <div class="profile-modal-overlay" onclick="closeProfileModal(event)">
-        <div class="profile-modal" onclick="event.stopPropagation()">
-          <button onclick="closeProfileModal()" class="btn-close">✕</button>
+      <div class="profile-modal-overlay" onclick="closeProfileModal(event)" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;">
+        <div class="profile-modal" onclick="event.stopPropagation()" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 30px;">
+          <button onclick="closeProfileModal()" class="btn-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; z-index: 10; transition: all 0.3s;">✕</button>
           
-          <div class="profile-header">
-            <div class="profile-avatar">👤</div>
+          <div class="profile-header" style="display: flex; align-items: center; gap: 20px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid rgba(102, 126, 234, 0.2);">
+            <div class="profile-avatar" style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px;">👤</div>
             <div class="profile-info">
-              <h2>${escapeHtml(currentUser.email)}</h2>
-              <span class="profile-badge">👑 Membro Premium</span>
+              <h2 style="color: white; font-size: 24px; margin: 0 0 8px 0;">${escapeHtml(
+                currentUser.email
+              )}</h2>
+              <span class="profile-badge" style="background: rgba(102, 126, 234, 0.2); color: #667eea; padding: 6px 12px; border-radius: 6px; font-size: 14px; display: inline-block;">👑 Membro Premium</span>
             </div>
           </div>
 
-          <div class="profile-stats">
-            <div class="stat-card">
-              <div class="stat-icon">⏰</div>
+          <div class="profile-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 30px;">
+            <div class="stat-card" style="background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 12px; padding: 15px; text-align: center;">
+              <div class="stat-icon" style="font-size: 32px; margin-bottom: 8px;">⏰</div>
               <div class="stat-info">
-                <h3>${daysRemaining}</h3>
-                <p>Dias Restantes</p>
+                <h3 style="color: white; font-size: 24px; margin: 0 0 5px 0;">${Math.max(
+                  0,
+                  daysRemaining
+                )}</h3>
+                <p style="color: #9ca3af; font-size: 13px; margin: 0;">Dias Restantes</p>
               </div>
             </div>
 
-            <div class="stat-card">
-              <div class="stat-icon">📅</div>
+            <div class="stat-card" style="background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 12px; padding: 15px; text-align: center;">
+              <div class="stat-icon" style="font-size: 32px; margin-bottom: 8px;">📺</div>
               <div class="stat-info">
-                <h3>${
-                  formatDateBR(currentSubscription.expires_at).split(",")[0]
+                <h3 style="color: white; font-size: 24px; margin: 0 0 5px 0;">${
+                  watchHistory.length
                 }</h3>
-                <p>Expira em</p>
+                <p style="color: #9ca3af; font-size: 13px; margin: 0;">Episódios</p>
               </div>
             </div>
 
-            <div class="stat-card">
-              <div class="stat-icon">📺</div>
+            <div class="stat-card" style="background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 12px; padding: 15px; text-align: center;">
+              <div class="stat-icon" style="font-size: 32px; margin-bottom: 8px;">❤️</div>
               <div class="stat-info">
-                <h3>${watchHistory.length}</h3>
-                <p>Animes Assistidos</p>
+                <h3 style="color: white; font-size: 24px; margin: 0 0 5px 0;">${
+                  JSON.parse(localStorage.getItem("favorites") || "[]").length
+                }</h3>
+                <p style="color: #9ca3af; font-size: 13px; margin: 0;">Favoritos</p>
               </div>
             </div>
           </div>
@@ -992,65 +985,88 @@ async function openProfileModal() {
           ${
             lastPayment
               ? `
-          <div class="profile-section">
-            <h3>💳 Última Compra</h3>
-            <div class="payment-info">
-              <p><strong>Plano:</strong> ${
+          <div class="profile-section" style="margin-bottom: 25px;">
+            <h3 style="color: white; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">💳 Informações de Pagamento</h3>
+            <div class="payment-info" style="background: rgba(102, 126, 234, 0.05); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 8px; padding: 15px;">
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Plano:</strong> ${
                 PLANS[currentSubscription.plan_type]?.name ||
                 currentSubscription.plan_type
               }</p>
-              <p><strong>Valor:</strong> ${formatCurrency(
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Valor:</strong> ${formatCurrency(
                 lastPayment.amount
               )}</p>
-              <p><strong>Data:</strong> ${formatDateBR(
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Data:</strong> ${formatDateBR(
                 lastPayment.created_at
               )}</p>
-              <p><strong>Status:</strong> <span class="status-approved">✅ Aprovado</span></p>
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Expira em:</strong> ${formatDateBR(
+                currentSubscription.expires_at
+              )}</p>
+              <p style="color: #d1d5db; margin: 0; font-size: 14px;"><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">✅ Ativo</span></p>
             </div>
           </div>
           `
-              : ""
+              : `
+          <div class="profile-section" style="margin-bottom: 25px;">
+            <h3 style="color: white; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">💳 Assinatura</h3>
+            <div class="payment-info" style="background: rgba(102, 126, 234, 0.05); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 8px; padding: 15px;">
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Plano:</strong> ${
+                PLANS[currentSubscription.plan_type]?.name ||
+                currentSubscription.plan_type
+              }</p>
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Expira em:</strong> ${formatDateBR(
+                currentSubscription.expires_at
+              )}</p>
+              <p style="color: #d1d5db; margin: 0; font-size: 14px;"><strong>Status:</strong> <span style="color: #10b981; font-weight: bold;">✅ Ativo</span></p>
+            </div>
+          </div>
+          `
           }
 
-          <div class="profile-section">
-            <h3>📺 Histórico Recente (3 dias)</h3>
-            ${
-              recentHistory.length > 0
-                ? `
-              <div class="history-list">
-                ${recentHistory
-                  .map(
-                    (item) => `
-                  <div class="history-item" onclick="playContent('${escapeHtml(
-                    item.id
-                  )}', '${item.type}'); closeProfileModal();">
-                    <img src="${item.image}" alt="${escapeHtml(
+          ${
+            recentHistory.length > 0
+              ? `
+          <div class="profile-section" style="margin-bottom: 25px;">
+            <h3 style="color: white; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">📺 Continue Assistindo</h3>
+            <div class="history-list" style="display: flex; flex-direction: column; gap: 10px;">
+              ${recentHistory
+                .map(
+                  (item) => `
+                <div class="history-item" onclick="playContent('${escapeHtml(
+                  item.id
+                )}', '${
+                    item.type
+                  }'); closeProfileModal();" style="background: rgba(102, 126, 234, 0.05); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 8px; padding: 12px; display: flex; gap: 15px; cursor: pointer; transition: all 0.3s; align-items: center;">
+                  <img src="${item.image}" alt="${escapeHtml(
+                    item.title
+                  )}" style="width: 60px; height: 90px; object-fit: cover; border-radius: 6px;" onerror="this.src='https://via.placeholder.com/60x90?text=No+Image'">
+                  <div class="history-details" style="flex: 1;">
+                    <h4 style="color: white; font-size: 14px; margin: 0 0 5px 0; font-weight: 600;">${escapeHtml(
                       item.title
-                    )}" onerror="this.src='https://via.placeholder.com/80x120?text=No+Image'">
-                    <div class="history-details">
-                      <h4>${escapeHtml(item.title)}</h4>
-                      <p>⏱️ ${item.progress}% concluído</p>
-                      <p class="history-date">${formatDateBR(
-                        item.lastWatched
-                      )}</p>
-                    </div>
+                    )}</h4>
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">⏱️ ${
+                      item.progress
+                    }% concluído</p>
                   </div>
-                `
-                  )
-                  .join("")}
-              </div>
-            `
-                : `
-              <p class="no-history">📭 Nenhum anime assistido nos últimos 3 dias</p>
-            `
-            }
+                </div>
+              `
+                )
+                .join("")}
+            </div>
           </div>
+          `
+              : `
+          <div class="profile-section" style="margin-bottom: 25px;">
+            <h3 style="color: white; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">📺 Histórico</h3>
+            <p style="color: #9ca3af; text-align: center; padding: 20px;">🔭 Nenhum anime assistido ainda</p>
+          </div>
+          `
+          }
 
-          <div class="profile-actions">
-            <button onclick="window.location.href='index.html#plans'" class="btn-primary">
+          <div class="profile-actions" style="display: flex; gap: 15px; margin-top: 25px;">
+            <button onclick="window.location.href='index.html#plans'" style="flex: 1; padding: 12px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.3s ease; font-weight: 600; border: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
               🚀 Renovar Assinatura
             </button>
-            <button onclick="closeProfileModal()" class="btn-secondary">
+            <button onclick="closeProfileModal()" style="flex: 1; padding: 12px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: all 0.3s ease; font-weight: 600; border: none; background: rgba(255, 255, 255, 0.1); color: white;">
               Fechar
             </button>
           </div>
@@ -1072,5 +1088,17 @@ function closeProfileModal(event) {
   const modal = document.querySelector(".profile-modal-overlay");
   if (modal) modal.remove();
 }
+
+// ===========================
+// INICIALIZAÇÃO AUTOMÁTICA
+// ===========================
+
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("📄 DOM Carregado");
+  setTimeout(() => {
+    console.log("🎯 Iniciando aplicação...");
+    init();
+  }, 100);
+});
 
 console.log("✅ content-streaming.js carregado!");
