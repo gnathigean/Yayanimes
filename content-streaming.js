@@ -464,9 +464,33 @@ function renderSection(title, items, container, sectionId) {
 
 function renderContent(gridId, items) {
   const grid = document.getElementById(gridId);
-  if (!grid || !items || items.length === 0) return;
 
-  grid.innerHTML = items.map((item) => createContentCard(item)).join("");
+  console.log(
+    `🎨 RenderContent - GridID: ${gridId}, Items: ${items?.length || 0}`
+  );
+
+  if (!grid) {
+    console.error(`❌ Grid não encontrado: ${gridId}`);
+    return;
+  }
+
+  if (!items || items.length === 0) {
+    console.warn(`⚠️ Nenhum item para renderizar em ${gridId}`);
+    return;
+  }
+
+  const cardsHTML = items.map((item) => createContentCard(item)).join("");
+  console.log(`✅ ${items.length} cards criados para ${gridId}`);
+
+  grid.innerHTML = cardsHTML;
+
+  // Verificar se os cards foram inseridos no DOM
+  setTimeout(() => {
+    const insertedCards = grid.querySelectorAll(".content-card");
+    console.log(
+      `✅ ${insertedCards.length} cards inseridos no DOM (${gridId})`
+    );
+  }, 100);
 }
 
 function createContentCard(item) {
