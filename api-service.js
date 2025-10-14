@@ -1,4 +1,4 @@
-// api-service.js - CORRIGIDO PARA A API falcon71181
+// api-service.js - CORRIGIDO PARA API novaapi-seven.vercel.app
 // ===========================
 // CONFIGURAÇÃO DA API
 // ===========================
@@ -41,26 +41,16 @@ async function apiRequest(endpoint, options = {}) {
 // ===========================
 
 window.AnimeAPI = {
-  // Homepage - Retorna todos os animes em destaque
+  // Homepage - MANTÉM ESTRUTURA ORIGINAL DA API
   async loadContentForHomepage() {
     try {
       console.log("📦 Carregando homepage...");
       const data = await apiRequest("/aniwatch/");
 
-      // Transformar resposta para formato esperado
+      // NÃO TRANSFORMAR - Retornar exatamente como a API envia
       return {
         status: 200,
-        data: {
-          spotlightAnimes: data.spotlightAnimes || [],
-          trendingAnimes: data.trendingAnimes || [],
-          latestEpisodeAnimes: data.latestEpisodeAnimes || [],
-          topUpcomingAnimes: data.topUpcomingAnimes || [],
-          top10Animes: data.top10Animes || { today: [], week: [], month: [] },
-          topAiringAnimes: data.topAiringAnimes || [],
-          mostPopularAnimes: data.mostPopularAnimes || [],
-          mostFavoriteAnimes: data.mostFavoriteAnimes || [],
-          latestCompletedAnimes: data.latestCompletedAnimes || [],
-        },
+        data: data, // Dados originais sem modificação
       };
     } catch (error) {
       console.error("❌ Erro ao carregar homepage:", error);
@@ -78,14 +68,7 @@ window.AnimeAPI = {
 
       return {
         status: 200,
-        data: {
-          animes: data.animes || [],
-          currentPage: data.currentPage || page,
-          hasNextPage: data.hasNextPage || false,
-          totalPages: data.totalPages || 1,
-          searchQuery: query,
-          searchFilters: data.searchFilters || {},
-        },
+        data: data,
       };
     } catch (error) {
       console.error("❌ Erro ao buscar animes:", error);
@@ -102,9 +85,7 @@ window.AnimeAPI = {
 
       return {
         status: 200,
-        data: {
-          anime: data.anime || {},
-        },
+        data: data,
       };
     } catch (error) {
       console.error("❌ Erro ao buscar info do anime:", error);
@@ -121,10 +102,7 @@ window.AnimeAPI = {
 
       return {
         status: 200,
-        data: {
-          totalEpisodes: data.totalEpisodes || 0,
-          episodes: data.episodes || [],
-        },
+        data: data,
       };
     } catch (error) {
       console.error("❌ Erro ao buscar episódios:", error);
@@ -142,13 +120,7 @@ window.AnimeAPI = {
 
       return {
         status: 200,
-        data: {
-          episodeId: data.episodeId || episodeId,
-          episodeNo: data.episodeNo || 0,
-          sub: data.sub || [],
-          dub: data.dub || [],
-          raw: data.raw || [],
-        },
+        data: data,
       };
     } catch (error) {
       console.error("❌ Erro ao buscar servidores:", error);
@@ -168,14 +140,7 @@ window.AnimeAPI = {
 
       return {
         status: 200,
-        data: {
-          tracks: data.tracks || [],
-          intro: data.intro || { start: 0, end: 0 },
-          outro: data.outro || { start: 0, end: 0 },
-          sources: data.sources || [],
-          anilistID: data.anilistID || null,
-          malID: data.malID || null,
-        },
+        data: data,
       };
     } catch (error) {
       console.error("❌ Erro ao buscar streams:", error);
@@ -191,13 +156,7 @@ window.AnimeAPI = {
 
       return {
         status: 200,
-        data: {
-          category: data.category || category,
-          animes: data.animes || [],
-          currentPage: data.currentPage || page,
-          hasNextPage: data.hasNextPage || false,
-          totalPages: data.totalPages || 1,
-        },
+        data: data,
       };
     } catch (error) {
       console.error("❌ Erro ao buscar categoria:", error);
@@ -349,6 +308,3 @@ window.testAPIConnection = testAPIConnection;
 console.log("✅ API Service carregado!");
 console.log("🔗 API Base URL:", API_BASE_URL);
 console.log("📋 Endpoints disponíveis:", Object.keys(window.AnimeAPI));
-
-// Teste automático (opcional - descomente para ativar)
-// setTimeout(() => testAPIConnection(), 1000);
