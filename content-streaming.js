@@ -1,4 +1,4 @@
-// content-streaming.js - VERSÃO CORRIGIDA
+// content-streaming.js - VERSÃO CORRIGIDA PARA API falcon71181
 // ===========================
 // CONFIGURAÇÃO
 // ===========================
@@ -14,7 +14,7 @@ let contentDatabase = {
 };
 
 // ===========================
-// INICIALIZAÇÃO - CORRIGIDO
+// INICIALIZAÇÃO
 // ===========================
 
 async function init() {
@@ -24,7 +24,6 @@ async function init() {
     setupEventListeners();
     loadWatchHistory();
 
-    // AGUARDAR API CARREGAR
     console.log("⏳ Aguardando API...");
     await waitForAPI();
     console.log("✅ API disponível!");
@@ -43,7 +42,7 @@ function setupEventListeners() {
   // Busca
   const searchInput = document.getElementById("search-input");
   if (searchInput) {
-    searchInput.addEventListener("input", debounce(handleSearch, 300));
+    searchInput.addEventListener("input", debounce(handleSearch, 500));
   }
 
   // Filtros
@@ -56,8 +55,12 @@ function setupEventListeners() {
 
       if (filter === "favorites") {
         showFavorites();
+      } else if (filter === "trending") {
+        loadTrending();
+      } else if (filter === "anime") {
+        loadAllAnimes();
       } else {
-        filterContent(filter);
+        loadContent();
       }
     });
   });
@@ -70,7 +73,7 @@ function setupEventListeners() {
 }
 
 // ===========================
-// AGUARDAR API - CRÍTICO
+// AGUARDAR API
 // ===========================
 
 function waitForAPI() {
@@ -83,7 +86,7 @@ function waitForAPI() {
 
     console.log("⏳ Aguardando API carregar...");
     let attempts = 0;
-    const maxAttempts = 100; // 10 segundos
+    const maxAttempts = 100;
 
     const checkInterval = setInterval(() => {
       attempts++;
@@ -109,12 +112,10 @@ async function verifyAccessAndLoadContent() {
   console.log("🔐 Verificando acesso...");
 
   try {
-    // Verificar se Supabase está disponível
     if (!window.supabase) {
       throw new Error("Supabase não carregado");
     }
 
-    // Verificar autenticação
     const {
       data: { user },
       error: authError,
@@ -132,7 +133,6 @@ async function verifyAccessAndLoadContent() {
       email: user.email,
     };
 
-    // Atualizar email no header
     const userEmail = document.getElementById("user-email");
     if (userEmail) {
       userEmail.textContent = user.email;
@@ -140,13 +140,12 @@ async function verifyAccessAndLoadContent() {
 
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
 
-    // Verificar assinatura
     const { data: subscription, error: subError } = await window.supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
 
     if (subError && subError.code !== "PGRST116") {
       throw subError;
@@ -158,7 +157,6 @@ async function verifyAccessAndLoadContent() {
       return;
     }
 
-    // Verificar se expirou
     const now = new Date();
     const expiresAt = new Date(subscription.expires_at);
 
@@ -190,11 +188,11 @@ function showAccessDenied() {
   const mainContent = document.getElementById("main-content");
   if (mainContent) {
     mainContent.innerHTML = `
-      <div class="access-denied" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <div class="access-denied" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px;">
         <h2 style="font-size: 48px; margin-bottom: 20px;">🔒</h2>
-        <h2>Acesso Negado</h2>
-        <p style="max-width: 500px; text-align: center; margin: 20px 0;">Você precisa de uma assinatura Premium ativa para acessar este conteúdo exclusivo.</p>
-        <button onclick="window.location.href='index.html'" class="btn-primary" style="margin-top: 20px; padding: 15px 40px; font-size: 18px;">
+        <h2 style="color: white; margin-bottom: 15px;">Acesso Negado</h2>
+        <p style="max-width: 500px; color: #9ca3af; margin: 20px 0;">Você precisa de uma assinatura Premium ativa para acessar este conteúdo exclusivo.</p>
+        <button onclick="window.location.href='index.html'" style="margin-top: 20px; padding: 15px 40px; font-size: 18px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
           🚀 Fazer Upgrade Agora
         </button>
       </div>
@@ -210,7 +208,7 @@ function showPremiumContent() {
 }
 
 // ===========================
-// CARREGAMENTO DE CONTEÚDO - CORRIGIDO
+// CARREGAMENTO DE CONTEÚDO
 // ===========================
 
 async function loadContent() {
@@ -315,7 +313,6 @@ async function loadContentFromAPI() {
         renderSection(title, sectionData, dynamicContainer, id);
         renderedSections++;
 
-        // Armazenar para busca
         if (id === "trending" || id === "popular") {
           contentDatabase.animes = [...contentDatabase.animes, ...sectionData];
         }
@@ -328,7 +325,6 @@ async function loadContentFromAPI() {
       throw new Error("Nenhuma seção com dados válidos");
     }
 
-    // Esconder fallback
     const fallbackSection = document.getElementById("animes-grid-section");
     if (fallbackSection) {
       fallbackSection.style.display = "none";
@@ -338,6 +334,59 @@ async function loadContentFromAPI() {
   } catch (error) {
     console.error("❌ Erro em loadContentFromAPI:", error);
     throw error;
+  }
+}
+
+async function loadTrending() {
+  showLoadingState();
+  try {
+    const response = await window.AnimeAPI.getAnimeByCategory(
+      "most-popular",
+      1
+    );
+    const dynamicContainer = document.getElementById(
+      "dynamic-content-container"
+    );
+
+    if (dynamicContainer) {
+      dynamicContainer.innerHTML = "";
+      renderSection(
+        "🔥 Animes em Tendência",
+        response.data.animes,
+        dynamicContainer,
+        "trending"
+      );
+    }
+  } catch (error) {
+    console.error("Erro ao carregar trending:", error);
+    showErrorMessage("Erro ao carregar animes em tendência");
+  } finally {
+    hideLoadingState();
+  }
+}
+
+async function loadAllAnimes() {
+  showLoadingState();
+  try {
+    const response = await window.AnimeAPI.getAnimeByCategory("tv", 1);
+    const dynamicContainer = document.getElementById(
+      "dynamic-content-container"
+    );
+
+    if (dynamicContainer) {
+      dynamicContainer.innerHTML = "";
+      renderSection(
+        "📺 Todos os Animes",
+        response.data.animes,
+        dynamicContainer,
+        "all-animes"
+      );
+    }
+  } catch (error) {
+    console.error("Erro ao carregar todos os animes:", error);
+    showErrorMessage("Erro ao carregar animes");
+  } finally {
+    hideLoadingState();
   }
 }
 
@@ -398,8 +447,9 @@ function createContentCard(item) {
     item.poster ||
     item.image ||
     "https://via.placeholder.com/300x450?text=No+Image";
-  const rating = item.rating || "N/A";
-  const episodes = item.episodes?.sub || item.episodes || "";
+  const rating = item.rating || item.score || "N/A";
+  const episodes =
+    item.episodes?.sub || item.totalEpisodes || item.episodes || "";
   const type = item.type || "anime";
 
   return `
@@ -561,10 +611,12 @@ function displaySearchResults(results, query) {
 
   if (results.length === 0) {
     dynamicContainer.innerHTML = `
-      <div class="no-results" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        <h3>😕 Nenhum resultado encontrado</h3>
-        <p>Não encontramos nada para "${escapeHtml(query)}"</p>
-        <p>Tente pesquisar com outros termos.</p>
+      <div class="no-results" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white;">
+        <h3 style="font-size: 32px; margin-bottom: 15px;">😕 Nenhum resultado encontrado</h3>
+        <p style="font-size: 18px; color: #9ca3af;">Não encontramos nada para "${escapeHtml(
+          query
+        )}"</p>
+        <p style="color: #9ca3af; margin-top: 10px;">Tente pesquisar com outros termos.</p>
       </div>
     `;
     return;
@@ -578,34 +630,6 @@ function displaySearchResults(results, query) {
   );
 }
 
-function filterContent(type) {
-  if (type === "all") {
-    loadContent();
-    return;
-  }
-
-  const dynamicContainer = document.getElementById("dynamic-content-container");
-  if (!dynamicContainer) return;
-
-  dynamicContainer.innerHTML = "";
-
-  if (type === "trending") {
-    renderSection(
-      "🔥 Animes em Tendência",
-      contentDatabase.animes,
-      dynamicContainer,
-      "filtered"
-    );
-  } else if (type === "anime") {
-    renderSection(
-      "📺 Todos os Animes",
-      contentDatabase.animes,
-      dynamicContainer,
-      "filtered"
-    );
-  }
-}
-
 function showFavorites() {
   const favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
   const dynamicContainer = document.getElementById("dynamic-content-container");
@@ -616,9 +640,9 @@ function showFavorites() {
 
   if (favorites.length === 0) {
     dynamicContainer.innerHTML = `
-      <div class="no-results" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        <h3>💔 Nenhum favorito ainda</h3>
-        <p>Adicione seus animes favoritos clicando no botão ❤️</p>
+      <div class="no-results" style="min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white;">
+        <h3 style="font-size: 32px; margin-bottom: 15px;">💔 Nenhum favorito ainda</h3>
+        <p style="font-size: 18px; color: #9ca3af;">Adicione seus animes favoritos clicando no botão ❤️</p>
       </div>
     `;
     return;
@@ -647,7 +671,10 @@ async function showInfo(id, type) {
 
     const response = await window.AnimeAPI.getAnimeInfo(id);
     const anime =
-      response.data?.anime?.info || response.anime?.info || response;
+      response.data?.anime?.info ||
+      response.anime?.info ||
+      response.data?.anime ||
+      response;
 
     if (!anime) {
       throw new Error("Dados do anime não encontrados");
@@ -656,7 +683,7 @@ async function showInfo(id, type) {
     const infoHTML = `
       <div class="info-modal-overlay" onclick="closeInfoModal(event)" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;">
         <div class="info-modal" onclick="event.stopPropagation()" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; padding: 30px;">
-          <button onclick="closeInfoModal()" class="btn-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; z-index: 10;">✕</button>
+          <button onclick="closeInfoModal()" class="btn-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; z-index: 10; transition: all 0.3s;">✕</button>
           <div class="info-content" style="display: flex; gap: 30px; flex-wrap: wrap;">
             <img src="${anime.poster || "https://via.placeholder.com/300x450"}" 
                  alt="${escapeHtml(anime.name || anime.title)}"
@@ -699,12 +726,12 @@ async function showInfo(id, type) {
               <div class="info-actions" style="display: flex; gap: 15px; margin-top: 25px;">
                 <button onclick="playContent('${escapeHtml(
                   id
-                )}', '${type}'); closeInfoModal();" class="btn-play" style="flex: 1; padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+                )}', '${type}'); closeInfoModal();" class="btn-play" style="flex: 1; padding: 12px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s;">
                   ▶️ Assistir Agora
                 </button>
                 <button onclick="addToFavorites('${escapeHtml(
                   id
-                )}', '${type}')" class="btn-secondary" style="padding: 12px 20px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px;">
+                )}', '${type}')" class="btn-secondary" style="padding: 12px 20px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s;">
                   ❤️ Favoritar
                 </button>
               </div>
@@ -786,10 +813,9 @@ function showMessage(message) {
   toast.className = "toast-message";
   toast.textContent = message;
   toast.style.cssText =
-    "background: #667eea; color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 10px; animation: slideIn 0.3s ease;";
+    "background: #667eea; color: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 10px; animation: slideIn 0.3s ease; position: fixed; bottom: 20px; right: 20px; z-index: 10000;";
 
   container.appendChild(toast);
-
   setTimeout(() => toast.remove(), 3000);
 }
 
@@ -857,22 +883,6 @@ function getMockData() {
 }
 
 // ===========================
-// EXPOSIÇÃO GLOBAL
-// ===========================
-
-window.playContent = playContent;
-window.showInfo = showInfo;
-window.searchContent = searchContent;
-window.filterContent = filterContent;
-window.addToFavorites = addToFavorites;
-window.logout = logout;
-window.closeInfoModal = closeInfoModal;
-window.viewAllSection = viewAllSection;
-window.showFavorites = showFavorites;
-window.openProfileModal = openProfileModal;
-window.closeProfileModal = closeProfileModal;
-
-// ===========================
 // MODAL DO PERFIL
 // ===========================
 
@@ -898,6 +908,8 @@ const PLANS = {
   monthly: { name: "Mensal Premium" },
   quarterly: { name: "Trimestral Premium" },
   annual: { name: "Anual Premium" },
+  "7_dias": { name: "7 Dias" },
+  "30_dias": { name: "30 Dias" },
 };
 
 async function openProfileModal() {
@@ -909,17 +921,14 @@ async function openProfileModal() {
   showLoadingState();
 
   try {
-    // Calcular dias restantes
     const now = new Date();
     const expiresAt = new Date(currentSubscription.expires_at);
     const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
 
-    // Buscar histórico recente
     const recentHistory = watchHistory
       .sort((a, b) => new Date(b.lastWatched) - new Date(a.lastWatched))
       .slice(0, 5);
 
-    // Buscar última compra
     let lastPayment = null;
     if (window.supabase) {
       const { data } = await window.supabase
@@ -929,7 +938,7 @@ async function openProfileModal() {
         .eq("status", "approved")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       lastPayment = data;
     }
@@ -1088,6 +1097,21 @@ function closeProfileModal(event) {
   const modal = document.querySelector(".profile-modal-overlay");
   if (modal) modal.remove();
 }
+
+// ===========================
+// EXPOSIÇÃO GLOBAL
+// ===========================
+
+window.playContent = playContent;
+window.showInfo = showInfo;
+window.searchContent = searchContent;
+window.addToFavorites = addToFavorites;
+window.logout = logout;
+window.closeInfoModal = closeInfoModal;
+window.viewAllSection = viewAllSection;
+window.showFavorites = showFavorites;
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
 
 // ===========================
 // INICIALIZAÇÃO AUTOMÁTICA

@@ -1,4 +1,5 @@
-/* Reset e Base */
+/* streaming.css - Estilos Essenciais */
+
 * {
   margin: 0;
   padding: 0;
@@ -6,168 +7,105 @@
 }
 
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: white;
   min-height: 100vh;
 }
 
-/* Access Denied */
-.access-denied {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  text-align: center;
-  padding: 20px;
-  background: #0f172a;
-}
-
-.access-denied h2 {
-  font-size: 32px;
-  margin-bottom: 20px;
-  color: #ef4444;
-}
-
-.access-denied p {
-  font-size: 18px;
-  color: #9ca3af;
-  margin-bottom: 30px;
-  max-width: 600px;
-}
-
-/* Header Streaming */
+/* Header */
 .streaming-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 15px 0;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+  padding: 15px 20px;
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .header-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 20px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 30px;
-}
-
-/* --- AJUSTE DA LOGO CRÍTICO --- */
-.logo-section {
   display: flex;
   align-items: center;
-  grid-column: 1; /* Garante que ocupe a primeira coluna no grid do header */
-}
-
-.logo-section h1 {
-  /* Mantido para fallback */
-  font-size: 26px;
-  font-weight: 700;
-  color: white;
-  white-space: nowrap;
-}
-
-.logo-link {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.main-logo {
-  height: 40px; /* Define a altura correta da logo */
-  width: auto;
-  vertical-align: middle;
-}
-/* ----------------------- */
-
-.main-nav {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 20px;
   flex-wrap: wrap;
 }
 
+.logo-section {
+  display: flex;
+  align-items: center;
+}
+
+.logo-link {
+  text-decoration: none;
+  color: white;
+}
+
+.main-logo {
+  height: 40px;
+  width: auto;
+}
+
+.main-nav {
+  display: flex;
+  gap: 10px;
+}
+
 .nav-btn {
+  padding: 10px 20px;
   background: rgba(255, 255, 255, 0.1);
   border: none;
-  color: white;
-  padding: 10px 18px;
   border-radius: 8px;
+  color: white;
   cursor: pointer;
-  font-size: 15px;
   transition: all 0.3s;
-  backdrop-filter: blur(10px);
-  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .nav-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(102, 126, 234, 0.3);
   transform: translateY(-2px);
 }
 
 .nav-btn.active {
-  background: white;
-  color: #667eea;
-  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .user-section {
   display: flex;
   align-items: center;
-  gap: 12px;
-  justify-content: flex-end;
+  gap: 15px;
 }
 
 .subscription-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  padding: 6px 12px;
+  gap: 5px;
+  background: rgba(102, 126, 234, 0.2);
+  padding: 8px 15px;
   border-radius: 20px;
-  backdrop-filter: blur(10px);
-  white-space: nowrap;
-}
-
-.badge-icon {
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .user-email {
-  color: white;
+  color: #9ca3af;
   font-size: 14px;
-  cursor: pointer;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  transition: all 0.3s;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 180px;
-}
-
-.user-email:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
 }
 
 .btn-logout {
+  padding: 8px 20px;
   background: rgba(239, 68, 68, 0.9);
   border: none;
-  color: white;
-  padding: 8px 16px;
   border-radius: 8px;
+  color: white;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
   transition: all 0.3s;
-  white-space: nowrap;
+  font-weight: 600;
 }
 
 .btn-logout:hover {
@@ -175,180 +113,78 @@ body {
   transform: translateY(-2px);
 }
 
-/* Banner Hero */
-.hero-banner {
-  position: relative;
-  height: 500px;
-  background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8)),
-    url("https://via.placeholder.com/1920x500/667eea/ffffff?text=One+Piece+Banner");
-  background-size: cover;
-  background-position: center;
-  display: flex;
-  align-items: flex-end;
-  padding: 60px 40px;
-}
-
-.banner-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.banner-info {
-  max-width: 600px;
-}
-
-.badge-featured {
-  display: inline-block;
-  background: rgba(102, 126, 234, 0.9);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 15px;
-}
-
-.banner-title {
-  font-size: 48px;
-  font-weight: 700;
-  margin-bottom: 15px;
-  color: white;
-}
-
-.banner-description {
-  font-size: 18px;
-  color: #e5e7eb;
-  margin-bottom: 20px;
-  line-height: 1.6;
-}
-
-.banner-meta {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 25px;
-  flex-wrap: wrap;
-}
-
-.banner-meta span {
-  color: #d1d5db;
-  font-size: 16px;
-}
-
-.banner-actions {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-.btn-play {
-  background: #667eea;
-  border: none;
-  color: white;
-  padding: 15px 35px;
-  border-radius: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-play:hover {
-  background: #5568d3;
-  transform: scale(1.05);
-}
-
-.btn-info {
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid white;
-  color: white;
-  padding: 15px 35px;
-  border-radius: 8px;
-  font-size: 18px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  backdrop-filter: blur(10px);
-}
-
-.btn-info:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
-}
-
-/* Busca */
+/* Search */
 .search-section {
   padding: 30px 20px;
-  background: #0f172a;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .search-container {
-  max-width: 800px;
-  margin: 0 auto;
+  position: relative;
 }
 
 #search-input {
   width: 100%;
   padding: 15px 20px;
-  font-size: 16px;
-  border: 2px solid #1e293b;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(102, 126, 234, 0.3);
   border-radius: 12px;
-  background: #1e293b;
   color: white;
+  font-size: 16px;
   transition: all 0.3s;
 }
 
 #search-input:focus {
   outline: none;
   border-color: #667eea;
-  background: #0f172a;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 #search-input::placeholder {
-  color: #6b7280;
+  color: #9ca3af;
 }
 
-/* Conteúdo Principal */
+/* Content Main */
 .content-main {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 40px 20px;
-  background: #0f172a;
+  padding: 20px;
 }
 
 .content-section {
-  margin-bottom: 60px;
+  margin-bottom: 50px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
 
 .section-header h3 {
   font-size: 24px;
   font-weight: 700;
-  color: white;
 }
 
 .btn-see-all {
-  background: transparent;
+  padding: 10px 20px;
+  background: rgba(102, 126, 234, 0.2);
   border: none;
-  color: #667eea;
-  font-size: 16px;
-  font-weight: 600;
+  border-radius: 8px;
+  color: white;
   cursor: pointer;
   transition: all 0.3s;
+  font-weight: 600;
 }
 
 .btn-see-all:hover {
-  color: #5568d3;
-  transform: translateX(5px);
+  background: rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
 }
 
-/* Grid de Conteúdo */
+/* Content Grid */
 .content-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -356,12 +192,12 @@ body {
 }
 
 .content-card {
-  background: #1e293b;
+  position: relative;
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s;
-  position: relative;
+  background: rgba(15, 23, 42, 0.8);
 }
 
 .content-card:hover {
@@ -372,191 +208,124 @@ body {
 .card-image {
   position: relative;
   width: 100%;
-  padding-top: 150%; /* 2:3 aspect ratio */
+  aspect-ratio: 2/3;
   overflow: hidden;
 }
 
 .card-image img {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s;
+  transition: all 0.3s;
 }
 
 .content-card:hover .card-image img {
   transform: scale(1.1);
 }
 
-/* ---------------------------------------------------- */
-/* AJUSTES CRÍTICOS NO OVERLAY E BOTÕES */
-/* ---------------------------------------------------- */
-
-.card-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end; /* Alinha o conteúdo ao rodapé */
-  align-items: center;
-  padding: 15px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  z-index: 2;
-}
-
-.content-card:hover .card-overlay {
-  opacity: 1;
-}
-
-/* Estilo para os detalhes (Título e Meta) dentro do Overlay */
-.overlay-details {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  flex-grow: 1; /* Ocupa o espaço superior */
-  width: 100%;
-  align-items: flex-start; /* Alinha o texto à esquerda */
-  padding-bottom: 10px; /* Espaço entre as infos e os botões */
-  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
-}
-
-/* Estilo para o contêiner dos botões */
-.card-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  width: 100%;
-}
-
-/* Estilo para os botões Assistir e Info (Redução de Tamanho) */
-.card-actions .btn-play,
-.card-actions .btn-info {
-  flex: 1;
-  padding: 10px 15px;
-  font-size: 14px;
-  font-weight: 700;
-  border-radius: 6px;
-  transition: all 0.2s ease-in-out;
-}
-
-/* Apenas a cor de fundo do botão Info */
-.card-actions .btn-info {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid white;
-}
-.card-actions .btn-info:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: none;
-}
-
-/* Reset para os botões .play-btn (que estavam fora do .card-actions) */
-.play-btn {
-  background: #667eea;
-  border: none;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  z-index: 3;
-}
-/* ---------------------------------------------------- */
-/* FIM DOS AJUSTES CRÍTICOS */
-/* ---------------------------------------------------- */
-
 .card-badge {
   position: absolute;
   top: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
+  right: 10px;
   padding: 5px 10px;
   border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
-  z-index: 1;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 2;
 }
 
-.card-clicks {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(102, 126, 234, 0.9);
+.badge-new {
+  background: #667eea;
   color: white;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  z-index: 1;
 }
 
-.card-favorite {
+.card-overlay {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  border: none;
-  color: white;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 18px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, transparent 100%);
+  padding: 20px;
+  transform: translateY(50%);
   transition: all 0.3s;
-  z-index: 3;
-  backdrop-filter: blur(10px);
+  opacity: 0;
 }
 
-.card-favorite:hover {
-  transform: scale(1.1);
-  background: rgba(239, 68, 68, 0.9);
+.content-card:hover .card-overlay {
+  transform: translateY(0);
+  opacity: 1;
 }
 
-.card-favorite.active {
-  background: rgba(239, 68, 68, 0.9);
-  color: #fff;
-}
-
-.card-info {
-  padding: 15px;
-}
-
-/* AJUSTE PARA ALINHAMENTO: Força o título a ser em uma linha com reticências */
 .card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: white;
+  font-size: 16px;
+  font-weight: 700;
   margin-bottom: 8px;
-  white-space: nowrap;
+  color: white;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .card-meta {
   display: flex;
   gap: 10px;
-  font-size: 13px;
+  margin-bottom: 15px;
+  font-size: 12px;
   color: #9ca3af;
 }
 
-/* Barra de Progresso */
+.card-rating {
+  color: #fbbf24;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.card-actions button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-play {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-play:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-info {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+}
+
+.btn-info:hover {
+  background: rgba(59, 130, 246, 1);
+}
+
+.btn-favorite {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
+
+.btn-favorite:hover {
+  background: rgba(239, 68, 68, 1);
+  transform: scale(1.1);
+}
+
+/* Progress Bar */
 .progress-bar {
   position: absolute;
   bottom: 0;
@@ -564,7 +333,7 @@ body {
   right: 0;
   height: 4px;
   background: rgba(255, 255, 255, 0.2);
-  z-index: 1;
+  z-index: 2;
 }
 
 .progress-fill {
@@ -573,442 +342,54 @@ body {
   transition: width 0.3s;
 }
 
-/* Footer */
-.streaming-footer {
-  background: #0f172a;
-  padding: 30px 20px;
-  margin-top: 50px;
-  border-top: 1px solid #1e293b;
-}
-
-.footer-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.footer-info p {
-  color: #9ca3af;
-  margin-bottom: 8px;
-}
-
-.footer-info span {
-  color: white;
-  font-weight: 600;
-}
-
-.footer-links {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.footer-links a {
-  color: #667eea;
-  text-decoration: none;
-  transition: color 0.3s;
-}
-
-.footer-links a:hover {
-  color: #5568d3;
-  text-decoration: underline;
-}
-
-/* Modal de Favoritos */
-.favorites-modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 2000;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.favorites-modal.active {
-  display: flex;
-}
-
-.favorites-content {
-  background: #1e293b;
-  border-radius: 16px;
-  max-width: 1200px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 30px;
-  position: relative;
-}
-
-.favorites-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #334155;
-}
-
-.favorites-header h2 {
-  font-size: 28px;
-  color: white;
-}
-
-.close-modal {
-  background: rgba(239, 68, 68, 0.9);
-  border: none;
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s;
-}
-
-.close-modal:hover {
-  background: rgba(239, 68, 68, 1);
-  transform: scale(1.1);
-}
-
-.favorites-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-}
-
-.empty-favorites {
+/* No Results */
+.no-results {
   text-align: center;
   padding: 60px 20px;
-  color: #9ca3af;
+  color: white;
 }
 
-.empty-favorites h3 {
-  font-size: 24px;
+.no-results h3 {
+  font-size: 28px;
   margin-bottom: 15px;
 }
 
-/* Responsivo */
-@media (max-width: 1024px) {
+/* Responsive */
+@media (max-width: 768px) {
   .header-content {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-
-  .logo-section {
-    text-align: center;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .main-nav {
-    justify-content: center;
-  }
-
-  .user-section {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 768px) {
-  .header-content {
-    padding: 0 15px;
-  }
-
-  /* AJUSTE LOGO RESPONSIVO */
-  .main-logo {
-    height: 35px;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .nav-btn {
-    padding: 8px 14px;
-    font-size: 14px;
+    flex: 1;
+    padding: 8px;
+    font-size: 12px;
   }
 
-  .banner-title {
-    font-size: 32px;
+  .user-section {
+    width: 100%;
+    justify-content: space-between;
   }
 
-  .banner-description {
-    font-size: 16px;
-  }
-
-  .content-grid,
-  .favorites-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  .content-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
   }
 
-  .footer-content {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .favorites-content {
-    padding: 20px;
-  }
-
-  /* Ajuste responsivo dos botões do card para telas menores */
-  .card-actions .btn-play,
-  .card-actions .btn-info {
-    padding: 8px 10px;
-    font-size: 12px;
+  .section-header h3 {
+    font-size: 20px;
   }
 }
 
 @media (max-width: 480px) {
-  /* AJUSTE LOGO RESPONSIVO */
-  .main-logo {
-    height: 30px;
-  }
-  .logo-section h1 {
-    font-size: 20px;
-  }
-
-  .user-email {
-    max-width: 120px;
-    font-size: 12px;
-  }
-
-  .subscription-badge {
-    padding: 4px 8px;
-    font-size: 12px;
-  }
-
-  .content-grid,
-  .favorites-grid {
+  .content-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 10px;
   }
-
-  .banner-title {
-    font-size: 24px;
-  }
-
-  .btn-play,
-  .btn-info {
-    padding: 12px 24px;
-    font-size: 16px;
-  }
-}
-/* ===========================
-   MELHORIAS PARA MODAIS E PLAYER
-   =========================== */
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-primary:hover {
-  background: #5568d3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: 2px solid white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-}
-
-/* Ajustes para botões dentro dos cards */
-.card-actions .btn-favorite {
-  background: rgba(239, 68, 68, 0.2);
-  border: 2px solid #ef4444;
-  color: white;
-  padding: 10px 15px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.card-actions .btn-favorite:hover {
-  background: rgba(239, 68, 68, 0.4);
-  transform: scale(1.05);
-}
-
-/* Loading Overlay */
-#loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 9999;
-  display: none;
-  align-items: center;
-  justify-content: center;
-}
-
-#loading-overlay.show {
-  display: flex;
-}
-
-/* Toast Container */
-#toast-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 10000;
-}
-
-/* Melhorias no card-overlay para melhor visualização */
-.card-overlay {
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.3) 0%,
-    rgba(0, 0, 0, 0.7) 50%,
-    rgba(0, 0, 0, 0.95) 100%
-  );
-}
-
-/* Melhorar visibilidade do título no card */
-.card-title {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-/* Responsividade dos modais */
-@media (max-width: 768px) {
-  .video-player-container,
-  .info-modal {
-    margin: 10px;
-    max-height: 95vh;
-  }
-
-  .info-content {
-    grid-template-columns: 1fr;
-    padding: 20px;
-  }
-
-  .player-header h3 {
-    font-size: 16px;
-  }
-
-  .info-details h2 {
-    font-size: 22px;
-  }
-
-  .info-actions {
-    flex-direction: column;
-  }
-
-  .info-actions button {
-    width: 100%;
-  }
-}
-
-/* Animações suaves */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.content-section {
-  animation: fadeIn 0.5s ease-out;
-}
-
-/* Melhorar feedback visual ao clicar */
-.btn-play:active,
-.btn-info:active,
-.btn-favorite:active {
-  transform: scale(0.95);
-}
-
-/* Status badges para episódios */
-.badge-new {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-/* Melhorar acessibilidade */
-button:focus,
-input:focus {
-  outline: 3px solid #667eea;
-  outline-offset: 2px;
-}
-
-/* Scrollbar personalizada */
-::-webkit-scrollbar {
-  width: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #667eea;
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #5568d3;
-}
-
-/* Estados de carregamento */
-.content-card.loading {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.content-card.loading::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 30px;
-  height: 30px;
-  margin: -15px 0 0 -15px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
 }
