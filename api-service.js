@@ -1,11 +1,14 @@
-// api-service.js - MIGRADO PARA FALCON71181 API
-// URL da sua instância no Vercel
+// api-service.js - COM PROXY PARA RESOLVER CORS
+
+// 🔧 CONFIGURAÇÃO
+const USE_PROXY = true; // Mude para false se resolver CORS na API
 const API_BASE_URL = "https://novaapi-seven.vercel.app";
+const PROXY_URL = "/api/proxy"; // Seu proxy local
 
 // ===========================
 // SISTEMA DE CACHE
 // ===========================
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hora
+const CACHE_DURATION = 60 * 60 * 1000; // 60 minutos
 
 function getCachedData(key) {
   try {
@@ -45,7 +48,16 @@ async function apiRequest(endpoint, options = {}) {
   const cached = getCachedData(cacheKey);
   if (cached) return cached;
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  let url;
+
+  if (USE_PROXY) {
+    // Usar proxy local para evitar CORS
+    url = `${PROXY_URL}?endpoint=${encodeURIComponent(endpoint)}`;
+  } else {
+    // Usar API diretamente
+    url = `${API_BASE_URL}${endpoint}`;
+  }
+
   console.log(`📡 Requisição: ${url}`);
 
   try {
@@ -64,10 +76,10 @@ async function apiRequest(endpoint, options = {}) {
 
     const data = await response.json();
     setCachedData(cacheKey, data);
-    console.log(`✅ Resposta de ${endpoint}`);
+    console.log(`✅ Resposta recebida`);
     return data;
   } catch (error) {
-    console.error(`❌ Erro na requisição ${url}:`, error);
+    console.error(`❌ Erro na requisição:`, error);
     throw error;
   }
 }
@@ -76,7 +88,6 @@ async function apiRequest(endpoint, options = {}) {
 // ADAPTADORES DE DADOS
 // ===========================
 
-// Converte dados do Aniwatch para formato do YayaAnimes
 function adaptAnimeData(anime) {
   return {
     id: anime.id,
@@ -90,7 +101,6 @@ function adaptAnimeData(anime) {
   };
 }
 
-// Adapta estrutura da homepage
 function adaptHomepageData(data) {
   return {
     status: 200,
@@ -159,12 +169,6 @@ window.AnimeAPI = {
     }
   },
 
-  // Em api-service.js, adicione:
-  async loadFromGogoanime() {
-    const data = await apiRequest("/gogoanime/home");
-    return data;
-  },
-
   // Info do anime - ANIWATCH
   async getAnimeInfo(animeId) {
     try {
@@ -173,7 +177,6 @@ window.AnimeAPI = {
 
       console.log("📦 Dados do anime:", data);
 
-      // A API retorna { info, moreInfo, seasons, relatedAnimes, ... }
       return {
         status: 200,
         data: {
@@ -208,7 +211,6 @@ window.AnimeAPI = {
 
       console.log("📺 Estrutura de episódios:", data);
 
-      // A API retorna { totalEpisodes, episodes: [{ name, episodeNo, episodeId, filler }] }
       return {
         status: 200,
         totalEpisodes: data.totalEpisodes,
@@ -236,7 +238,6 @@ window.AnimeAPI = {
 
       console.log("🎬 Servidores disponíveis:", data);
 
-      // A API retorna { episodeId, episodeNo, sub: [], dub: [] }
       return {
         status: 200,
         data: {
@@ -270,7 +271,6 @@ window.AnimeAPI = {
 
       console.log("🎥 Stream data:", data);
 
-      // A API retorna { headers, sources: [], subtitles: [], anilistID, malID }
       return {
         status: 200,
         data: {
@@ -322,6 +322,7 @@ window.AnimeAPI = {
   },
 };
 
-console.log("✅ API Service carregado (Falcon71181 API)!");
+console.log("✅ API Service carregado (Falcon71181 API + Proxy)!");
 console.log("📺 API Base:", API_BASE_URL);
+console.log("🔄 Usando proxy:", USE_PROXY);
 console.log("💾 Cache duration:", CACHE_DURATION / 1000 / 60, "minutos");
