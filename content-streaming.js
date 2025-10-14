@@ -249,6 +249,14 @@ async function loadContentFromAPI() {
     const data = response.data;
     console.log("📊 Dados processados:", data);
 
+    // LOG DETALHADO: Verificar propriedades disponíveis
+    console.log("🔍 PROPRIEDADES DA API:", Object.keys(data));
+    console.log("🔍 spotLightAnimes:", data.spotLightAnimes?.length || 0);
+    console.log("🔍 trendingAnimes:", data.trendingAnimes?.length || 0);
+    console.log("🔍 latestEpisodes:", data.latestEpisodes?.length || 0);
+    console.log("🔍 topUpcomingAnimes:", data.topUpcomingAnimes?.length || 0);
+    console.log("🔍 top10Animes:", data.top10Animes);
+
     if (!data) {
       throw new Error("Estrutura de dados inválida");
     }
@@ -262,11 +270,11 @@ async function loadContentFromAPI() {
 
     dynamicContainer.innerHTML = "";
 
-    // Mapear seções
+    // CORREÇÃO: Mapear seções com os nomes CORRETOS da API
     const sections = [
       {
         title: "⭐ Animes em Destaque",
-        data: data.spotlightAnimes,
+        data: data.spotLightAnimes || data.spotlightAnimes,
         id: "spotlight",
       },
       {
@@ -275,7 +283,7 @@ async function loadContentFromAPI() {
         id: "trending",
       },
       {
-        title: "📺 Animes Mais Vistos",
+        title: "📺 Animes Mais Populares",
         data: data.mostPopularAnimes,
         id: "popular",
       },
@@ -284,7 +292,21 @@ async function loadContentFromAPI() {
         data: data.mostFavoriteAnimes,
         id: "favorites-api",
       },
-      { title: "🏆 Top 10 Hoje", data: data.top10Animes?.today, id: "top10" },
+      {
+        title: "🏆 Top 10 Hoje",
+        data: data.top10Animes?.today,
+        id: "top10-today",
+      },
+      {
+        title: "🏆 Top 10 Semana",
+        data: data.top10Animes?.week,
+        id: "top10-week",
+      },
+      {
+        title: "🏆 Top 10 Mês",
+        data: data.top10Animes?.month,
+        id: "top10-month",
+      },
       {
         title: "📡 Top Animes no Ar",
         data: data.topAiringAnimes,
@@ -292,7 +314,7 @@ async function loadContentFromAPI() {
       },
       {
         title: "🆕 Últimos Episódios",
-        data: data.latestEpisodeAnimes,
+        data: data.latestEpisodes || data.latestEpisodeAnimes,
         id: "latest",
       },
       {
@@ -304,6 +326,11 @@ async function loadContentFromAPI() {
         title: "📜 Próximos Lançamentos",
         data: data.topUpcomingAnimes,
         id: "upcoming",
+      },
+      {
+        title: "🎬 Animes em Destaque",
+        data: data.featuredAnimes,
+        id: "featured",
       },
     ];
 
