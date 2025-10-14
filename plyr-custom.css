@@ -1,0 +1,405 @@
+/* plyr-custom.css - Customização completa do Plyr */
+
+/* ===========================
+   CORES DO TEMA
+   =========================== */
+:root {
+  --plyr-color-main: #667eea;
+  --plyr-video-background: #000;
+  --plyr-menu-background: rgba(17, 24, 39, 0.95);
+  --plyr-menu-color: #fff;
+  --plyr-video-control-background: rgba(0, 0, 0, 0.7);
+  --plyr-video-control-background-hover: rgba(0, 0, 0, 0.9);
+  --plyr-audio-control-background: #667eea;
+  --plyr-audio-control-background-hover: #5568d3;
+}
+
+/* ===========================
+   BOTÃO DE PLAY CENTRAL
+   =========================== */
+.plyr__control--overlaid {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  width: 80px;
+  height: 80px;
+  padding: 22px;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.plyr__control--overlaid:hover,
+.plyr__control--overlaid:focus {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: scale(1.1);
+  box-shadow: 0 12px 48px rgba(102, 126, 234, 0.6);
+}
+
+.plyr__control--overlaid svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* ===========================
+   CONTROLES PRINCIPAIS
+   =========================== */
+.plyr--video .plyr__controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+  padding: 20px;
+}
+
+.plyr__control {
+  color: #fff;
+  transition: all 0.2s;
+}
+
+.plyr__control:hover {
+  background: rgba(102, 126, 234, 0.2);
+  color: #667eea;
+}
+
+.plyr__control.plyr__tab-focus {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+}
+
+/* Botões específicos */
+.plyr__control svg {
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* ===========================
+   BARRA DE PROGRESSO
+   =========================== */
+.plyr__progress input[type="range"] {
+  color: #667eea;
+  height: 6px;
+}
+
+.plyr__progress input[type="range"]::-webkit-slider-thumb {
+  background: #667eea;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+  height: 18px;
+  width: 18px;
+  transition: all 0.2s;
+}
+
+.plyr__progress input[type="range"]::-webkit-slider-thumb:hover {
+  background: #5568d3;
+  transform: scale(1.2);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.7);
+}
+
+.plyr__progress input[type="range"]::-moz-range-thumb {
+  background: #667eea;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+  height: 18px;
+  width: 18px;
+}
+
+/* Buffer */
+.plyr__progress__buffer {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Played */
+.plyr--video .plyr__progress__buffer {
+  color: rgba(102, 126, 234, 0.4);
+}
+
+/* ===========================
+   VOLUME
+   =========================== */
+.plyr__volume input[type="range"] {
+  color: #667eea;
+}
+
+.plyr__volume input[type="range"]::-webkit-slider-thumb {
+  background: #667eea;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.5);
+}
+
+/* ===========================
+   MENU DE CONFIGURAÇÕES
+   =========================== */
+.plyr__menu__container {
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.plyr__menu__container .plyr__control {
+  color: #d1d5db;
+  padding: 12px 16px;
+}
+
+.plyr__menu__container .plyr__control:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+/* Item selecionado */
+.plyr__menu__container
+  .plyr__control[role="menuitemradio"][aria-checked="true"] {
+  background: rgba(102, 126, 234, 0.15);
+  color: #667eea;
+}
+
+.plyr__menu__container
+  .plyr__control[role="menuitemradio"][aria-checked="true"]::before {
+  background: #667eea;
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
+}
+
+/* Separadores */
+.plyr__menu__container [role="menu"] {
+  padding: 8px 0;
+}
+
+/* ===========================
+   LEGENDAS
+   =========================== */
+.plyr__captions {
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 18px;
+  font-weight: 500;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.plyr__caption {
+  color: #fff;
+  line-height: 1.4;
+}
+
+/* ===========================
+   TEMPO
+   =========================== */
+.plyr__time {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================
+   POSTER/THUMBNAIL
+   =========================== */
+.plyr__poster {
+  background-size: cover;
+  background-position: center;
+}
+
+/* ===========================
+   LOADING SPINNER
+   =========================== */
+.plyr--loading .plyr__progress__buffer {
+  animation: plyr-progress 1s linear infinite;
+  background-image: linear-gradient(
+    -45deg,
+    rgba(102, 126, 234, 0.6) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(102, 126, 234, 0.6) 50%,
+    rgba(102, 126, 234, 0.6) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-repeat: repeat-x;
+  background-size: 25px 25px;
+}
+
+/* ===========================
+   TELA CHEIA
+   =========================== */
+.plyr--fullscreen {
+  background: #000;
+}
+
+.plyr--fullscreen-active .plyr__controls {
+  padding: 30px 40px;
+}
+
+/* ===========================
+   PIP (PICTURE IN PICTURE)
+   =========================== */
+.plyr--pip-supported {
+  /* Estilos quando PIP está ativo */
+}
+
+/* ===========================
+   RESPONSIVO
+   =========================== */
+@media (max-width: 768px) {
+  .plyr__control--overlaid {
+    width: 60px;
+    height: 60px;
+    padding: 18px;
+  }
+
+  .plyr--video .plyr__controls {
+    padding: 15px;
+  }
+
+  .plyr__progress input[type="range"]::-webkit-slider-thumb {
+    height: 24px;
+    width: 24px;
+  }
+
+  .plyr__progress input[type="range"]::-moz-range-thumb {
+    height: 24px;
+    width: 24px;
+  }
+
+  .plyr__time {
+    font-size: 14px;
+  }
+
+  .plyr__captions {
+    font-size: 16px;
+  }
+
+  .plyr__menu__container {
+    max-width: 90vw;
+  }
+}
+
+/* Mobile - Controles maiores */
+@media (max-width: 480px) {
+  .plyr__controls {
+    font-size: 14px;
+  }
+
+  .plyr__control {
+    padding: 8px;
+  }
+
+  .plyr__menu__container .plyr__control {
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+
+  .plyr__control--overlaid {
+    width: 50px;
+    height: 50px;
+    padding: 15px;
+  }
+}
+
+/* ===========================
+   ANIMAÇÕES
+   =========================== */
+@keyframes plyr-progress {
+  to {
+    background-position: 25px 0;
+  }
+}
+
+/* Fade in dos controles */
+.plyr__controls {
+  animation: plyr-fade-in 0.2s ease-in;
+}
+
+@keyframes plyr-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===========================
+   TOOLTIP CUSTOMIZADO
+   =========================== */
+.plyr__tooltip {
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ===========================
+   PREVIEW THUMBNAIL (HOVER)
+   =========================== */
+.plyr__preview-thumb {
+  background: rgba(17, 24, 39, 0.95);
+  border: 2px solid rgba(102, 126, 234, 0.5);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.plyr__preview-thumb__time-container {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-weight: 600;
+}
+
+/* ===========================
+   BADGES/LABELS
+   =========================== */
+.plyr__badge {
+  background: #667eea;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+
+/* ===========================
+   MODO ESCURO OTIMIZADO
+   =========================== */
+@media (prefers-color-scheme: dark) {
+  .plyr__menu__container {
+    background: rgba(17, 24, 39, 0.98);
+  }
+
+  .plyr__tooltip {
+    background: rgba(17, 24, 39, 0.98);
+  }
+}
+
+/* ===========================
+   ACESSIBILIDADE
+   =========================== */
+.plyr__control:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Alto contraste */
+@media (prefers-contrast: high) {
+  .plyr__control {
+    border: 1px solid currentColor;
+  }
+
+  .plyr__progress input[type="range"]::-webkit-slider-thumb {
+    border: 3px solid #fff;
+  }
+}
+
+/* Reduzir movimento */
+@media (prefers-reduced-motion: reduce) {
+  .plyr__control,
+  .plyr__progress input[type="range"]::-webkit-slider-thumb {
+    transition: none;
+  }
+
+  .plyr--loading .plyr__progress__buffer {
+    animation: none;
+  }
+}

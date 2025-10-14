@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Assinatura</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* Modal do Perfil */
+      .profile-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      .profile-modal-overlay.active {
+        display: flex;
+      }
+
+      .profile-modal {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 16px;
+        max-width: 700px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        padding: 30px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      }
+
+      .btn-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 20px;
+        transition: all 0.3s;
+        z-index: 10;
+      }
+
+      .btn-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: rotate(90deg);
+      }
+
+      .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+      }
+
+      .profile-avatar {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+      }
+
+      .profile-info h2 {
+        color: white;
+        font-size: 24px;
+        margin-bottom: 8px;
+        margin: 0 0 8px 0;
+      }
+
+      .profile-badge {
+        background: rgba(102, 126, 234, 0.2);
+        color: #667eea;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        display: inline-block;
+      }
+
+      .profile-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+      }
+
+      .stat-card {
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        text-align: center;
+      }
+
+      .stat-icon {
+        font-size: 32px;
+      }
+
+      .stat-info h3 {
+        color: white;
+        font-size: 28px;
+        margin-bottom: 5px;
+        margin: 0 0 5px 0;
+      }
+
+      .stat-info p {
+        color: #9ca3af;
+        font-size: 14px;
+        margin: 0;
+      }
+
+      .profile-section {
+        margin-bottom: 25px;
+      }
+
+      .profile-section h3 {
+        color: white;
+        font-size: 18px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 15px 0;
+      }
+
+      .payment-info {
+        background: rgba(102, 126, 234, 0.05);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+        padding: 15px;
+      }
+
+      .payment-info p {
+        color: #d1d5db;
+        margin-bottom: 8px;
+        font-size: 14px;
+        margin: 0 0 8px 0;
+      }
+
+      .status-active {
+        color: #10b981;
+        font-weight: bold;
+      }
+
+      .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .no-history {
+        text-align: center;
+        color: #9ca3af;
+        padding: 30px;
+        font-size: 16px;
+      }
+
+      .profile-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 25px;
+      }
+
+      .profile-actions button {
+        flex: 1;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        border: none;
+      }
+
+      .btn-primary-profile {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-primary-profile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-secondary-profile {
+        background: rgba(255, 255, 255, 0.05);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .btn-secondary-profile:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .btn-logout-profile {
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+      }
+
+      .btn-logout-profile:hover {
+        background: rgba(239, 68, 68, 1);
+      }
+
+      #user-info {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .user-email-link {
+        cursor: pointer;
+        color: #667eea;
+        transition: color 0.3s;
+        font-weight: 600;
+      }
+
+      .user-email-link:hover {
+        color: #5568d3;
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        .profile-modal {
+          padding: 20px;
+        }
+
+        .profile-stats {
+          grid-template-columns: 1fr;
+        }
+
+        .profile-actions {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Bem-vindo ao YayaAnimes</h1>
+        <div id="auth-buttons">
+          <button
+            onclick="window.location.href='login.html'"
+            class="btn-primary"
+          >
+            Entrar
+          </button>
+          <button
+            onclick="window.location.href='register.html'"
+            class="btn-secondary"
+          >
+            Cadastrar
+          </button>
+        </div>
+        <div id="user-info" style="display: none">
+          <span
+            class="user-email-link"
+            id="user-email"
+            onclick="openProfileModal()"
+          ></span>
+          <button onclick="logout()" class="btn-secondary">Sair</button>
+        </div>
+      </header>
+
+      <main id="main-content">
+        <section class="hero">
+          <h2>Acesse Conteúdo Premium</h2>
+          <p>
+            Escolha seu plano e tenha acesso ilimitado ao nosso conteúdo
+            exclusivo!
+          </p>
+        </section>
+
+        <section class="plans">
+          <h3>Nossos Planos</h3>
+          <div class="plans-container">
+            <div class="plan-card">
+              <h4>Plano 7 Dias</h4>
+              <p class="price">R$ 19,90</p>
+              <p class="description">Acesso completo por 7 dias</p>
+              <button onclick="selectPlan('7_dias')" class="btn-primary">
+                Escolher
+              </button>
+            </div>
+            <div class="plan-card featured">
+              <span class="badge">Mais Popular</span>
+              <h4>Plano 30 Dias</h4>
+              <p class="price">R$ 49,90</p>
+              <p class="description">Acesso completo por 30 dias</p>
+              <button onclick="selectPlan('30_dias')" class="btn-primary">
+                Escolher
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="subscription-info" style="display: none">
+          <h3>Sua Assinatura</h3>
+          <div class="subscription-card">
+            <p><strong>Plano:</strong> <span id="sub-plan"></span></p>
+            <p>
+              <strong>Status:</strong>
+              <span id="sub-status" class="status-active">Ativo</span>
+            </p>
+            <p><strong>Expira em:</strong> <span id="sub-expires"></span></p>
+            <button
+              onclick="window.location.href='content.html'"
+              class="btn-primary"
+            >
+              Acessar Conteúdo
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal de Perfil -->
+    <div id="profile-modal-overlay" class="profile-modal-overlay">
+      <div class="profile-modal">
+        <button class="btn-close" onclick="closeProfileModal()">×</button>
+
+        <div class="profile-header">
+          <div class="profile-avatar">👤</div>
+          <div class="profile-info">
+            <h2 id="profile-name">Carregando...</h2>
+            <span class="profile-badge" id="profile-badge">Premium</span>
+          </div>
+        </div>
+
+        <div class="profile-stats">
+          <div class="stat-card">
+            <div class="stat-icon">🎬</div>
+            <div class="stat-info">
+              <h3 id="stat-watched">0</h3>
+              <p>Assistidos</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-info">
+              <h3 id="stat-hours">0h</h3>
+              <p>Assistindo</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-section">
+          <h3>💳 Informações de Pagamento</h3>
+          <div class="payment-info">
+            <p>
+              <strong>Plano:</strong>
+              <span id="profile-plan">Carregando...</span>
+            </p>
+            <p>
+              <strong>Status:</strong>
+              <span id="profile-status" class="status-active">Ativo</span>
+            </p>
+            <p>
+              <strong>Expires em:</strong>
+              <span id="profile-expires">Carregando...</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="profile-actions">
+          <button
+            class="btn-primary-profile"
+            onclick="window.location.href='content.html'"
+          >
+            🎬 Acessar Conteúdo
+          </button>
+          <button
+            class="btn-logout-profile"
+            onclick="logout(); closeProfileModal();"
+          >
+            🚪 Sair
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+      // ===========================
+      // FUNÇÃO PARA MODAL DE PERFIL
+      // ===========================
+
+      function openProfileModal() {
+        const modal = document.getElementById("profile-modal-overlay");
+        modal.classList.add("active");
+        loadProfileData();
+      }
+
+      function closeProfileModal() {
+        const modal = document.getElementById("profile-modal-overlay");
+        modal.classList.remove("active");
+      }
+
+      async function loadProfileData() {
+        try {
+          const user = await checkAuth();
+
+          if (!user) {
+            console.error("Usuário não autenticado");
+            return;
+          }
+
+          // Atualizar nome
+          document.getElementById("profile-name").textContent =
+            user.email || "Usuário";
+
+          // Buscar assinatura
+          const subscription = await checkSubscription(user.id);
+
+          if (subscription) {
+            document.getElementById("profile-plan").textContent =
+              PLANS[subscription.plan_type]?.name || "Desconhecido";
+            document.getElementById("profile-expires").textContent =
+              formatDateBR(subscription.expires_at);
+
+            // Calcular tempo assistido
+            const history = JSON.parse(
+              localStorage.getItem("watch_history") || "[]"
+            );
+            const watched = history.length;
+            const hours = Math.floor(watched * 1.5); // Estimativa: 1.5h por episódio
+
+            document.getElementById("stat-watched").textContent = watched;
+            document.getElementById("stat-hours").textContent = hours + "h";
+          }
+        } catch (error) {
+          console.error("Erro ao carregar dados do perfil:", error);
+        }
+      }
+
+      // Fechar modal ao clicar fora
+      document
+        .getElementById("profile-modal-overlay")
+        .addEventListener("click", function (event) {
+          if (event.target === this) {
+            closeProfileModal();
+          }
+        });
+
+      // Fechar com ESC
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeProfileModal();
+        }
+      });
+    </script>
+  </body>
+</html>

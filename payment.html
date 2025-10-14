@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pagamento - Sistema de Assinatura</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="payment-container">
+        <h1>Finalizar Pagamento</h1>
+
+        <div id="plan-details" class="plan-details">
+          <h3>Resumo do Pedido</h3>
+          <p><strong>Plano:</strong> <span id="plan-name"></span></p>
+          <p><strong>Duração:</strong> <span id="plan-duration"></span></p>
+          <p class="total">
+            <strong>Total:</strong> <span id="plan-price"></span>
+          </p>
+        </div>
+
+        <div id="pix-section" style="display: none">
+          <h3>Pagamento via PIX</h3>
+          <div class="pix-container">
+            <div class="pix-qrcode">
+              <img id="pix-qrcode-img" src="" alt="QR Code PIX" />
+            </div>
+            <div class="pix-code">
+              <label>Código PIX Copia e Cola:</label>
+              <textarea id="pix-code" readonly></textarea>
+              <button onclick="copyPixCode()" class="btn-secondary">
+                Copiar Código
+              </button>
+            </div>
+            <div class="pix-instructions">
+              <h4>Como pagar:</h4>
+              <ol>
+                <li>Abra o app do seu banco</li>
+                <li>Escolha pagar com PIX</li>
+                <li>Escaneie o QR Code ou cole o código</li>
+                <li>Confirme o pagamento</li>
+              </ol>
+              <p class="warning">⏰ O código PIX expira em 30 minutos</p>
+            </div>
+          </div>
+          <div id="payment-status" class="payment-status">
+            <p>Aguardando pagamento...</p>
+            <div class="loading-spinner"></div>
+          </div>
+        </div>
+
+        <button
+          onclick="generatePixPayment()"
+          id="generate-pix-btn"
+          class="btn-primary full-width"
+        >
+          Gerar Código PIX
+        </button>
+        <button
+          onclick="window.location.href='index.html'"
+          class="btn-secondary full-width"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+
+    <!-- ORDEM CORRETA DOS SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="payment.js"></script>
+  </body>
+</html>

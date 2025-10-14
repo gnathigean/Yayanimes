@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teste Visual - Cards</title>
+    <link rel="stylesheet" href="streaming.css" />
+    <style>
+      body {
+        padding: 20px;
+        background: #0f172a;
+      }
+      .test-section {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: rgba(30, 41, 59, 0.5);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+      }
+      .test-section h2 {
+        color: #667eea;
+        margin-bottom: 20px;
+      }
+      .debug-info {
+        background: rgba(102, 126, 234, 0.1);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        color: #9ca3af;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-section">
+      <h2>🧪 Teste Visual de Cards</h2>
+      <div class="debug-info">
+        <p>✅ Se você vê cards abaixo, o CSS está funcionando</p>
+        <p>❌ Se não vê nada, o problema é no CSS ou na estrutura HTML</p>
+      </div>
+
+      <div class="content-section">
+        <div class="section-header">
+          <h3>🔥 Teste de Cards</h3>
+        </div>
+
+        <div class="content-grid" id="test-grid">
+          <!-- Card 1 -->
+          <div class="content-card" data-id="test-1" data-type="anime">
+            <div class="card-image">
+              <img
+                src="https://placehold.co/300x450/667eea/ffffff?text=Anime+1"
+                alt="Teste 1"
+                style="width: 100%; height: 100%; object-fit: cover"
+              />
+            </div>
+            <span class="card-badge badge-new">12 EPs</span>
+            <div class="card-overlay">
+              <div class="overlay-details">
+                <h4 class="card-title">Anime de Teste 1</h4>
+                <div class="card-meta">
+                  <span class="card-rating">⭐ 9.5</span>
+                  <span>12 eps</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play">▶️ Assistir</button>
+                <button class="btn-info">ℹ️ Info</button>
+                <button class="btn-favorite">❤️</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="content-card" data-id="test-2" data-type="anime">
+            <div class="card-image">
+              <img
+                src="https://placehold.co/300x450/764ba2/ffffff?text=Anime+2"
+                alt="Teste 2"
+                style="width: 100%; height: 100%; object-fit: cover"
+              />
+            </div>
+            <span class="card-badge badge-new">24 EPs</span>
+            <div class="card-overlay">
+              <div class="overlay-details">
+                <h4 class="card-title">Anime de Teste 2</h4>
+                <div class="card-meta">
+                  <span class="card-rating">⭐ 8.7</span>
+                  <span>24 eps</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play">▶️ Assistir</button>
+                <button class="btn-info">ℹ️ Info</button>
+                <button class="btn-favorite">❤️</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="content-card" data-id="test-3" data-type="anime">
+            <div class="card-image">
+              <img
+                src="https://placehold.co/300x450/ef4444/ffffff?text=Anime+3"
+                alt="Teste 3"
+                style="width: 100%; height: 100%; object-fit: cover"
+              />
+            </div>
+            <span class="card-badge badge-new">52 EPs</span>
+            <div class="card-overlay">
+              <div class="overlay-details">
+                <h4 class="card-title">Anime de Teste 3</h4>
+                <div class="card-meta">
+                  <span class="card-rating">⭐ 9.2</span>
+                  <span>52 eps</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play">▶️ Assistir</button>
+                <button class="btn-info">ℹ️ Info</button>
+                <button class="btn-favorite">❤️</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="content-card" data-id="test-4" data-type="anime">
+            <div class="card-image">
+              <img
+                src="https://placehold.co/300x450/10b981/ffffff?text=Anime+4"
+                alt="Teste 4"
+                style="width: 100%; height: 100%; object-fit: cover"
+              />
+            </div>
+            <span class="card-badge badge-new">100 EPs</span>
+            <div class="card-overlay">
+              <div class="overlay-details">
+                <h4 class="card-title">Anime de Teste 4</h4>
+                <div class="card-meta">
+                  <span class="card-rating">⭐ 9.8</span>
+                  <span>100 eps</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play">▶️ Assistir</button>
+                <button class="btn-info">ℹ️ Info</button>
+                <button class="btn-favorite">❤️</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>🔍 Inspeção do DOM</h2>
+      <div class="debug-info" id="dom-info">Carregando informações...</div>
+    </div>
+
+    <script>
+      // Verificar estrutura do DOM
+      setTimeout(() => {
+        const grid = document.getElementById("test-grid");
+        const cards = grid.querySelectorAll(".content-card");
+        const domInfo = document.getElementById("dom-info");
+
+        domInfo.innerHTML = `
+        <p>📊 Total de cards no grid: ${cards.length}</p>
+        <p>📐 Largura do grid: ${grid.offsetWidth}px</p>
+        <p>📐 Altura do grid: ${grid.offsetHeight}px</p>
+        <p>🎨 Display do grid: ${window.getComputedStyle(grid).display}</p>
+        <p>🎨 Grid template columns: ${
+          window.getComputedStyle(grid).gridTemplateColumns
+        }</p>
+      `;
+
+        if (cards.length === 0) {
+          domInfo.innerHTML +=
+            '<p style="color: #ef4444;">❌ ERRO: Nenhum card encontrado!</p>';
+        } else {
+          domInfo.innerHTML +=
+            '<p style="color: #10b981;">✅ Cards encontrados e renderizados!</p>';
+        }
+      }, 500);
+    </script>
+  </body>
+</html>

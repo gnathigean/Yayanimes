@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Streaming - YayaAnimes</title>
+    <link rel="stylesheet" href="streaming.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="streaming-header">
+      <div class="header-content">
+        <div class="logo-section">
+          <a href="index.html" class="logo-link">
+            <img
+              src="logo.png"
+              alt="YayaAnimes"
+              class="main-logo"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+            />
+            <h1 style="display: none">🎬 YayaAnimes</h1>
+          </a>
+        </div>
+
+        <nav class="main-nav">
+          <button class="nav-btn active" data-filter="all">Todos</button>
+          <button class="nav-btn" data-filter="anime">Animes</button>
+          <button class="nav-btn" data-filter="trending">Em Alta</button>
+          <button class="nav-btn" data-filter="favorites">Favoritos ❤️</button>
+        </nav>
+
+        <div class="user-section">
+          <div class="subscription-badge">
+            <span class="badge-icon">👑</span>
+            <span>Premium</span>
+          </div>
+          <span
+            class="user-email"
+            id="user-email"
+            onclick="openProfileModal()"
+            style="cursor: pointer; text-decoration: underline"
+          >
+            carregando...
+          </span>
+          <button class="btn-logout" id="logout-btn" onclick="logout()">
+            Sair
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Busca -->
+    <section class="search-section">
+      <div class="search-container">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="🔍 Buscar animes, filmes, séries..."
+          autocomplete="off"
+        />
+      </div>
+    </section>
+
+    <!-- Loading Overlay -->
+    <div
+      id="loading-overlay"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div style="text-align: center; color: white">
+        <div
+          class="loading-spinner"
+          style="
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+          "
+        ></div>
+        <p style="font-size: 18px">Carregando conteúdo...</p>
+      </div>
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <main class="content-main" id="main-content">
+      <!-- Continue Assistindo -->
+      <section
+        class="content-section"
+        id="continue-watching-section"
+        style="display: none"
+      >
+        <div class="section-header">
+          <h3>▶️ Continue Assistindo</h3>
+        </div>
+        <div class="content-grid" id="continue-grid"></div>
+      </section>
+
+      <!-- Seções Dinâmicas da API -->
+      <div id="dynamic-content-container"></div>
+
+      <!-- Fallback: Animes em Alta -->
+      <section
+        class="content-section"
+        id="animes-grid-section"
+        style="display: none"
+      >
+        <div class="section-header">
+          <h3>🔥 Animes em Alta</h3>
+          <button class="btn-see-all">Ver Todos →</button>
+        </div>
+        <div class="content-grid" id="animes-grid"></div>
+      </section>
+    </main>
+
+    <!-- Toast Messages -->
+    <div
+      id="toast-container"
+      style="position: fixed; bottom: 20px; right: 20px; z-index: 10000"
+    ></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="api-service.js"></script>
+    <script src="content-streaming.js"></script>
+
+    <style>
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </body>
+</html>
