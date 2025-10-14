@@ -1,441 +1,500 @@
-## 3️⃣ test-api-structure.html (NOVO ARQUIVO DE TESTE) ```html
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🔍 Verificador de Estrutura da API</title>
+    <title>Teste da API - falcon71181</title>
     <style>
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: #0f172a;
-        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
         padding: 20px;
       }
-
       .container {
-        max-width: 1400px;
+        max-width: 1000px;
         margin: 0 auto;
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       }
-
       h1 {
-        text-align: center;
         color: #667eea;
-        margin-bottom: 30px;
-        font-size: 32px;
+        margin-bottom: 10px;
+        text-align: center;
       }
-
-      .section {
-        background: #1e293b;
-        padding: 20px;
-        border-radius: 12px;
+      .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+      }
+      .input-group {
         margin-bottom: 20px;
       }
-
-      .section h2 {
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+      }
+      input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border 0.3s;
+      }
+      input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+      .btn-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-bottom: 30px;
+      }
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        color: white;
+      }
+      .btn-primary {
+        background: #667eea;
+      }
+      .btn-primary:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+      }
+      .btn-success {
+        background: #10b981;
+      }
+      .btn-success:hover {
+        background: #059669;
+        transform: translateY(-2px);
+      }
+      .btn-info {
+        background: #3b82f6;
+      }
+      .btn-info:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+      }
+      .btn-warning {
+        background: #f59e0b;
+      }
+      .btn-warning:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+      }
+      .result-box {
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      .result-box h3 {
         color: #667eea;
         margin-bottom: 15px;
         display: flex;
         align-items: center;
         gap: 10px;
       }
-
-      .status {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-      }
-
-      .status.success {
-        background: #10b981;
-      }
-
-      .status.error {
-        background: #ef4444;
-      }
-
-      .status.empty {
-        background: #f59e0b;
-      }
-
-      pre {
-        background: #0f172a;
+      .result-box pre {
+        background: #1e293b;
+        color: #e5e7eb;
         padding: 15px;
         border-radius: 8px;
         overflow-x: auto;
         font-size: 12px;
-        line-height: 1.5;
-        max-height: 500px;
-        overflow-y: auto;
-        border: 2px solid #334155;
+        line-height: 1.6;
       }
-
-      .summary {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
-      }
-
-      .summary-card {
-        background: #0f172a;
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 4px solid #667eea;
-      }
-
-      .summary-card h3 {
-        font-size: 14px;
-        color: #9ca3af;
-        margin-bottom: 8px;
-      }
-
-      .summary-card .value {
-        font-size: 24px;
-        font-weight: 700;
-        color: #667eea;
-      }
-
-      button {
-        background: #667eea;
-        color: white;
-        border: none;
-        padding: 15px 30px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 16px;
-        font-weight: 600;
-        transition: all 0.3s;
-        width: 100%;
-      }
-
-      button:hover {
-        background: #5568d3;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-      }
-
-      .loading {
-        text-align: center;
-        padding: 40px;
-        color: #9ca3af;
-        font-size: 18px;
-      }
-
-      .grid {
-        display: grid;
-        gap: 15px;
-      }
-
-      .item-card {
-        background: #0f172a;
-        padding: 12px;
-        border-radius: 8px;
-        display: flex;
-        gap: 12px;
-        border: 2px solid #334155;
-        transition: all 0.3s;
-      }
-
-      .item-card:hover {
-        border-color: #667eea;
-        transform: translateY(-2px);
-      }
-
-      .item-card img {
-        width: 60px;
-        height: 90px;
-        object-fit: cover;
-        border-radius: 6px;
-      }
-
-      .item-info {
-        flex: 1;
-      }
-
-      .item-info h4 {
-        font-size: 14px;
-        margin-bottom: 6px;
-        color: white;
-      }
-
-      .item-info p {
+      .status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
         font-size: 12px;
-        color: #9ca3af;
-        margin: 2px 0;
+        font-weight: 600;
       }
-
-      .alert {
-        background: #1e40af;
+      .status-success {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .status-error {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .status-loading {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+      }
+      .loading.active {
+        display: block;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(102, 126, 234, 0.2);
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 15px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
         padding: 15px;
         border-radius: 8px;
-        margin-bottom: 20px;
-        border-left: 4px solid #3b82f6;
+        text-align: center;
       }
-
-      .alert p {
-        margin: 5px 0;
+      .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 5px;
       }
-
-      ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-
-      ::-webkit-scrollbar-track {
-        background: #1e293b;
-      }
-
-      ::-webkit-scrollbar-thumb {
-        background: #667eea;
-        border-radius: 5px;
-      }
-
-      ::-webkit-scrollbar-thumb:hover {
-        background: #5568d3;
+      .stat-label {
+        font-size: 12px;
+        opacity: 0.9;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>🔍 Verificador de Estrutura da API YayAnimes</h1>
+      <h1>🧪 Teste da API falcon71181</h1>
+      <p class="subtitle">Valide todos os endpoints da sua API</p>
 
-      <div class="alert">
-        <p>
-          <strong>📌 Objetivo:</strong> Este teste verifica a estrutura EXATA
-          dos dados retornados pela API.
-        </p>
-        <p>
-          <strong>🎯 Use isso para:</strong> Identificar quais campos existem e
-          como acessá-los corretamente.
-        </p>
+      <div class="input-group">
+        <label for="api-url">🔗 URL da sua API no Vercel</label>
+        <input
+          type="text"
+          id="api-url"
+          placeholder="https://seu-deploy.vercel.app"
+          value="https://api-anime-rouge.vercel.app"
+        />
       </div>
 
-      <div class="section">
-        <button onclick="testAPI()">🚀 Testar API Homepage</button>
+      <div class="stats" id="stats" style="display: none">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-success">0</div>
+          <div class="stat-label">✅ Sucesso</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-error">0</div>
+          <div class="stat-label">❌ Erros</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-time">0ms</div>
+          <div class="stat-label">⏱️ Tempo Médio</div>
+        </div>
       </div>
 
-      <div id="results" class="loading">
-        Clique no botão acima para iniciar o teste...
+      <div class="btn-group">
+        <button class="btn-primary" onclick="testHomepage()">
+          🏠 Testar Homepage
+        </button>
+        <button class="btn-success" onclick="testSearch()">
+          🔍 Testar Busca
+        </button>
+        <button class="btn-info" onclick="testAnimeInfo()">
+          📺 Testar Info Anime
+        </button>
+        <button class="btn-warning" onclick="testFullFlow()">
+          🚀 Teste Completo
+        </button>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Testando API...</p>
+      </div>
+
+      <div class="result-box" id="result" style="display: none">
+        <h3>
+          <span id="result-icon">📊</span>
+          <span id="result-title">Resultado</span>
+          <span id="result-status"></span>
+        </h3>
+        <pre id="result-content"></pre>
       </div>
     </div>
 
     <script>
-      async function testAPI() {
-        const resultsDiv = document.getElementById("results");
-        resultsDiv.innerHTML =
-          '<div class="loading">⏳ Carregando dados da API...<br>Aguarde alguns segundos...</div>';
+      let stats = { success: 0, error: 0, times: [] };
+
+      function getApiUrl() {
+        return document.getElementById("api-url").value.trim();
+      }
+
+      function showLoading() {
+        document.getElementById("loading").classList.add("active");
+        document.getElementById("result").style.display = "none";
+      }
+
+      function hideLoading() {
+        document.getElementById("loading").classList.remove("active");
+      }
+
+      function showResult(title, data, isSuccess = true, icon = "📊") {
+        hideLoading();
+        document.getElementById("stats").style.display = "grid";
+        document.getElementById("result").style.display = "block";
+        document.getElementById("result-icon").textContent = icon;
+        document.getElementById("result-title").textContent = title;
+
+        const statusEl = document.getElementById("result-status");
+        statusEl.className = `status ${
+          isSuccess ? "status-success" : "status-error"
+        }`;
+        statusEl.textContent = isSuccess ? "✅ SUCESSO" : "❌ ERRO";
+
+        document.getElementById("result-content").textContent = JSON.stringify(
+          data,
+          null,
+          2
+        );
+
+        if (isSuccess) {
+          stats.success++;
+        } else {
+          stats.error++;
+        }
+        updateStats();
+      }
+
+      function updateStats() {
+        document.getElementById("stat-success").textContent = stats.success;
+        document.getElementById("stat-error").textContent = stats.error;
+
+        const avgTime =
+          stats.times.length > 0
+            ? Math.round(
+                stats.times.reduce((a, b) => a + b, 0) / stats.times.length
+              )
+            : 0;
+        document.getElementById("stat-time").textContent = avgTime + "ms";
+      }
+
+      async function testEndpoint(endpoint, title, icon) {
+        showLoading();
+        const apiUrl = getApiUrl();
+        const url = `${apiUrl}${endpoint}`;
+
+        console.log("🧪 Testando:", url);
+
+        const startTime = Date.now();
 
         try {
-          const startTime = performance.now();
-          const response = await fetch(
-            "https://yayapi-delta.vercel.app/api/v2/hianime/home"
-          );
-          const data = await response.json();
-          const endTime = performance.now();
-          const duration = (endTime - startTime).toFixed(2);
+          const response = await fetch(url);
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+          stats.times.push(duration);
 
-          console.log("📦 Dados completos da API:", data);
-
-          let html = `
-          <div class="section">
-            <h2>⏱️ Tempo de Resposta</h2>
-            <p style="font-size: 20px; color: #10b981; font-weight: 600;">${duration}ms</p>
-          </div>
-        `;
-
-          html += '<div class="summary">';
-
-          // Verificar cada seção possível
-          const sections = [
-            {
-              key: "spotlightAnimes",
-              name: "⭐ Spotlight",
-              path: "data.spotlightAnimes",
-            },
-            {
-              key: "trendingAnimes",
-              name: "🔥 Trending",
-              path: "data.trendingAnimes",
-            },
-            {
-              key: "mostPopularAnimes",
-              name: "📺 Popular",
-              path: "data.mostPopularAnimes",
-            },
-            {
-              key: "mostFavoriteAnimes",
-              name: "❤️ Favorites",
-              path: "data.mostFavoriteAnimes",
-            },
-            { key: "top10Animes", name: "🏆 Top 10", path: "data.top10Animes" },
-            {
-              key: "topAiringAnimes",
-              name: "📡 Airing",
-              path: "data.topAiringAnimes",
-            },
-            {
-              key: "latestEpisodeAnimes",
-              name: "🆕 Latest",
-              path: "data.latestEpisodeAnimes",
-            },
-            {
-              key: "latestCompletedAnimes",
-              name: "✅ Completed",
-              path: "data.latestCompletedAnimes",
-            },
-            {
-              key: "topUpcomingAnimes",
-              name: "🔜 Upcoming",
-              path: "data.topUpcomingAnimes",
-            },
-            { key: "genres", name: "🎭 Genres", path: "data.genres" },
-          ];
-
-          let totalItems = 0;
-          let validSections = 0;
-
-          sections.forEach((section) => {
-            const sectionData = data.data?.[section.key] || data[section.key];
-            let count = 0;
-            let status = "empty";
-
-            if (Array.isArray(sectionData)) {
-              count = sectionData.length;
-            } else if (sectionData?.today && Array.isArray(sectionData.today)) {
-              count = sectionData.today.length;
-            } else if (sectionData && typeof sectionData === "object") {
-              count = Object.keys(sectionData).length;
-            }
-
-            if (count > 0) {
-              status = "success";
-              validSections++;
-              totalItems += count;
-            }
-
-            html += `
-            <div class="summary-card">
-              <h3>${section.name}</h3>
-              <div class="value">${count}</div>
-              <span class="status ${status}">${
-              status === "success" ? "✅ OK" : "⚠️ Vazio"
-            }</span>
-              <p style="font-size: 11px; color: #6b7280; margin-top: 5px;">${
-                section.path
-              }</p>
-            </div>
-          `;
-          });
-
-          html += "</div>";
-
-          // Resumo geral
-          html += `
-          <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <h2 style="color: white;">📊 Resumo Geral</h2>
-            <p style="font-size: 18px; color: white; margin: 10px 0;">
-              <strong>${validSections}</strong> seções válidas encontradas
-            </p>
-            <p style="font-size: 18px; color: white; margin: 10px 0;">
-              <strong>${totalItems}</strong> itens no total
-            </p>
-          </div>
-        `;
-
-          // Estrutura JSON completa
-          html += `
-          <div class="section">
-            <h2>📋 Estrutura JSON Completa</h2>
-            <pre>${JSON.stringify(data, null, 2)}</pre>
-          </div>
-        `;
-
-          // Mostrar exemplo de trending animes
-          const trending =
-            data.data?.trendingAnimes || data.trendingAnimes || [];
-          if (trending.length > 0) {
-            html += `
-            <div class="section">
-              <h2>🔥 Exemplo: Top 5 Trending Animes</h2>
-              <div class="grid">
-          `;
-
-            trending.slice(0, 5).forEach((anime) => {
-              html += `
-              <div class="item-card">
-                <img src="${anime.poster || anime.image || ""}" 
-                     alt="${anime.name || anime.title}"
-                     onerror="this.src='https://via.placeholder.com/60x90?text=No+Image'">
-                <div class="item-info">
-                  <h4>${anime.name || anime.title || "Sem título"}</h4>
-                  <p>⭐ Rating: ${anime.rating || "N/A"}</p>
-                  <p>📺 Episodes: ${
-                    anime.episodes?.sub || anime.episodes || "N/A"
-                  }</p>
-                  <p>🆔 ID: <code style="color: #667eea;">${
-                    anime.id || "N/A"
-                  }</code></p>
-                  <p>🎭 Type: ${anime.type || "N/A"}</p>
-                </div>
-              </div>
-            `;
-            });
-
-            html += "</div></div>";
-
-            // Mostrar estrutura de UM item completo
-            html += `
-            <div class="section">
-              <h2>🔬 Estrutura Detalhada de 1 Item (Trending[0])</h2>
-              <p style="margin-bottom: 15px; color: #9ca3af;">
-                Use esta estrutura para saber exatamente quais campos estão disponíveis:
-              </p>
-              <pre>${JSON.stringify(trending[0], null, 2)}</pre>
-            </div>
-          `;
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
-          // Recomendações
-          html += `
-          <div class="section" style="background: #065f46; border-left: 4px solid #10b981;">
-            <h2 style="color: #d1fae5;">✅ Próximos Passos</h2>
-            <ol style="color: #d1fae5; padding-left: 20px; line-height: 1.8;">
-              <li>Verifique os campos disponíveis na estrutura acima</li>
-              <li>Confirme se <code>data.spotlightAnimes</code>, <code>data.trendingAnimes</code>, etc. existem</li>
-              <li>Verifique se <code>top10Animes</code> está em <code>top10Animes.today</code></li>
-              <li>Copie a estrutura de um item e me envie se houver dúvidas</li>
-              <li>Use essas informações para ajustar o mapeamento no código</li>
-            </ol>
-          </div>
-        `;
+          const data = await response.json();
 
-          resultsDiv.innerHTML = html;
+          showResult(
+            `${title} (${duration}ms)`,
+            {
+              url,
+              status: response.status,
+              data: data,
+            },
+            true,
+            icon
+          );
+
+          return data;
         } catch (error) {
-          resultsDiv.innerHTML = `
-          <div class="section" style="background: #7f1d1d; border-left: 4px solid #ef4444;">
-            <h2 style="color: #fecaca;">❌ Erro ao Carregar Dados</h2>
-            <pre style="color: #fecaca;">${error.message}\n\n${error.stack}</pre>
-            <p style="color: #fecaca; margin-top: 15px;">
-              <strong>Possíveis causas:</strong><br>
-              • API fora do ar<br>
-              • Problema de CORS<br>
-              • Conexão com internet<br>
-              • URL da API incorreta
-            </p>
-          </div>
-        `;
-          console.error("❌ Erro:", error);
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+
+          showResult(
+            `${title} - ERRO`,
+            {
+              url,
+              error: error.message,
+              duration: duration + "ms",
+            },
+            false,
+            "❌"
+          );
+
+          throw error;
         }
       }
+
+      async function testHomepage() {
+        await testEndpoint("/aniwatch/", "Homepage", "🏠");
+      }
+
+      async function testSearch() {
+        await testEndpoint(
+          "/aniwatch/search?keyword=naruto&page=1",
+          "Busca (Naruto)",
+          "🔍"
+        );
+      }
+
+      async function testAnimeInfo() {
+        await testEndpoint(
+          "/aniwatch/anime/one-piece-100",
+          "Info do Anime (One Piece)",
+          "📺"
+        );
+      }
+
+      async function testFullFlow() {
+        stats = { success: 0, error: 0, times: [] };
+
+        try {
+          showLoading();
+
+          // 1. Homepage
+          console.log("1️⃣ Testando Homepage...");
+          const homepage = await testEndpoint(
+            "/aniwatch/",
+            "Passo 1: Homepage",
+            "1️⃣"
+          );
+          await sleep(1000);
+
+          // 2. Busca
+          console.log("2️⃣ Testando Busca...");
+          const search = await testEndpoint(
+            "/aniwatch/search?keyword=solo&page=1",
+            "Passo 2: Busca",
+            "2️⃣"
+          );
+          await sleep(1000);
+
+          // 3. Pegar primeiro anime da busca
+          const firstAnime = search.animes?.[0];
+          if (!firstAnime) {
+            throw new Error("Nenhum anime encontrado na busca");
+          }
+
+          console.log("3️⃣ Testando Info do Anime...");
+          const animeInfo = await testEndpoint(
+            `/aniwatch/anime/${firstAnime.id}`,
+            "Passo 3: Info do Anime",
+            "3️⃣"
+          );
+          await sleep(1000);
+
+          // 4. Episódios
+          console.log("4️⃣ Testando Episódios...");
+          const episodes = await testEndpoint(
+            `/aniwatch/episodes/${firstAnime.id}`,
+            "Passo 4: Episódios",
+            "4️⃣"
+          );
+          await sleep(1000);
+
+          // 5. Servidores
+          const firstEpisode = episodes.episodes?.[0];
+          if (!firstEpisode) {
+            throw new Error("Nenhum episódio encontrado");
+          }
+
+          console.log("5️⃣ Testando Servidores...");
+          const servers = await testEndpoint(
+            `/aniwatch/servers?id=${encodeURIComponent(
+              firstEpisode.episodeId
+            )}`,
+            "Passo 5: Servidores",
+            "5️⃣"
+          );
+          await sleep(1000);
+
+          // 6. Streams
+          const firstServer = servers.sub?.[0];
+          if (!firstServer) {
+            throw new Error("Nenhum servidor disponível");
+          }
+
+          console.log("6️⃣ Testando Streams...");
+          await testEndpoint(
+            `/aniwatch/episode-srcs?id=${encodeURIComponent(
+              firstEpisode.episodeId
+            )}&server=${firstServer.serverName}&category=sub`,
+            "Passo 6: Streams",
+            "6️⃣"
+          );
+
+          // Resumo final
+          showResult(
+            "🎉 TESTE COMPLETO - SUCESSO!",
+            {
+              message: "Todos os endpoints funcionando perfeitamente!",
+              summary: {
+                totalTests: 6,
+                success: stats.success,
+                errors: stats.error,
+                averageTime:
+                  Math.round(
+                    stats.times.reduce((a, b) => a + b, 0) / stats.times.length
+                  ) + "ms",
+              },
+            },
+            true,
+            "🎉"
+          );
+        } catch (error) {
+          showResult(
+            "Teste Completo - ERRO",
+            {
+              message: "Falha no fluxo completo",
+              error: error.message,
+              step: stats.success + 1,
+            },
+            false,
+            "❌"
+          );
+        }
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      // Auto-test on load (opcional)
+      // window.addEventListener('load', () => {
+      //   setTimeout(testHomepage, 1000);
+      // });
     </script>
   </body>
 </html>
