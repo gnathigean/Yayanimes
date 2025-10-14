@@ -1,4 +1,4 @@
-// content-streaming.js - VERSÃO CORRIGIDA PARA API falcon71181
+// content-streaming.js - VERSÃO CORRIGIDA
 // ===========================
 // CONFIGURAÇÃO
 // ===========================
@@ -133,9 +133,11 @@ async function verifyAccessAndLoadContent() {
       email: user.email,
     };
 
+    // CORREÇÃO: Atualizar email do usuário no header
     const userEmail = document.getElementById("user-email");
     if (userEmail) {
       userEmail.textContent = user.email;
+      userEmail.style.display = "inline-block";
     }
 
     localStorage.setItem("currentUser", JSON.stringify(currentUser));
@@ -904,13 +906,21 @@ function formatCurrency(value) {
   }).format(value);
 }
 
-const PLANS = {
-  monthly: { name: "Mensal Premium" },
-  quarterly: { name: "Trimestral Premium" },
-  annual: { name: "Anual Premium" },
-  "7_dias": { name: "7 Dias" },
-  "30_dias": { name: "30 Dias" },
-};
+// CORREÇÃO: Usar PLANS do config.js global (não redeclarar)
+function getPlanName(planType) {
+  if (typeof PLANS !== "undefined" && PLANS[planType]) {
+    return PLANS[planType].name;
+  }
+  // Fallback se PLANS não estiver disponível
+  const planNames = {
+    monthly: "Mensal Premium",
+    quarterly: "Trimestral Premium",
+    annual: "Anual Premium",
+    "7_dias": "7 Dias",
+    "30_dias": "30 Dias",
+  };
+  return planNames[planType] || planType;
+}
 
 async function openProfileModal() {
   if (!currentUser || !currentSubscription) {
@@ -997,10 +1007,9 @@ async function openProfileModal() {
           <div class="profile-section" style="margin-bottom: 25px;">
             <h3 style="color: white; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">💳 Informações de Pagamento</h3>
             <div class="payment-info" style="background: rgba(102, 126, 234, 0.05); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 8px; padding: 15px;">
-              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Plano:</strong> ${
-                PLANS[currentSubscription.plan_type]?.name ||
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Plano:</strong> ${getPlanName(
                 currentSubscription.plan_type
-              }</p>
+              )}</p>
               <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Valor:</strong> ${formatCurrency(
                 lastPayment.amount
               )}</p>
@@ -1018,10 +1027,9 @@ async function openProfileModal() {
           <div class="profile-section" style="margin-bottom: 25px;">
             <h3 style="color: white; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">💳 Assinatura</h3>
             <div class="payment-info" style="background: rgba(102, 126, 234, 0.05); border: 1px solid rgba(102, 126, 234, 0.2); border-radius: 8px; padding: 15px;">
-              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Plano:</strong> ${
-                PLANS[currentSubscription.plan_type]?.name ||
+              <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Plano:</strong> ${getPlanName(
                 currentSubscription.plan_type
-              }</p>
+              )}</p>
               <p style="color: #d1d5db; margin: 0 0 8px 0; font-size: 14px;"><strong>Expira em:</strong> ${formatDateBR(
                 currentSubscription.expires_at
               )}</p>
