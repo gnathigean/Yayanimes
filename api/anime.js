@@ -1,4 +1,4 @@
-// api-service.js - APENAS HIANIME API
+// api-service.js - HIANIME API (CORRIGIDO)
 
 const HIANIME_API_URL = "https://hiaapi-production.up.railway.app/api/v1";
 
@@ -26,6 +26,7 @@ async function apiRequest(url, options = {}, retries = 3) {
 
       const data = await response.json();
       console.log(`✅ Sucesso`);
+      console.log("📦 Dados recebidos:", data);
       return data;
     } catch (error) {
       console.error(`❌ Tentativa ${i + 1}/${retries} falhou:`, error.message);
@@ -35,18 +36,14 @@ async function apiRequest(url, options = {}, retries = 3) {
   }
 }
 
-// =========================
-// HIANIME API (COMPLETA)
-// =========================
-
-// 1. Home Page (animes em destaque)
+// Home Page
 async function getHomePage() {
   const url = `${HIANIME_API_URL}/home`;
   const data = await apiRequest(url);
-  return { success: true, data };
+  return { success: true, data: data.data || data };
 }
 
-// 2. Busca de animes
+// Busca
 async function search(keyword, page = 1) {
   const url = `${HIANIME_API_URL}/search?keyword=${encodeURIComponent(
     keyword
@@ -56,46 +53,52 @@ async function search(keyword, page = 1) {
     success: true,
     data: {
       currentPage: page,
-      hasNextPage: data.hasNextPage || false,
-      results: data.results || [],
+      hasNextPage: data.data?.hasNextPage || data.hasNextPage || false,
+      results: data.data?.animes || data.animes || data.results || [],
     },
   };
 }
 
-// 3. Sugestões de busca (autocomplete)
+// Sugestões
 async function getSearchSuggestions(keyword) {
   const url = `${HIANIME_API_URL}/search/suggestion?keyword=${encodeURIComponent(
     keyword
   )}`;
   const data = await apiRequest(url);
-  return { success: true, data: data.suggestions || [] };
+  return {
+    success: true,
+    data: data.data?.suggestions || data.suggestions || [],
+  };
 }
 
-// 4. Detalhes do anime
+// Detalhes do anime
 async function getAnimeInfo(animeId) {
   const url = `${HIANIME_API_URL}/anime/${animeId}`;
   const data = await apiRequest(url);
-  return { success: true, data };
+  return {
+    success: true,
+    data: data.data?.anime || data.anime || data.data || data,
+  };
 }
 
-// 5. Lista de episódios
+// Episódios
 async function getEpisodes(animeId) {
   const url = `${HIANIME_API_URL}/episodes/${animeId}`;
   const data = await apiRequest(url);
   return {
     success: true,
-    data: data.episodes || data.data || [],
+    data: data.data?.episodes || data.episodes || data.data || [],
   };
 }
 
-// 6. Servidores disponíveis
+// Servidores
 async function getEpisodeServers(episodeId) {
   const url = `${HIANIME_API_URL}/servers?id=${episodeId}`;
   const data = await apiRequest(url);
-  return { success: true, data };
+  return { success: true, data: data.data || data };
 }
 
-// 7. Link de streaming
+// Streaming
 async function getStreamingLink(
   episodeId,
   server = "vidstreaming",
@@ -104,40 +107,41 @@ async function getStreamingLink(
   const url = `${HIANIME_API_URL}/stream?id=${episodeId}&server=${server}&type=${type}`;
   const data = await apiRequest(url);
 
+  const sources = data.data?.sources || data.sources || [];
   const streamingLink =
-    data.sources?.find((s) => s.quality === "auto" || s.quality === "default")
-      ?.url ||
-    data.sources?.[0]?.url ||
+    sources.find((s) => s.quality === "auto" || s.quality === "default")?.url ||
+    sources[0]?.url ||
     null;
 
   return {
     success: !!streamingLink,
     data: {
       streamingLink,
-      allSources: data.sources || [],
-      subtitles: data.subtitles || [],
-      intro: data.intro || null,
-      outro: data.outro || null,
+      allSources: sources,
+      subtitles: data.data?.subtitles || data.subtitles || [],
+      intro: data.data?.intro || data.intro || null,
+      outro: data.data?.outro || data.outro || null,
     },
     error: streamingLink ? null : "Nenhum link de streaming disponível",
   };
 }
 
-// 8. Animes por categoria
+// Categoria
 async function getAnimesByCategory(category = "tv", page = 1) {
   const url = `${HIANIME_API_URL}/animes/${category}?page=${page}`;
   const data = await apiRequest(url);
+  console.log("📦 Resposta da categoria:", data);
   return {
     success: true,
     data: {
       currentPage: page,
-      hasNextPage: data.hasNextPage || false,
-      results: data.results || [],
+      hasNextPage: data.data?.hasNextPage || data.hasNextPage || false,
+      results: data.data?.animes || data.animes || data.results || [],
     },
   };
 }
 
-// Exporta para window
+// Exporta
 window.AnimeAPI = {
   getHomePage,
   search,
