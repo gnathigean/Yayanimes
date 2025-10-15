@@ -4,15 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>YayaAnimes - Streaming</title>
-
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- CSS (USA APENAS SEUS ARQUIVOS) -->
     <link rel="stylesheet" href="streaming.css" />
 
     <style>
-      /* APENAS AJUSTES ESPECÍFICOS PARA SCROLL INFINITO */
       .load-more-indicator {
         text-align: center;
         padding: 40px 20px;
@@ -20,11 +15,9 @@
         font-weight: 600;
         display: none;
       }
-
       .load-more-indicator.active {
         display: block;
       }
-
       .load-more-indicator .spinner {
         width: 40px;
         height: 40px;
@@ -47,21 +40,30 @@
       </div>
     </div>
 
-    <!-- Navigation -->
+    <!-- Navigation - EXPANDIDO COM TODOS OS ENDPOINTS -->
     <div class="navigation">
       <div class="nav-container">
         <div class="nav-tabs">
           <button class="nav-btn active" data-filter="home">
             <span>🏠</span> Início
           </button>
-          <button class="nav-btn" data-filter="tv">
-            <span>📺</span> Séries
+          <button class="nav-btn" data-filter="most-popular">
+            <span>🔥</span> Populares
           </button>
-          <button class="nav-btn" data-filter="movie">
-            <span>🎥</span> Filmes
+          <button class="nav-btn" data-filter="most-favorite">
+            <span>⭐</span> Favoritos
+          </button>
+          <button class="nav-btn" data-filter="latest-completed">
+            <span>✅</span> Completos
+          </button>
+          <button class="nav-btn" data-filter="top-airing">
+            <span>📺</span> Em Exibição
+          </button>
+          <button class="nav-btn" data-filter="top-upcoming">
+            <span>🎬</span> Próximos
           </button>
           <button class="nav-btn" data-filter="favorites">
-            <span>❤️</span> Favoritos
+            <span>❤️</span> Meus Favoritos
           </button>
         </div>
 
@@ -91,7 +93,6 @@
       <p>Carregando mais animes...</p>
     </div>
 
-    <!-- Scripts -->
     <script src="config.js"></script>
     <script src="api-service.js"></script>
     <script src="content-streaming.js"></script>

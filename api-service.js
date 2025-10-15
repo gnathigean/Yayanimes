@@ -1,157 +1,79 @@
-// api-service.js - HIANIME API (CORRIGIDO)
+// api-service.js - VERSÃO COMPLETA COM TODOS OS ENDPOINTS
+class AnimeAPI {
+  constructor() {
+    this.baseURL = "https://hiaapi-production.up.railway.app/api/v1";
+    console.log("✅ HiAnime API carregada!");
+    console.log("🎬 URL:", this.baseURL);
+  }
 
-const HIANIME_API_URL = "https://hiaapi-production.up.railway.app/api/v1";
-
-async function apiRequest(url, options = {}, retries = 3) {
-  console.log(`📡 GET ${url}`);
-  for (let i = 0; i < retries; i++) {
+  async request(endpoint) {
+    console.log(`📡 GET ${this.baseURL}${endpoint}`);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-      const response = await fetch(url, {
-        method: "GET",
-        signal: controller.signal,
-        ...options,
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          console.warn(`⚠️ Rate limit - aguardando...`);
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          continue;
-        }
-        throw new Error(`HTTP ${response.status}`);
-      }
-
+      const response = await fetch(`${this.baseURL}${endpoint}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      console.log(`✅ Sucesso`);
+      console.log("✅ Sucesso");
       console.log("📦 Dados recebidos:", data);
       return data;
     } catch (error) {
-      console.error(`❌ Tentativa ${i + 1}/${retries} falhou:`, error.message);
-      if (i === retries - 1) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.error("❌ Erro na requisição:", error);
+      throw error;
     }
+  }
+
+  // HOME PAGE
+  async getHomePage() {
+    return this.request("/home");
+  }
+
+  // CATEGORIAS EXPANDIDAS
+  async getAnimesByCategory(category, page = 1) {
+    const categoryMap = {
+      "most-popular": "most-popular",
+      "most-favorite": "most-favorite",
+      "latest-completed": "completed",
+      "top-airing": "top-airing",
+      "top-upcoming": "top-upcoming",
+      tv: "tv",
+      movie: "movie",
+      ona: "ona",
+      ova: "ova",
+      special: "special",
+    };
+
+    const mappedCategory = categoryMap[category] || category;
+    return this.request(`/anime/${mappedCategory}?page=${page}`);
+  }
+
+  // BUSCA
+  async search(query, page = 1) {
+    return this.request(
+      `/anime/search?q=${encodeURIComponent(query)}&page=${page}`
+    );
+  }
+
+  // DETALHES DO ANIME
+  async getAnimeDetails(animeId) {
+    return this.request(`/anime/info?id=${animeId}`);
+  }
+
+  // EPISÓDIOS
+  async getEpisodes(animeId) {
+    return this.request(`/anime/episodes/${animeId}`);
+  }
+
+  // SERVIDORES DE STREAMING
+  async getEpisodeServers(episodeId) {
+    return this.request(`/anime/servers?episodeId=${episodeId}`);
+  }
+
+  // LINKS DE STREAMING
+  async getStreamingLinks(episodeId, server = "hd-1", category = "sub") {
+    return this.request(
+      `/anime/episode-srcs?id=${episodeId}&server=${server}&category=${category}`
+    );
   }
 }
 
-// Home Page
-async function getHomePage() {
-  const url = `${HIANIME_API_URL}/home`;
-  const data = await apiRequest(url);
-  return { success: true, data: data.data || data };
-}
-
-// Busca
-async function search(keyword, page = 1) {
-  const url = `${HIANIME_API_URL}/search?keyword=${encodeURIComponent(
-    keyword
-  )}&page=${page}`;
-  const data = await apiRequest(url);
-  return {
-    success: true,
-    data: {
-      currentPage: page,
-      hasNextPage: data.data?.hasNextPage || data.hasNextPage || false,
-      results: data.data?.animes || data.animes || data.results || [],
-    },
-  };
-}
-
-// Sugestões
-async function getSearchSuggestions(keyword) {
-  const url = `${HIANIME_API_URL}/search/suggestion?keyword=${encodeURIComponent(
-    keyword
-  )}`;
-  const data = await apiRequest(url);
-  return {
-    success: true,
-    data: data.data?.suggestions || data.suggestions || [],
-  };
-}
-
-// Detalhes do anime
-async function getAnimeInfo(animeId) {
-  const url = `${HIANIME_API_URL}/anime/${animeId}`;
-  const data = await apiRequest(url);
-  return {
-    success: true,
-    data: data.data?.anime || data.anime || data.data || data,
-  };
-}
-
-// Episódios
-async function getEpisodes(animeId) {
-  const url = `${HIANIME_API_URL}/episodes/${animeId}`;
-  const data = await apiRequest(url);
-  return {
-    success: true,
-    data: data.data?.episodes || data.episodes || data.data || [],
-  };
-}
-
-// Servidores
-async function getEpisodeServers(episodeId) {
-  const url = `${HIANIME_API_URL}/servers?id=${episodeId}`;
-  const data = await apiRequest(url);
-  return { success: true, data: data.data || data };
-}
-
-// Streaming
-async function getStreamingLink(
-  episodeId,
-  server = "vidstreaming",
-  type = "sub"
-) {
-  const url = `${HIANIME_API_URL}/stream?id=${episodeId}&server=${server}&type=${type}`;
-  const data = await apiRequest(url);
-
-  const sources = data.data?.sources || data.sources || [];
-  const streamingLink =
-    sources.find((s) => s.quality === "auto" || s.quality === "default")?.url ||
-    sources[0]?.url ||
-    null;
-
-  return {
-    success: !!streamingLink,
-    data: {
-      streamingLink,
-      allSources: sources,
-      subtitles: data.data?.subtitles || data.subtitles || [],
-      intro: data.data?.intro || data.intro || null,
-      outro: data.data?.outro || data.outro || null,
-    },
-    error: streamingLink ? null : "Nenhum link de streaming disponível",
-  };
-}
-
-// Categoria
-async function getAnimesByCategory(category = "tv", page = 1) {
-  const url = `${HIANIME_API_URL}/animes/${category}?page=${page}`;
-  const data = await apiRequest(url);
-  console.log("📦 Resposta da categoria:", data);
-  return {
-    success: true,
-    data: {
-      currentPage: page,
-      hasNextPage: data.data?.hasNextPage || data.hasNextPage || false,
-      results: data.data?.animes || data.animes || data.results || [],
-    },
-  };
-}
-
-// Exporta
-window.AnimeAPI = {
-  getHomePage,
-  search,
-  getSearchSuggestions,
-  getAnimeInfo,
-  getEpisodes,
-  getEpisodeServers,
-  getStreamingLink,
-  getAnimesByCategory,
-};
-
-console.log("✅ HiAnime API carregada!");
-console.log("🎬 URL:", HIANIME_API_URL);
+// Inicializa globalmente
+window.AnimeAPI = new AnimeAPI();
