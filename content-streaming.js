@@ -174,9 +174,8 @@ function displayContent(items) {
 function createContentCard(anime) {
   const card = document.createElement("div");
   card.className = "content-card";
-  const isFavorite = favorites.some((f) => f.id === anime.id);
-  const title = anime.title;
-  const titleEnglish = anime.title?.english || anime.title || "Anime";
+  const isFavorite = favorites.some((f) => f.id === anime.mal_id);
+  const title = anime.title?.english || anime.title || "Anime";
   const totalEpisodes = anime.episodes || 12;
 
   card.innerHTML = `
@@ -192,7 +191,7 @@ function createContentCard(anime) {
             <div class="card-overlay">
                 <button class="play-btn" onclick="openPlayer('${
                   anime.mal_id
-                }', '${encodeURIComponent(titleEnglish)}', ${totalEpisodes})">
+                }', '${encodeURIComponent(title)}', ${totalEpisodes})">
                     ▶ Assistir
                 </button>
                 <button class="fav-btn ${
@@ -225,8 +224,15 @@ window.openPlayer = async function (malId, animeTitle, totalEpisodes) {
       decodeURIComponent(animeTitle)
     );
 
-    if (searchResponse.success && searchResponse.data.animes.length > 0) {
-      const hiAnimeId = searchResponse.data.animes[0].id;
+    console.log("🔍 Resposta da busca:", searchResponse);
+
+    // CORREÇÃO: A resposta da API tem data.results, não data.animes
+    if (
+      searchResponse.success &&
+      searchResponse.data.results &&
+      searchResponse.data.results.length > 0
+    ) {
+      const hiAnimeId = searchResponse.data.results[0].id;
       console.log(`✅ HiAnime ID encontrado: ${hiAnimeId}`);
 
       // Redireciona para o player
