@@ -6,24 +6,6 @@
     <title>YayaAnimes - Streaming</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="streaming.css" />
-
-    <style>
-      .load-more-indicator {
-        text-align: center;
-        padding: 40px 20px;
-        color: #ff6b6b;
-        font-weight: 600;
-        display: none;
-      }
-      .load-more-indicator.active {
-        display: block;
-      }
-      .load-more-indicator .spinner {
-        width: 40px;
-        height: 40px;
-        margin: 0 auto 15px;
-      }
-    </style>
   </head>
   <body>
     <!-- Header -->
@@ -40,57 +22,89 @@
       </div>
     </div>
 
-    <!-- Navigation - EXPANDIDO COM TODOS OS ENDPOINTS -->
-    <div class="navigation">
-      <div class="nav-container">
-        <div class="nav-tabs">
-          <button class="nav-btn active" data-filter="home">
-            <span>🏠</span> Início
-          </button>
-          <button class="nav-btn" data-filter="most-popular">
-            <span>🔥</span> Populares
-          </button>
-          <button class="nav-btn" data-filter="most-favorite">
-            <span>⭐</span> Favoritos
-          </button>
-          <button class="nav-btn" data-filter="latest-completed">
-            <span>✅</span> Completos
-          </button>
-          <button class="nav-btn" data-filter="top-airing">
-            <span>📺</span> Em Exibição
-          </button>
-          <button class="nav-btn" data-filter="top-upcoming">
-            <span>🎬</span> Próximos
-          </button>
-          <button class="nav-btn" data-filter="favorites">
-            <span>❤️</span> Meus Favoritos
-          </button>
-        </div>
+    <!-- Layout com Sidebar -->
+    <div class="layout-container">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+          <div class="search-sidebar">
+            <input
+              type="text"
+              id="search-input"
+              placeholder="Buscar anime..."
+              class="search-input"
+            />
+          </div>
 
-        <div class="search-container">
-          <input
-            type="text"
-            id="search-input"
-            placeholder="Buscar anime..."
-            class="search-input"
-          />
-          <span class="search-icon">🔍</span>
+          <!-- Principais -->
+          <div class="sidebar-section">
+            <h3>🎬 Principal</h3>
+            <button class="sidebar-btn active" data-action="home">
+              Início
+            </button>
+            <button class="sidebar-btn" data-action="most-popular">
+              Mais Populares
+            </button>
+            <button class="sidebar-btn" data-action="top-airing">
+              Em Exibição
+            </button>
+            <button class="sidebar-btn" data-action="latest-completed">
+              Completos
+            </button>
+            <button class="sidebar-btn" data-action="top-upcoming">
+              Próximos
+            </button>
+            <button class="sidebar-btn" data-action="favorites">
+              ❤️ Meus Favoritos
+            </button>
+          </div>
+
+          <!-- Gêneros -->
+          <div class="sidebar-section">
+            <h3>🎭 Gêneros</h3>
+            <div id="genres-list" class="genres-grid">
+              <button class="genre-btn" data-genre="action">Action</button>
+              <button class="genre-btn" data-genre="adventure">
+                Adventure
+              </button>
+              <button class="genre-btn" data-genre="comedy">Comedy</button>
+              <button class="genre-btn" data-genre="drama">Drama</button>
+              <button class="genre-btn" data-genre="fantasy">Fantasy</button>
+              <button class="genre-btn" data-genre="romance">Romance</button>
+              <button class="genre-btn" data-genre="sci-fi">Sci-Fi</button>
+              <button class="genre-btn" data-genre="horror">Horror</button>
+              <button class="genre-btn" data-genre="mystery">Mystery</button>
+              <button class="genre-btn" data-genre="slice-of-life">
+                Slice of Life
+              </button>
+            </div>
+          </div>
+
+          <!-- Tipos -->
+          <div class="sidebar-section">
+            <h3>📺 Tipos</h3>
+            <button class="sidebar-btn" data-action="tv">TV</button>
+            <button class="sidebar-btn" data-action="movie">Filmes</button>
+            <button class="sidebar-btn" data-action="ona">ONA</button>
+            <button class="sidebar-btn" data-action="ova">OVA</button>
+            <button class="sidebar-btn" data-action="special">Especiais</button>
+          </div>
         </div>
-      </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main id="main-content" class="main-content">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Carregando animes...</p>
+        </div>
+      </main>
     </div>
-
-    <!-- Main Content -->
-    <main id="main-content" class="main-content">
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Carregando animes...</p>
-      </div>
-    </main>
 
     <!-- Load More Indicator -->
     <div id="load-more-indicator" class="load-more-indicator">
       <div class="spinner"></div>
-      <p>Carregando mais animes...</p>
+      <p>Carregando mais...</p>
     </div>
 
     <script src="config.js"></script>

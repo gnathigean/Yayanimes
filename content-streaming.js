@@ -1,8 +1,9 @@
-// content-streaming.js - VERSÃO FINAL COM TODOS OS ENDPOINTS
+// content-streaming.js - VERSÃO COMPLETA COM SIDEBAR
 let currentUser = null;
 let favorites = [];
 let currentPage = 1;
-let currentCategory = "home";
+let currentFilter = "home";
+let currentGenre = null;
 let isLoading = false;
 let hasNextPage = true;
 let allAnimes = [];
@@ -23,39 +24,75 @@ async function init() {
 }
 
 function setupEventListeners() {
+  // Busca
   const searchInput = document.getElementById("search-input");
   if (searchInput) {
     searchInput.addEventListener("input", debounce(handleSearch, 500));
   }
 
-  const navButtons = document.querySelectorAll(".nav-btn");
-  navButtons.forEach((btn) => {
+  // Botões da sidebar
+  document.querySelectorAll(".sidebar-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      navButtons.forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".sidebar-btn")
+        .forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".genre-btn")
+        .forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      const filter = btn.dataset.filter;
 
+      const action = btn.dataset.action;
+      currentFilter = action;
+      currentGenre = null;
       currentPage = 1;
       allAnimes = [];
       hasNextPage = true;
-      currentCategory = filter;
 
-      if (filter === "favorites") {
+      if (action === "favorites") {
         showFavorites();
-      } else if (filter === "home") {
+      } else if (action === "home") {
         loadHomePage();
       } else {
-        loadAnimesByCategory(filter, 1);
+        loadAnimesByCategory(action, 1);
       }
     });
   });
 
+  // Botões de gênero
+  document.querySelectorAll(".genre-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".sidebar-btn")
+        .forEach((b) => b.classList.remove("active"));
+      document
+        .querySelectorAll(".genre-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      const genre = btn.dataset.genre;
+      currentGenre = genre;
+      currentFilter = null;
+      currentPage = 1;
+      allAnimes = [];
+      hasNextPage = true;
+
+      loadAnimesByGenre(genre, 1);
+    });
+  });
+
+  // Logout
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
 
-  // SCROLL INFINITO UNIVERSAL
+  // Scroll infinito
   window.addEventListener("scroll", () => {
-    if (isLoading || !hasNextPage || currentCategory === "favorites") return;
+    if (
+      isLoading ||
+      !hasNextPage ||
+      currentFilter === "favorites" ||
+      currentFilter === "home"
+    )
+      return;
 
     const scrollPosition = window.innerHeight + window.scrollY;
     const pageHeight = document.documentElement.scrollHeight;
@@ -124,17 +161,18 @@ async function verifyAccessAndLoadContent() {
   }
 }
 
-// CARREGA HOME - 50 CARDS
+// HOME - 50 CARDS
 async function loadHomePage() {
   console.log("📺 Carregando home...");
   showLoadingState();
-  currentCategory = "home";
+  currentFilter = "home";
 
   try {
     const response = await window.AnimeAPI.getHomePage();
     let animes = [];
 
     if (response.data) {
+      // Agrega TODAS as seções até ter 50 animes únicos
       const sections = [
         "trending",
         "spotlightAnimes",
@@ -142,9 +180,9 @@ async function loadHomePage() {
         "topUpcomingAnimes",
         "topAiringAnimes",
         "mostPopularAnimes",
-        "mostFavoriteAnimes",
         "latestCompletedAnimes",
       ];
+
       const seen = new Set();
 
       for (const section of sections) {
@@ -175,9 +213,9 @@ async function loadHomePage() {
   }
 }
 
-// CARREGA POR CATEGORIA (COM SCROLL INFINITO)
+// CATEGORIA
 async function loadAnimesByCategory(category, page = 1) {
-  console.log(`📺 Carregando ${category} - Página ${page}`);
+  console.log(`📺 ${category} - Página ${page}`);
 
   if (page === 1) {
     showLoadingState();
@@ -189,9 +227,46 @@ async function loadAnimesByCategory(category, page = 1) {
 
   try {
     const response = await window.AnimeAPI.getAnimesByCategory(category, page);
-    const newAnimes = response.data.results || [];
+    const newAnimes = response.data.results || response.data.animes || [];
 
-    console.log(`✅ ${newAnimes.length} animes (página ${page})`);
+    console.log(`✅ ${newAnimes.length} animes`);
+
+    allAnimes = page === 1 ? newAnimes : [...allAnimes, ...newAnimes];
+    hasNextPage = response.data.hasNextPage || false;
+
+    if (page === 1) {
+      displayContent(allAnimes);
+    } else {
+      appendContent(newAnimes);
+    }
+
+    showLoadMoreIndicator(false);
+  } catch (error) {
+    console.error("❌ Erro:", error);
+    showError("Erro ao carregar");
+    showLoadMoreIndicator(false);
+  } finally {
+    isLoading = false;
+  }
+}
+
+// GÊNERO
+async function loadAnimesByGenre(genre, page = 1) {
+  console.log(`🎭 ${genre} - Página ${page}`);
+
+  if (page === 1) {
+    showLoadingState();
+  } else {
+    showLoadMoreIndicator(true);
+  }
+
+  isLoading = true;
+
+  try {
+    const response = await window.AnimeAPI.getAnimesByGenre(genre, page);
+    const newAnimes = response.data.results || response.data.animes || [];
+
+    console.log(`✅ ${newAnimes.length} animes`);
 
     allAnimes = page === 1 ? newAnimes : [...allAnimes, ...newAnimes];
     hasNextPage = response.data.hasNextPage || false;
@@ -214,18 +289,20 @@ async function loadAnimesByCategory(category, page = 1) {
 
 // SCROLL INFINITO
 async function loadMoreAnimes() {
-  if (
-    isLoading ||
-    !hasNextPage ||
-    currentCategory === "home" ||
-    currentCategory === "favorites"
-  )
-    return;
+  if (isLoading || !hasNextPage) return;
 
   currentPage++;
   console.log("📜 Página", currentPage);
 
-  await loadAnimesByCategory(currentCategory, currentPage);
+  if (currentGenre) {
+    await loadAnimesByGenre(currentGenre, currentPage);
+  } else if (
+    currentFilter &&
+    currentFilter !== "home" &&
+    currentFilter !== "favorites"
+  ) {
+    await loadAnimesByCategory(currentFilter, currentPage);
+  }
 }
 
 // BUSCA
@@ -234,33 +311,35 @@ async function handleSearch(e) {
   if (!query) {
     currentPage = 1;
     allAnimes = [];
-    currentCategory = "home";
+    currentFilter = "home";
+    currentGenre = null;
     loadHomePage();
     return;
   }
 
-  console.log("🔍 Buscando:", query);
+  console.log("🔍", query);
   showLoadingState();
 
   try {
     const response = await window.AnimeAPI.search(query, 1);
-    const results = response.data.results || [];
+    const results = response.data.results || response.data.animes || [];
 
     if (results.length === 0) {
       showEmptyState("Nenhum anime encontrado");
     } else {
       allAnimes = results;
-      currentCategory = null;
+      currentFilter = null;
+      currentGenre = null;
       hasNextPage = false;
       displayContent(results);
     }
   } catch (error) {
-    console.error("❌ Erro:", error);
+    console.error("❌", error);
     showError("Erro na busca");
   }
 }
 
-// EXIBE ANIMES
+// EXIBIR
 function displayContent(items) {
   const mainContent = document.getElementById("main-content");
   mainContent.innerHTML = `<div class="content-grid" id="content-grid"></div>`;
@@ -274,7 +353,7 @@ function appendContent(items) {
   items.forEach((item) => grid.appendChild(createContentCard(item)));
 }
 
-// CRIA CARD
+// CARD
 function createContentCard(anime) {
   const card = document.createElement("div");
   card.className = "content-card";
@@ -355,7 +434,7 @@ function saveFavorites() {
 function showFavorites() {
   hasNextPage = false;
   if (favorites.length === 0) {
-    showEmptyState("Nenhum favorito adicionado");
+    showEmptyState("Nenhum favorito");
     return;
   }
   displayContent(favorites);
@@ -377,7 +456,7 @@ function showLoadingState() {
 
 function showLoadMoreIndicator(show) {
   const indicator = document.getElementById("load-more-indicator");
-  if (indicator) indicator.classList.toggle("active", show);
+  if (indicator) indicator.style.display = show ? "block" : "none";
 }
 
 function showEmptyState(message) {
@@ -397,9 +476,7 @@ function showAccessDenied() {
         <div class="loading-state">
             <h2 style="color:#ff6b6b;">🔒 Acesso Restrito</h2>
             <p>Assinatura necessária</p>
-            <button onclick="window.location.href='index.html'" style="margin-top:20px;padding:12px 30px;background:#ff6b6b;border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;">
-                Voltar ao Login
-            </button>
+            <button onclick="window.location.href='index.html'" style="margin-top:20px;padding:12px 30px;background:#ff6b6b;border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;">Voltar</button>
         </div>
     `;
 }

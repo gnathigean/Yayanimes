@@ -1,4 +1,4 @@
-// api-service.js - VERSÃO COMPLETA COM TODOS OS ENDPOINTS
+// api-service.js - VERSÃO FINAL CORRIGIDA
 class AnimeAPI {
   constructor() {
     this.baseURL = "https://hiaapi-production.up.railway.app/api/v1";
@@ -13,24 +13,22 @@ class AnimeAPI {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       console.log("✅ Sucesso");
-      console.log("📦 Dados recebidos:", data);
       return data;
     } catch (error) {
-      console.error("❌ Erro na requisição:", error);
+      console.error("❌ Erro:", error);
       throw error;
     }
   }
 
-  // HOME PAGE
+  // HOME
   async getHomePage() {
     return this.request("/home");
   }
 
-  // CATEGORIAS EXPANDIDAS
+  // CATEGORIAS
   async getAnimesByCategory(category, page = 1) {
     const categoryMap = {
       "most-popular": "most-popular",
-      "most-favorite": "most-favorite",
       "latest-completed": "completed",
       "top-airing": "top-airing",
       "top-upcoming": "top-upcoming",
@@ -41,8 +39,13 @@ class AnimeAPI {
       special: "special",
     };
 
-    const mappedCategory = categoryMap[category] || category;
-    return this.request(`/anime/${mappedCategory}?page=${page}`);
+    const mapped = categoryMap[category] || category;
+    return this.request(`/anime/${mapped}?page=${page}`);
+  }
+
+  // GÊNERO
+  async getAnimesByGenre(genreName, page = 1) {
+    return this.request(`/anime/genre/${genreName}?page=${page}`);
   }
 
   // BUSCA
@@ -52,7 +55,7 @@ class AnimeAPI {
     );
   }
 
-  // DETALHES DO ANIME
+  // DETALHES - CORRIGIDO
   async getAnimeDetails(animeId) {
     return this.request(`/anime/info?id=${animeId}`);
   }
@@ -62,12 +65,12 @@ class AnimeAPI {
     return this.request(`/anime/episodes/${animeId}`);
   }
 
-  // SERVIDORES DE STREAMING
+  // SERVIDORES
   async getEpisodeServers(episodeId) {
     return this.request(`/anime/servers?episodeId=${episodeId}`);
   }
 
-  // LINKS DE STREAMING
+  // STREAMING
   async getStreamingLinks(episodeId, server = "hd-1", category = "sub") {
     return this.request(
       `/anime/episode-srcs?id=${episodeId}&server=${server}&category=${category}`
@@ -75,5 +78,4 @@ class AnimeAPI {
   }
 }
 
-// Inicializa globalmente
 window.AnimeAPI = new AnimeAPI();
