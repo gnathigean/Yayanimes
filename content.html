@@ -8,38 +8,73 @@
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- CSS -->
+    <!-- CSS (USA APENAS SEUS ARQUIVOS) -->
     <link rel="stylesheet" href="streaming.css" />
-    <link rel="stylesheet" href="styles.css" />
+
+    <style>
+      /* APENAS AJUSTES ESPECÍFICOS PARA SCROLL INFINITO */
+      .load-more-indicator {
+        text-align: center;
+        padding: 40px 20px;
+        color: #ff6b6b;
+        font-weight: 600;
+        display: none;
+      }
+
+      .load-more-indicator.active {
+        display: block;
+      }
+
+      .load-more-indicator .spinner {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 15px;
+      }
+    </style>
   </head>
   <body>
     <!-- Header -->
-    <header class="header">
+    <div class="header">
       <div class="header-content">
-        <h1>🎬 YayaAnimes</h1>
-        <div class="user-info">
-          <span id="user-email">Carregando...</span>
-          <button id="logout-btn" class="btn-secondary">Sair</button>
+        <div class="logo-container">
+          <div class="logo">🎬 YayaAnimes</div>
+          <span class="premium-badge">PREMIUM</span>
+        </div>
+        <div class="header-actions">
+          <span class="user-email" id="user-email">Carregando...</span>
+          <button id="logout-btn" class="logout-btn">Sair</button>
         </div>
       </div>
-    </header>
+    </div>
 
     <!-- Navigation -->
-    <nav class="nav-bar">
-      <button class="nav-btn active" data-filter="home">🏠 Início</button>
-      <button class="nav-btn" data-filter="tv">📺 Séries</button>
-      <button class="nav-btn" data-filter="movie">🎥 Filmes</button>
-      <button class="nav-btn" data-filter="favorites">❤️ Favoritos</button>
-    </nav>
+    <div class="navigation">
+      <div class="nav-container">
+        <div class="nav-tabs">
+          <button class="nav-btn active" data-filter="home">
+            <span>🏠</span> Início
+          </button>
+          <button class="nav-btn" data-filter="tv">
+            <span>📺</span> Séries
+          </button>
+          <button class="nav-btn" data-filter="movie">
+            <span>🎥</span> Filmes
+          </button>
+          <button class="nav-btn" data-filter="favorites">
+            <span>❤️</span> Favoritos
+          </button>
+        </div>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-      <input
-        type="text"
-        id="search-input"
-        placeholder="🔍 Buscar anime..."
-        class="search-input"
-      />
+        <div class="search-container">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Buscar anime..."
+            class="search-input"
+          />
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
     </div>
 
     <!-- Main Content -->
@@ -49,6 +84,12 @@
         <p>Carregando animes...</p>
       </div>
     </main>
+
+    <!-- Load More Indicator -->
+    <div id="load-more-indicator" class="load-more-indicator">
+      <div class="spinner"></div>
+      <p>Carregando mais animes...</p>
+    </div>
 
     <!-- Scripts -->
     <script src="config.js"></script>

@@ -1,6 +1,11 @@
-// content-streaming.js - APENAS HIANIME API (FIX)
+// content-streaming.js - SCROLL INFINITO + 50 CARDS POR PÁGINA
 let currentUser = null;
 let favorites = [];
+let currentPage = 1;
+let currentCategory = "trending"; // trending, tv, movie
+let isLoading = false;
+let hasNextPage = true;
+let allAnimes = []; // Armazena todos os animes carregados
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -29,13 +34,22 @@ function setupEventListeners() {
       navButtons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       const filter = btn.dataset.filter;
+
+      // Reset
+      currentPage = 1;
+      allAnimes = [];
+      hasNextPage = true;
+
       if (filter === "favorites") {
         showFavorites();
       } else if (filter === "home") {
+        currentCategory = "trending";
         loadHomePage();
       } else if (filter === "tv") {
+        currentCategory = "tv";
         loadAnimesByCategory("tv");
       } else if (filter === "movie") {
+        currentCategory = "movie";
         loadAnimesByCategory("movie");
       }
     });
@@ -45,6 +59,19 @@ function setupEventListeners() {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", logout);
   }
+
+  // SCROLL INFINITO
+  window.addEventListener("scroll", () => {
+    if (isLoading || !hasNextPage) return;
+
+    const scrollPosition = window.innerHeight + window.scrollY;
+    const pageHeight = document.documentElement.scrollHeight;
+
+    // Quando estiver a 300px do final da página
+    if (scrollPosition >= pageHeight - 300) {
+      loadMoreAnimes();
+    }
+  });
 }
 
 function waitForAPI() {
@@ -64,7 +91,6 @@ function waitForAPI() {
         resolve();
       } else if (attempts >= 50) {
         clearInterval(checkInterval);
-        console.error("❌ API não carregou após 5 segundos");
         reject(new Error("API não carregou"));
       }
     }, 100);
@@ -80,7 +106,6 @@ async function verifyAccessAndLoadContent() {
     } = await window.supabase.auth.getUser();
 
     if (error || !user) {
-      console.log("❌ Usuário não autenticado");
       showAccessDenied();
       return;
     }
@@ -99,7 +124,6 @@ async function verifyAccessAndLoadContent() {
       .maybeSingle();
 
     if (!subscription || new Date(subscription.expires_at) < new Date()) {
-      console.log("❌ Sem assinatura ativa");
       showAccessDenied();
       return;
     }
@@ -107,25 +131,23 @@ async function verifyAccessAndLoadContent() {
     console.log("✅ Assinatura válida até:", subscription.expires_at);
     await loadHomePage();
   } catch (error) {
-    console.error("❌ Erro na verificação:", error);
+    console.error("❌ Erro:", error);
     showAccessDenied();
   }
 }
 
-// CARREGA HOME PAGE (ANIMES EM DESTAQUE) - CORRIGIDO
+// CARREGA HOME PAGE (TRENDING)
 async function loadHomePage() {
   console.log("📺 Carregando home...");
   showLoadingState();
   try {
     const response = await window.AnimeAPI.getHomePage();
 
-    console.log("🔍 Resposta completa da API:", response);
+    console.log("🔍 Resposta da API:", response);
 
-    // Extrai animes de diferentes seções da home
     let animes = [];
 
     if (response.data) {
-      // Tenta pegar de diferentes propriedades
       const sections = [
         "trending",
         "spotlightAnimes",
@@ -143,62 +165,79 @@ async function loadHomePage() {
           Array.isArray(response.data[section]) &&
           response.data[section].length > 0
         ) {
-          animes = response.data[section];
+          animes = response.data[section].slice(0, 50); // PEGA 50 ANIMES
           console.log(`✅ Usando seção: ${section} (${animes.length} animes)`);
           break;
         }
       }
-
-      // Se nenhuma seção específica, tenta pegar todos os valores do data
-      if (animes.length === 0) {
-        Object.keys(response.data).forEach((key) => {
-          if (
-            Array.isArray(response.data[key]) &&
-            response.data[key].length > 0
-          ) {
-            animes = response.data[key];
-            console.log(
-              `✅ Usando propriedade: ${key} (${animes.length} animes)`
-            );
-            return;
-          }
-        });
-      }
     }
 
-    console.log("✅ Animes carregados:", animes.length);
-
     if (animes.length === 0) {
-      console.log("⚠️ Nenhum anime na home, carregando categoria TV...");
+      console.log("⚠️ Home vazia, carregando categoria TV...");
       await loadAnimesByCategory("tv");
     } else {
+      allAnimes = animes;
       displayContent(animes);
     }
   } catch (error) {
     console.error("❌ Erro:", error);
-    showError("Erro ao carregar home. Tentando categoria TV...");
-    setTimeout(() => loadAnimesByCategory("tv"), 2000);
+    showError("Erro ao carregar");
   }
 }
 
-// CARREGA ANIMES POR CATEGORIA (TV, MOVIE, etc)
-async function loadAnimesByCategory(category = "tv") {
-  console.log(`📺 Carregando categoria: ${category}`);
-  showLoadingState();
+// CARREGA ANIMES POR CATEGORIA (COM PAGINAÇÃO)
+async function loadAnimesByCategory(category = "tv", page = 1) {
+  console.log(`📺 Carregando ${category} - Página ${page}`);
+
+  if (page === 1) {
+    showLoadingState();
+  } else {
+    showLoadMoreIndicator(true);
+  }
+
   try {
-    const response = await window.AnimeAPI.getAnimesByCategory(category, 1);
-    console.log("✅ Animes carregados:", response.data.results.length);
-    displayContent(response.data.results);
+    const response = await window.AnimeAPI.getAnimesByCategory(category, page);
+    const newAnimes = response.data.results || [];
+
+    console.log(`✅ ${newAnimes.length} animes carregados (página ${page})`);
+
+    allAnimes = page === 1 ? newAnimes : [...allAnimes, ...newAnimes];
+    hasNextPage = response.data.hasNextPage || false;
+
+    if (page === 1) {
+      displayContent(allAnimes);
+    } else {
+      appendContent(newAnimes);
+    }
+
+    showLoadMoreIndicator(false);
   } catch (error) {
     console.error("❌ Erro:", error);
-    showError("Erro ao carregar categoria");
+    showError("Erro ao carregar");
+    showLoadMoreIndicator(false);
   }
+}
+
+// CARREGA MAIS ANIMES (SCROLL INFINITO)
+async function loadMoreAnimes() {
+  if (isLoading || !hasNextPage || currentCategory === "trending") return;
+
+  isLoading = true;
+  currentPage++;
+
+  console.log("📜 Carregando mais... Página", currentPage);
+
+  await loadAnimesByCategory(currentCategory, currentPage);
+
+  isLoading = false;
 }
 
 // BUSCA DE ANIMES
 async function handleSearch(e) {
   const query = e.target.value.trim();
   if (!query) {
+    currentPage = 1;
+    allAnimes = [];
     loadHomePage();
     return;
   }
@@ -208,14 +247,18 @@ async function handleSearch(e) {
 
   try {
     const response = await window.AnimeAPI.search(query, 1);
-    if (response.data.results.length === 0) {
+    const results = response.data.results || [];
+
+    if (results.length === 0) {
       showEmptyState("Nenhum anime encontrado");
     } else {
-      console.log("✅ Encontrados:", response.data.results.length);
-      displayContent(response.data.results);
+      console.log("✅ Encontrados:", results.length);
+      allAnimes = results;
+      hasNextPage = false; // Desabilita scroll infinito na busca
+      displayContent(results);
     }
   } catch (error) {
-    console.error("❌ Erro na busca:", error);
+    console.error("❌ Erro:", error);
     showError("Erro na busca");
   }
 }
@@ -232,12 +275,23 @@ function displayContent(items) {
   });
 }
 
+// ADICIONA MAIS ANIMES NO GRID (SCROLL INFINITO)
+function appendContent(items) {
+  console.log("➕ Adicionando", items.length, "cards");
+  const grid = document.getElementById("content-grid");
+  if (!grid) return;
+
+  items.forEach((item) => {
+    const card = createContentCard(item);
+    grid.appendChild(card);
+  });
+}
+
 // CRIA O CARD DO ANIME
 function createContentCard(anime) {
   const card = document.createElement("div");
   card.className = "content-card";
 
-  // Detecta se é HiAnime ou Jikan
   const animeId = anime.id || anime.mal_id;
   const title = anime.name || anime.title || "Anime";
   const poster =
@@ -284,11 +338,9 @@ function createContentCard(anime) {
   return card;
 }
 
-// ABRE DETALHES DO ANIME (página anime.html)
+// ABRE DETALHES DO ANIME
 window.openAnimeDetails = function (animeId, animeTitle) {
-  console.log(
-    `🎬 Abrindo detalhes: ${decodeURIComponent(animeTitle)} (ID: ${animeId})`
-  );
+  console.log(`🎬 Abrindo: ${decodeURIComponent(animeTitle)}`);
   window.location.href = `anime.html?id=${animeId}&title=${animeTitle}`;
 };
 
@@ -297,14 +349,12 @@ window.toggleFavorite = function (id, title, image) {
   const index = favorites.findIndex((f) => f.id === id);
   if (index > -1) {
     favorites.splice(index, 1);
-    console.log("💔 Removido dos favoritos:", title);
   } else {
     favorites.push({ id, title, image });
-    console.log("❤️ Adicionado aos favoritos:", title);
   }
   saveFavorites();
 
-  // Atualiza todos os botões de favorito desse anime
+  // Atualiza UI
   document.querySelectorAll(`.fav-btn`).forEach((btn) => {
     const parentCard = btn.closest(".content-card");
     if (parentCard) {
@@ -321,7 +371,6 @@ function loadFavorites() {
   const saved = localStorage.getItem("favorites");
   if (saved) {
     favorites = JSON.parse(saved);
-    console.log("✅ Favoritos carregados:", favorites.length);
   }
 }
 
@@ -330,6 +379,7 @@ function saveFavorites() {
 }
 
 function showFavorites() {
+  hasNextPage = false; // Desabilita scroll infinito
   if (favorites.length === 0) {
     showEmptyState("Nenhum favorito adicionado");
     return;
@@ -341,12 +391,8 @@ function showFavorites() {
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
     clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+    timeout = setTimeout(() => func(...args), wait);
   };
 }
 
@@ -355,16 +401,23 @@ function showLoadingState() {
   mainContent.innerHTML = `
         <div class="loading-state">
             <div class="spinner"></div>
-            <p>Carregando...</p>
+            <p>Carregando animes...</p>
         </div>
     `;
+}
+
+function showLoadMoreIndicator(show) {
+  const indicator = document.getElementById("load-more-indicator");
+  if (indicator) {
+    indicator.classList.toggle("active", show);
+  }
 }
 
 function showEmptyState(message) {
   const mainContent = document.getElementById("main-content");
   mainContent.innerHTML = `
-        <div class="empty-state">
-            <p>📭</p>
+        <div class="loading-state">
+            <p style="font-size: 48px;">📭</p>
             <p>${message}</p>
         </div>
     `;
@@ -373,8 +426,8 @@ function showEmptyState(message) {
 function showError(message) {
   const mainContent = document.getElementById("main-content");
   mainContent.innerHTML = `
-        <div class="error-state">
-            <p>❌</p>
+        <div class="loading-state">
+            <p style="font-size: 48px;">❌</p>
             <p>${message}</p>
         </div>
     `;
@@ -383,10 +436,13 @@ function showError(message) {
 function showAccessDenied() {
   const mainContent = document.getElementById("main-content");
   mainContent.innerHTML = `
-        <div class="access-denied">
-            <h2>🔒 Acesso Restrito</h2>
-            <p>Você precisa de uma assinatura ativa para acessar este conteúdo.</p>
-            <button class="btn-primary" onclick="window.location.href='index.html'">Voltar ao Login</button>
+        <div class="loading-state">
+            <h2 style="color: #ff6b6b;">🔒 Acesso Restrito</h2>
+            <p>Você precisa de uma assinatura ativa.</p>
+            <button onclick="window.location.href='index.html'" 
+                    style="margin-top: 20px; padding: 12px 30px; background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%); border: none; border-radius: 10px; color: white; font-weight: 700; cursor: pointer;">
+                Voltar ao Login
+            </button>
         </div>
     `;
 }
