@@ -1,4 +1,4 @@
-// content-streaming.js - APENAS HIANIME API
+// content-streaming.js - APENAS HIANIME API (FIX)
 let currentUser = null;
 let favorites = [];
 
@@ -112,30 +112,72 @@ async function verifyAccessAndLoadContent() {
   }
 }
 
-// CARREGA HOME PAGE (ANIMES EM DESTAQUE)
+// CARREGA HOME PAGE (ANIMES EM DESTAQUE) - CORRIGIDO
 async function loadHomePage() {
   console.log("📺 Carregando home...");
   showLoadingState();
   try {
     const response = await window.AnimeAPI.getHomePage();
 
-    // Tenta pegar diferentes arrays de animes da home
-    const animes =
-      response.data.trending ||
-      response.data.spotlightAnimes ||
-      response.data.latestEpisodeAnimes ||
-      [];
+    console.log("🔍 Resposta completa da API:", response);
+
+    // Extrai animes de diferentes seções da home
+    let animes = [];
+
+    if (response.data) {
+      // Tenta pegar de diferentes propriedades
+      const sections = [
+        "trending",
+        "spotlightAnimes",
+        "latestEpisodeAnimes",
+        "topUpcomingAnimes",
+        "topAiringAnimes",
+        "mostPopularAnimes",
+        "mostFavoriteAnimes",
+        "latestCompletedAnimes",
+      ];
+
+      for (const section of sections) {
+        if (
+          response.data[section] &&
+          Array.isArray(response.data[section]) &&
+          response.data[section].length > 0
+        ) {
+          animes = response.data[section];
+          console.log(`✅ Usando seção: ${section} (${animes.length} animes)`);
+          break;
+        }
+      }
+
+      // Se nenhuma seção específica, tenta pegar todos os valores do data
+      if (animes.length === 0) {
+        Object.keys(response.data).forEach((key) => {
+          if (
+            Array.isArray(response.data[key]) &&
+            response.data[key].length > 0
+          ) {
+            animes = response.data[key];
+            console.log(
+              `✅ Usando propriedade: ${key} (${animes.length} animes)`
+            );
+            return;
+          }
+        });
+      }
+    }
 
     console.log("✅ Animes carregados:", animes.length);
 
     if (animes.length === 0) {
-      showEmptyState("Nenhum anime encontrado na home");
+      console.log("⚠️ Nenhum anime na home, carregando categoria TV...");
+      await loadAnimesByCategory("tv");
     } else {
       displayContent(animes);
     }
   } catch (error) {
     console.error("❌ Erro:", error);
-    showError("Erro ao carregar home");
+    showError("Erro ao carregar home. Tentando categoria TV...");
+    setTimeout(() => loadAnimesByCategory("tv"), 2000);
   }
 }
 
@@ -213,7 +255,8 @@ function createContentCard(anime) {
         <div class="card-image">
             <img src="${poster}" 
                  alt="${title}" 
-                 loading="lazy">
+                 loading="lazy"
+                 onerror="this.src='/placeholder.jpg'">
             <div class="type-badge">${type}</div>
             <div class="card-overlay">
                 <button class="play-btn" onclick="openAnimeDetails('${animeId}', '${encodeURIComponent(
@@ -222,7 +265,7 @@ function createContentCard(anime) {
                     ▶ Assistir
                 </button>
                 <button class="fav-btn ${isFavorite ? "active" : ""}" 
-                        onclick="toggleFavorite('${animeId}', '${title.replace(
+                        onclick="event.stopPropagation(); toggleFavorite('${animeId}', '${title.replace(
     /'/g,
     "\\'"
   )}', '${poster}')">
@@ -261,10 +304,17 @@ window.toggleFavorite = function (id, title, image) {
   }
   saveFavorites();
 
-  // Atualiza o botão
-  const btn = event.target;
-  btn.textContent = index > -1 ? "🤍" : "❤️";
-  btn.classList.toggle("active");
+  // Atualiza todos os botões de favorito desse anime
+  document.querySelectorAll(`.fav-btn`).forEach((btn) => {
+    const parentCard = btn.closest(".content-card");
+    if (parentCard) {
+      const cardTitle = parentCard.querySelector(".card-title")?.textContent;
+      if (cardTitle === title) {
+        btn.textContent = index > -1 ? "🤍" : "❤️";
+        btn.classList.toggle("active");
+      }
+    }
+  });
 };
 
 function loadFavorites() {
