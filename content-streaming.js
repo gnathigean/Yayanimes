@@ -215,38 +215,33 @@ function createContentCard(anime) {
 }
 
 // FUNÇÃO GLOBAL PARA ABRIR PLAYER
+// Atualizar apenas a função openPlayer:
+
 window.openPlayer = async function (malId, animeTitle, totalEpisodes) {
-  console.log(`🎬 Abrindo player para: ${animeTitle} (MAL ID: ${malId})`);
+  console.log(`🎬 Abrindo detalhes do anime: ${animeTitle}`);
 
   try {
-    // Busca ID da HiAnime a partir do título
+    // Busca ID da HiAnime
     const searchResponse = await window.AnimeAPI.searchHiAnime(
       decodeURIComponent(animeTitle)
     );
 
-    console.log("🔍 Resposta da busca:", searchResponse);
-
-    // CORREÇÃO: A resposta da API tem data.results, não data.animes
     if (
       searchResponse.success &&
       searchResponse.data.results &&
       searchResponse.data.results.length > 0
     ) {
       const hiAnimeId = searchResponse.data.results[0].id;
-      console.log(`✅ HiAnime ID encontrado: ${hiAnimeId}`);
+      console.log(`✅ HiAnime ID: ${hiAnimeId}`);
 
-      // Redireciona para o player
-      window.location.href = `player.html?animeId=${hiAnimeId}&episode=1&title=${animeTitle}`;
+      // Redireciona para a página de detalhes do anime
+      window.location.href = `anime.html?id=${hiAnimeId}&title=${animeTitle}`;
     } else {
-      alert(
-        `❌ Anime "${decodeURIComponent(
-          animeTitle
-        )}" não encontrado no servidor de streaming`
-      );
+      alert(`❌ Anime "${decodeURIComponent(animeTitle)}" não encontrado`);
     }
   } catch (error) {
-    console.error("❌ Erro ao buscar anime:", error);
-    alert("❌ Erro ao conectar com o servidor de streaming");
+    console.error("❌ Erro:", error);
+    alert("❌ Erro ao buscar anime");
   }
 };
 
