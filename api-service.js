@@ -1,7 +1,7 @@
-// api-service.js - JIKAN + HIANIME API (CORRIGIDO)
+// api-service.js - JIKAN + HIANIME API (COMPLETO)
 
 const JIKAN_URL = "https://api.jikan.moe/v4";
-const HIANIME_API_URL = "https://hiaapi-production.up.railway.app";
+const HIANIME_API_URL = "https://hiaapi-production.up.railway.app/api/v1";
 
 async function apiRequest(url, options = {}, retries = 3) {
   console.log(`📡 GET ${url}`);
@@ -89,66 +89,119 @@ async function getAnimeById(id) {
 // HIANIME API (STREAMING)
 // =========================
 
-async function searchHiAnime(query, page = 1) {
-  // CORREÇÃO: rota correta é /anime/search
-  const url = `${HIANIME_API_URL}/anime/search?q=${encodeURIComponent(
-    query
+// 1. Home Page
+async function getHomePage() {
+  const url = `${HIANIME_API_URL}/home`;
+  const data = await apiRequest(url);
+  return { success: true, data };
+}
+
+// 2. Anime List by Category
+async function getAnimesByCategory(query, category, page = 1) {
+  const url = `${HIANIME_API_URL}/animes/${query}/${category}?page=${page}`;
+  const data = await apiRequest(url);
+  return { success: true, data };
+}
+
+// 3. Anime Detailed Info
+async function getAnimeInfo(animeId) {
+  const url = `${HIANIME_API_URL}/anime/${animeId}`;
+  const data = await apiRequest(url);
+  return { success: true, data };
+}
+
+// 4. Search Results
+async function searchHiAnime(keyword, page = 1) {
+  const url = `${HIANIME_API_URL}/search?keyword=${encodeURIComponent(
+    keyword
   )}&page=${page}`;
   const data = await apiRequest(url);
-  return {
-    success: true,
-    data: data,
-  };
+  return { success: true, data };
 }
 
+// 5. Search Suggestions (Autocomplete)
+async function getSearchSuggestions(keyword) {
+  const url = `${HIANIME_API_URL}/search/suggestion?keyword=${encodeURIComponent(
+    keyword
+  )}`;
+  const data = await apiRequest(url);
+  return { success: true, data };
+}
+
+// 6. Anime Episodes
 async function getEpisodes(animeId) {
-  const url = `${HIANIME_API_URL}/anime/episodes/${animeId}`;
+  const url = `${HIANIME_API_URL}/episodes/${animeId}`;
   const data = await apiRequest(url);
   return {
     success: true,
-    data: data.episodes || [],
+    data: data.episodes || data.data || [],
   };
 }
 
-async function getStreamingLink(animeId, episodeNumber) {
-  // Primeiro busca ID do episódio
-  const episodesData = await getEpisodes(animeId);
-  const episode = episodesData.data.find((ep) => ep.number === episodeNumber);
+// 7. Episode Servers
+async function getEpisodeServers(episodeId) {
+  const url = `${HIANIME_API_URL}/servers?id=${episodeId}`;
+  const data = await apiRequest(url);
+  return { success: true, data };
+}
 
-  if (!episode) {
-    return {
-      success: false,
-      error: "Episódio não encontrado",
-    };
-  }
-
-  const url = `${HIANIME_API_URL}/anime/episode-srcs?id=${episode.episodeId}`;
+// 8. Streaming Links
+async function getStreamingLink(
+  episodeId,
+  server = "vidstreaming",
+  type = "sub"
+) {
+  const url = `${HIANIME_API_URL}/stream?id=${episodeId}&server=${server}&type=${type}`;
   const data = await apiRequest(url);
 
-  // Pega o primeiro link de streaming disponível
-  const streamingLink = data.sources?.[0]?.url || null;
+  // Pega o link de streaming (formato HLS m3u8)
+  const streamingLink =
+    data.sources?.find((s) => s.quality === "auto" || s.quality === "default")
+      ?.url ||
+    data.sources?.[0]?.url ||
+    null;
 
   return {
     success: !!streamingLink,
     data: {
       streamingLink,
-      episode: episode,
-      allSources: data.sources,
+      allSources: data.sources || [],
+      subtitles: data.subtitles || [],
+      intro: data.intro || null,
+      outro: data.outro || null,
     },
+    error: streamingLink ? null : "Nenhum link de streaming disponível",
   };
 }
 
 // Exporta para window
 window.AnimeAPI = {
+  // Jikan (MyAnimeList)
   search,
   getTopAiring,
   getCurrentSeason,
   getAnimeById,
+
+  // HiAnime API
+  getHomePage,
+  getAnimesByCategory,
+  getAnimeInfo,
   searchHiAnime,
+  getSearchSuggestions,
   getEpisodes,
+  getEpisodeServers,
   getStreamingLink,
 };
 
 console.log("✅ API carregada (HiAnime + Jikan)!");
 console.log("🔗 Jikan:", JIKAN_URL);
 console.log("🎬 HiAnime API:", HIANIME_API_URL);
+console.log("📋 Endpoints HiAnime disponíveis:");
+console.log("  • Home: /home");
+console.log("  • Animes: /animes/{query}/{category}?page={page}");
+console.log("  • Info: /anime/{animeId}");
+console.log("  • Busca: /search?keyword={keyword}&page={page}");
+console.log("  • Sugestões: /search/suggestion?keyword={keyword}");
+console.log("  • Episódios: /episodes/{animeId}");
+console.log("  • Servidores: /servers?id={episodeId}");
+console.log("  • Stream: /stream?id={episodeId}&server={server}&type={type}");
