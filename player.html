@@ -187,6 +187,7 @@
       let currentServer = "vidstreaming";
       let currentAnimeTitle = "";
       let currentEpisodeNumber = 1;
+      let hlsInstance = null;
 
       // Pega parâmetros da URL
       function getUrlParams() {
@@ -198,6 +199,31 @@
         };
       }
 
+      // Aguarda API carregar
+      async function waitForAPI() {
+        return new Promise((resolve, reject) => {
+          if (window.AnimeAPI) {
+            console.log("✅ AnimeAPI encontrada");
+            resolve();
+            return;
+          }
+
+          let attempts = 0;
+          const checkInterval = setInterval(() => {
+            attempts++;
+            console.log(`⏳ Aguardando API... (tentativa ${attempts})`);
+            if (window.AnimeAPI) {
+              clearInterval(checkInterval);
+              console.log("✅ AnimeAPI carregada!");
+              resolve();
+            } else if (attempts >= 50) {
+              clearInterval(checkInterval);
+              reject(new Error("API não carregou"));
+            }
+          }, 100);
+        });
+      }
+
       // Carrega HLS
       function loadHls(url) {
         if (!url) {
@@ -207,29 +233,53 @@
 
         msg.textContent = "";
 
+        // Limpa instância anterior do HLS
+        if (hlsInstance) {
+          hlsInstance.destroy();
+          hlsInstance = null;
+        }
+
         if (video.canPlayType("application/vnd.apple.mpegurl")) {
           // Safari nativo
           video.src = url;
-          video.play().catch((e) => console.log("Autoplay bloqueado"));
+          video.play().catch((e) => {
+            console.log("Autoplay bloqueado:", e);
+            msg.textContent = "▶️ Clique no play para assistir";
+          });
         } else if (window.Hls && Hls.isSupported()) {
           // HLS.js para outros browsers
-          const hls = new Hls({
+          hlsInstance = new Hls({
             xhrSetup: function (xhr, url) {
               xhr.withCredentials = false;
             },
+            enableWorker: true,
+            lowLatencyMode: true,
           });
 
-          hls.loadSource(url);
-          hls.attachMedia(video);
+          hlsInstance.loadSource(url);
+          hlsInstance.attachMedia(video);
 
-          hls.on(Hls.Events.ERROR, function (event, data) {
+          hlsInstance.on(Hls.Events.ERROR, function (event, data) {
             console.error("HLS Error:", data);
             if (data.fatal) {
-              msg.textContent = "❌ Erro ao carregar vídeo: " + data.details;
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  msg.textContent = "❌ Erro de rede. Tente outro servidor.";
+                  hlsInstance.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  msg.textContent = "❌ Erro de mídia. Recuperando...";
+                  hlsInstance.recoverMediaError();
+                  break;
+                default:
+                  msg.textContent = "❌ Erro fatal: " + data.details;
+                  hlsInstance.destroy();
+                  break;
+              }
             }
           });
 
-          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, function () {
             console.log("✅ Stream carregado com sucesso!");
             msg.textContent = "";
             video.play().catch((e) => {
@@ -267,8 +317,7 @@
             msg.textContent = "";
           } else {
             console.error("❌ Stream não encontrado:", streamData);
-            msg.textContent =
-              "❌ Erro: " + (streamData.error || "Stream não encontrado");
+            msg.textContent = "❌ Episódio indisponível. Tente outro servidor.";
           }
         } catch (error) {
           console.error("❌ Erro ao carregar episódio:", error);
@@ -283,8 +332,12 @@
         // Atualiza UI dos botões
         document.querySelectorAll(".server-btn").forEach((btn) => {
           btn.classList.remove("active");
+          if (
+            btn.textContent.toLowerCase().includes(serverName.toLowerCase())
+          ) {
+            btn.classList.add("active");
+          }
         });
-        event.target.classList.add("active");
 
         // Recarrega com novo servidor
         loadEpisode();
@@ -308,21 +361,18 @@
         currentEpisodeNumber = params.episodeNumber;
 
         animeTitle.textContent = currentAnimeTitle;
-        episodeInfo.textContent = `Episódio ${currentEpisodeNumber}`;
+        episodeInfo.textContent = `Episódio ${currentEpisodeNumber} - Aguardando API...`;
 
-        // Aguarda API carregar
-        if (!window.AnimeAPI) {
-          console.log("⏳ Aguardando API carregar...");
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          // Aguarda API carregar
+          await waitForAPI();
+
+          // Carrega o episódio
+          await loadEpisode();
+        } catch (error) {
+          console.error("❌ Erro na inicialização:", error);
+          msg.textContent = "❌ Erro ao carregar API. Recarregue a página.";
         }
-
-        if (!window.AnimeAPI) {
-          msg.textContent = "❌ API não carregou. Recarregue a página.";
-          return;
-        }
-
-        // Carrega o episódio
-        await loadEpisode();
       }
 
       // Espera DOM carregar

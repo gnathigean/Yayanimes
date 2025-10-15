@@ -1,59 +1,58 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YayaAnimes - Plataforma Premium</title>
-    <link rel="stylesheet" href="streaming.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-    <script src="config.js"></script>
-    <script src="api-service.js"></script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YayaAnimes - Streaming</title>
 
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="streaming.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
     <!-- Header -->
     <header class="header">
-        <div class="header-content">
-            <div class="logo-container">
-                <h1 class="logo">🎌 YayaAnimes</h1>
-                <span class="premium-badge">PREMIUM</span>
-            </div>
-            <div class="header-actions">
-                <span id="user-email" class="user-email">Carregando...</span>
-                <button id="logout-btn" class="logout-btn">Sair</button>
-            </div>
+      <div class="header-content">
+        <h1>🎬 YayaAnimes</h1>
+        <div class="user-info">
+          <span id="user-email">Carregando...</span>
+          <button id="logout-btn" class="btn-secondary">Sair</button>
         </div>
+      </div>
     </header>
 
     <!-- Navigation -->
-    <nav class="navigation">
-        <div class="nav-container">
-            <div class="nav-tabs">
-                <button class="nav-btn active" data-filter="airing">
-                    <span>🔥</span> Em Exibição
-                </button>
-                <button class="nav-btn" data-filter="season">
-                    <span>📅</span> Temporada Atual
-                </button>
-                <button class="nav-btn" data-filter="favorites">
-                    <span>❤️</span> Favoritos
-                </button>
-            </div>
-            <div class="search-container">
-                <input type="text" id="search-input" class="search-input" placeholder="Buscar animes...">
-                <span class="search-icon">🔍</span>
-            </div>
-        </div>
+    <nav class="nav-bar">
+      <button class="nav-btn active" data-filter="home">🏠 Início</button>
+      <button class="nav-btn" data-filter="tv">📺 Séries</button>
+      <button class="nav-btn" data-filter="movie">🎥 Filmes</button>
+      <button class="nav-btn" data-filter="favorites">❤️ Favoritos</button>
     </nav>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+      <input
+        type="text"
+        id="search-input"
+        placeholder="🔍 Buscar anime..."
+        class="search-input"
+      />
+    </div>
 
     <!-- Main Content -->
     <main id="main-content" class="main-content">
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Carregando animes...</p>
-        </div>
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando animes...</p>
+      </div>
     </main>
 
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="api-service.js"></script>
     <script src="content-streaming.js"></script>
-</body>
+  </body>
 </html>

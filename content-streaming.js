@@ -1,4 +1,4 @@
-// content-streaming.js - INTEGRADO COM HIANIME API + PLAYER HLS
+// content-streaming.js - APENAS HIANIME API
 let currentUser = null;
 let favorites = [];
 
@@ -31,10 +31,12 @@ function setupEventListeners() {
       const filter = btn.dataset.filter;
       if (filter === "favorites") {
         showFavorites();
-      } else if (filter === "airing") {
-        loadTopAiring();
-      } else if (filter === "season") {
-        loadCurrentSeason();
+      } else if (filter === "home") {
+        loadHomePage();
+      } else if (filter === "tv") {
+        loadAnimesByCategory("tv");
+      } else if (filter === "movie") {
+        loadAnimesByCategory("movie");
       }
     });
   });
@@ -103,43 +105,59 @@ async function verifyAccessAndLoadContent() {
     }
 
     console.log("✅ Assinatura válida até:", subscription.expires_at);
-    await loadTopAiring();
+    await loadHomePage();
   } catch (error) {
     console.error("❌ Erro na verificação:", error);
     showAccessDenied();
   }
 }
 
-async function loadTopAiring() {
-  console.log("📺 Carregando animes em exibição...");
+// CARREGA HOME PAGE (ANIMES EM DESTAQUE)
+async function loadHomePage() {
+  console.log("📺 Carregando home...");
   showLoadingState();
   try {
-    const response = await window.AnimeAPI.getTopAiring(1);
+    const response = await window.AnimeAPI.getHomePage();
+
+    // Tenta pegar diferentes arrays de animes da home
+    const animes =
+      response.data.trending ||
+      response.data.spotlightAnimes ||
+      response.data.latestEpisodeAnimes ||
+      [];
+
+    console.log("✅ Animes carregados:", animes.length);
+
+    if (animes.length === 0) {
+      showEmptyState("Nenhum anime encontrado na home");
+    } else {
+      displayContent(animes);
+    }
+  } catch (error) {
+    console.error("❌ Erro:", error);
+    showError("Erro ao carregar home");
+  }
+}
+
+// CARREGA ANIMES POR CATEGORIA (TV, MOVIE, etc)
+async function loadAnimesByCategory(category = "tv") {
+  console.log(`📺 Carregando categoria: ${category}`);
+  showLoadingState();
+  try {
+    const response = await window.AnimeAPI.getAnimesByCategory(category, 1);
     console.log("✅ Animes carregados:", response.data.results.length);
     displayContent(response.data.results);
   } catch (error) {
-    console.error("❌ Erro ao carregar:", error);
-    showError("Erro ao carregar animes em exibição");
+    console.error("❌ Erro:", error);
+    showError("Erro ao carregar categoria");
   }
 }
 
-async function loadCurrentSeason() {
-  console.log("📺 Carregando temporada atual...");
-  showLoadingState();
-  try {
-    const response = await window.AnimeAPI.getCurrentSeason(1);
-    console.log("✅ Temporada carregada:", response.data.results.length);
-    displayContent(response.data.results);
-  } catch (error) {
-    console.error("❌ Erro ao carregar:", error);
-    showError("Erro ao carregar temporada atual");
-  }
-}
-
+// BUSCA DE ANIMES
 async function handleSearch(e) {
   const query = e.target.value.trim();
   if (!query) {
-    loadTopAiring();
+    loadHomePage();
     return;
   }
 
@@ -160,6 +178,7 @@ async function handleSearch(e) {
   }
 }
 
+// EXIBE OS ANIMES NA TELA
 function displayContent(items) {
   console.log("🎨 Exibindo", items.length, "cards");
   const mainContent = document.getElementById("main-content");
@@ -171,34 +190,42 @@ function displayContent(items) {
   });
 }
 
+// CRIA O CARD DO ANIME
 function createContentCard(anime) {
   const card = document.createElement("div");
   card.className = "content-card";
-  const isFavorite = favorites.some((f) => f.id === anime.mal_id);
-  const title = anime.title?.english || anime.title || "Anime";
-  const totalEpisodes = anime.episodes || 12;
+
+  // Detecta se é HiAnime ou Jikan
+  const animeId = anime.id || anime.mal_id;
+  const title = anime.name || anime.title || "Anime";
+  const poster =
+    anime.poster ||
+    anime.image ||
+    anime.images?.jpg?.large_image_url ||
+    "/placeholder.jpg";
+  const rating = anime.rating || anime.score || "N/A";
+  const episodes = anime.episodes?.sub || anime.episodes || "?";
+  const type = anime.type || "TV";
+
+  const isFavorite = favorites.some((f) => f.id === animeId);
 
   card.innerHTML = `
         <div class="card-image">
-            <img src="${
-              anime.images?.jpg?.large_image_url ||
-              anime.image ||
-              "/placeholder.jpg"
-            }" 
+            <img src="${poster}" 
                  alt="${title}" 
                  loading="lazy">
-            <div class="type-badge">${anime.type || "TV"}</div>
+            <div class="type-badge">${type}</div>
             <div class="card-overlay">
-                <button class="play-btn" onclick="openPlayer('${
-                  anime.mal_id
-                }', '${encodeURIComponent(title)}', ${totalEpisodes})">
+                <button class="play-btn" onclick="openAnimeDetails('${animeId}', '${encodeURIComponent(
+    title
+  )}')">
                     ▶ Assistir
                 </button>
-                <button class="fav-btn ${
-                  isFavorite ? "active" : ""
-                }" onclick="toggleFavorite(${anime.mal_id}, '${title}', '${
-    anime.images?.jpg?.large_image_url
-  }')">
+                <button class="fav-btn ${isFavorite ? "active" : ""}" 
+                        onclick="toggleFavorite('${animeId}', '${title.replace(
+    /'/g,
+    "\\'"
+  )}', '${poster}')">
                     ${isFavorite ? "❤️" : "🤍"}
                 </button>
             </div>
@@ -206,47 +233,24 @@ function createContentCard(anime) {
         <div class="card-info">
             <h3 class="card-title">${title}</h3>
             <div class="card-meta">
-                <span>${anime.score || "N/A"} ⭐</span>
-                <span>${totalEpisodes} eps</span>
+                <span>${rating} ⭐</span>
+                <span>${episodes} eps</span>
             </div>
         </div>
     `;
   return card;
 }
 
-// FUNÇÃO GLOBAL PARA ABRIR PLAYER
-// Atualizar apenas a função openPlayer:
-
-window.openPlayer = async function (malId, animeTitle, totalEpisodes) {
-  console.log(`🎬 Abrindo detalhes do anime: ${animeTitle}`);
-
-  try {
-    // Busca ID da HiAnime
-    const searchResponse = await window.AnimeAPI.searchHiAnime(
-      decodeURIComponent(animeTitle)
-    );
-
-    if (
-      searchResponse.success &&
-      searchResponse.data.results &&
-      searchResponse.data.results.length > 0
-    ) {
-      const hiAnimeId = searchResponse.data.results[0].id;
-      console.log(`✅ HiAnime ID: ${hiAnimeId}`);
-
-      // Redireciona para a página de detalhes do anime
-      window.location.href = `anime.html?id=${hiAnimeId}&title=${animeTitle}`;
-    } else {
-      alert(`❌ Anime "${decodeURIComponent(animeTitle)}" não encontrado`);
-    }
-  } catch (error) {
-    console.error("❌ Erro:", error);
-    alert("❌ Erro ao buscar anime");
-  }
+// ABRE DETALHES DO ANIME (página anime.html)
+window.openAnimeDetails = function (animeId, animeTitle) {
+  console.log(
+    `🎬 Abrindo detalhes: ${decodeURIComponent(animeTitle)} (ID: ${animeId})`
+  );
+  window.location.href = `anime.html?id=${animeId}&title=${animeTitle}`;
 };
 
-// FUNÇÕES DE FAVORITOS
-window.toggleFavorite = async function (id, title, image) {
+// FAVORITOS
+window.toggleFavorite = function (id, title, image) {
   const index = favorites.findIndex((f) => f.id === id);
   if (index > -1) {
     favorites.splice(index, 1);
@@ -257,7 +261,7 @@ window.toggleFavorite = async function (id, title, image) {
   }
   saveFavorites();
 
-  // Atualiza o ícone
+  // Atualiza o botão
   const btn = event.target;
   btn.textContent = index > -1 ? "🤍" : "❤️";
   btn.classList.toggle("active");
