@@ -5,8 +5,7 @@ class AnimeAPI {
     this.baseURL = "https://hianime-api-bmy9.onrender.com/api/v1";
 
     // ✅ USAR PROXY LOCAL (deploy no Vercel junto com o site)
-    this.proxyURL =
-      "https://ancient-river-7e43.zgabrielnathigean.workers.dev/?url=";
+    this.proxyURL = "https://api.allorigins.win/raw?url=";
 
     // Se estiver testando localmente, use:
     // this.proxyURL = 'http://localhost:3000/api/proxy?url=';
