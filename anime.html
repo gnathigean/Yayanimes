@@ -1,422 +1,447 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anime - YayaAnimes</title>
-    <link rel="stylesheet" href="streaming.css" />
-    <style>
-      .anime-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 20px;
-        background: #0a0a0a;
-        min-height: 100vh;
-      }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anime - YayaAnimes</title>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- HLS.js -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+      color: white;
+      min-height: 100vh;
+    }
 
-      .back-btn {
-        background: rgba(255, 255, 255, 0.1);
-        border: none;
-        padding: 10px 20px;
-        border-radius: 8px;
-        color: white;
-        cursor: pointer;
-        margin-bottom: 20px;
-        font-size: 14px;
-      }
+    .anime-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      padding-top: 90px;
+    }
 
-      .back-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
-      }
+    .back-btn {
+      background: rgba(229, 9, 20, 0.8);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      margin-bottom: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s;
+    }
 
+    .back-btn:hover {
+      background: rgba(229, 9, 20, 1);
+      transform: translateY(-2px);
+    }
+
+    .anime-header {
+      display: flex;
+      gap: 30px;
+      background: rgba(26, 26, 46, 0.8);
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      backdrop-filter: blur(10px);
+    }
+
+    .anime-poster {
+      flex-shrink: 0;
+    }
+
+    .anime-poster img {
+      width: 250px;
+      height: 350px;
+      object-fit: cover;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);
+    }
+
+    .anime-details {
+      flex: 1;
+      color: white;
+    }
+
+    .anime-title {
+      font-size: 32px;
+      margin-bottom: 15px;
+      color: #e50914;
+    }
+
+    .anime-meta {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      background: rgba(229, 9, 20, 0.1);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .anime-description {
+      line-height: 1.6;
+      color: #ccc;
+      margin-top: 15px;
+    }
+
+    .episodes-section {
+      background: rgba(26, 26, 46, 0.8);
+      padding: 30px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .episodes-section h2 {
+      color: #e50914;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .episodes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 15px;
+    }
+
+    .episode-btn {
+      background: rgba(42, 42, 42, 0.8);
+      border: 2px solid transparent;
+      padding: 15px;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .episode-btn:hover {
+      background: rgba(229, 9, 20, 0.2);
+      border-color: #e50914;
+      transform: scale(1.05);
+    }
+
+    .episode-btn.filler {
+      opacity: 0.6;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #999;
+    }
+
+    .spinner {
+      border: 4px solid rgba(229, 9, 20, 0.1);
+      border-left-color: #e50914;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
       .anime-header {
-        display: flex;
-        gap: 30px;
-        background: #1a1a1a;
-        padding: 30px;
-        border-radius: 12px;
-        margin-bottom: 30px;
-      }
-
-      .anime-poster {
-        flex-shrink: 0;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
       }
 
       .anime-poster img {
-        width: 250px;
-        height: 350px;
-        object-fit: cover;
-        border-radius: 12px;
-        box-shadow: 0 8px 24px rgba(255, 107, 107, 0.3);
-      }
-
-      .anime-details {
-        flex: 1;
-        color: white;
-      }
-
-      .anime-title {
-        font-size: 32px;
-        margin-bottom: 15px;
-        color: #ff6b6b;
-      }
-
-      .anime-meta {
-        display: flex;
-        gap: 20px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-      }
-
-      .meta-item {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 14px;
-      }
-
-      .anime-description {
-        line-height: 1.8;
-        color: #ccc;
-        margin-bottom: 20px;
-      }
-
-      .anime-genres {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .genre-tag {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-      }
-
-      .episodes-section {
-        background: #1a1a1a;
-        padding: 30px;
-        border-radius: 12px;
-      }
-
-      .episodes-section h2 {
-        color: white;
-        margin-bottom: 20px;
-        font-size: 24px;
+        width: 200px;
+        height: 280px;
       }
 
       .episodes-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 10px;
       }
+    }
+  </style>
+</head>
+<body>
+  <div class="anime-container">
+    <button class="back-btn" onclick="window.history.back()">
+      <i class="fas fa-arrow-left"></i> Voltar
+    </button>
 
-      .episode-card {
-        background: #2a2a2a;
-        padding: 15px;
-        border-radius: 10px;
-        border: 2px solid transparent;
-        cursor: pointer;
-        transition: all 0.3s;
-        text-align: center;
-      }
-
-      .episode-card:hover {
-        background: #3a3a3a;
-        border-color: #ff6b6b;
-        transform: translateY(-4px);
-      }
-
-      .episode-number {
-        font-size: 18px;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 5px;
-      }
-
-      .episode-title {
-        font-size: 12px;
-        color: #888;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .loading-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #ccc;
-      }
-
-      .loading-state .spinner {
-        width: 60px;
-        height: 60px;
-        border: 4px solid rgba(255, 107, 107, 0.2);
-        border-top-color: #ff6b6b;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 20px;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      @media (max-width: 768px) {
-        .anime-header {
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .anime-poster img {
-          width: 200px;
-          height: 280px;
-        }
-
-        .anime-title {
-          font-size: 24px;
-          text-align: center;
-        }
-
-        .episodes-grid {
-          grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="anime-container">
-      <button class="back-btn" onclick="window.history.back()">← Voltar</button>
-
-      <div id="anime-content">
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <p>Carregando detalhes...</p>
-        </div>
+    <div id="anime-info">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Carregando anime...</p>
       </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="api-service.js"></script>
-    <script>
-      let currentAnimeId = null;
-      let animeData = null;
+    <div id="episodes-container"></div>
+  </div>
 
-      // Pega parâmetros da URL
-      function getUrlParams() {
-        const params = new URLSearchParams(window.location.search);
-        return {
-          id: params.get("id"),
-          title: params.get("title") || "Anime",
+  <!-- Scripts -->
+  <script src="config.js"></script>
+  <script src="api-service.js"></script>
+  
+  <script>
+    let animeData = null;
+    let episodesData = [];
+
+    // ==========================================
+    // INICIALIZAÇÃO
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      const animeId = params.get('id');
+      const animeTitle = params.get('title');
+
+      console.log('🚀 Parâmetros:', { id: animeId, title: animeTitle });
+
+      if (!animeId) {
+        showError('ID do anime não fornecido');
+        return;
+      }
+
+      await init(animeId, animeTitle);
+    });
+
+    async function init(animeId, animeTitle) {
+      try {
+        // Aguardar API
+        await waitForAPI();
+        
+        // Carregar detalhes e episódios
+        await loadAnimeDetails(animeId, animeTitle);
+        await loadEpisodes(animeId);
+        
+      } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+        showError('Erro ao carregar anime');
+      }
+    }
+
+    async function waitForAPI() {
+      let attempts = 0;
+      while (!window.AnimeAPI && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!window.AnimeAPI) {
+        throw new Error('API não carregada');
+      }
+    }
+
+    // ==========================================
+    // CARREGAR DETALHES DO ANIME
+    // ==========================================
+    async function loadAnimeDetails(animeId, animeTitle) {
+      console.log('📺 Carregando detalhes:', animeId);
+      
+      try {
+        const response = await window.AnimeAPI.getAnimeDetails(animeId);
+        
+        console.log('✅ Anime carregado:', response.data);
+        
+        if (response.success && response.data && response.data.anime) {
+          animeData = response.data.anime.info;
+          displayAnimeInfo(animeData, animeTitle);
+        } else {
+          throw new Error('Dados do anime não encontrados');
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao carregar detalhes:', error);
+        
+        // Fallback: Mostrar informações básicas
+        animeData = {
+          name: animeTitle || animeId.replace(/-/g, ' '),
+          poster: '/placeholder.jpg',
+          description: 'Selecione um episódio abaixo para assistir!',
+          stats: {
+            rating: 'N/A',
+            type: 'TV',
+            episodes: { sub: 0, dub: 0 }
+          }
         };
+        displayAnimeInfo(animeData, animeTitle);
       }
+    }
 
-      // Aguarda API carregar
-      async function waitForAPI() {
-        return new Promise((resolve, reject) => {
-          if (window.AnimeAPI) {
-            resolve();
-            return;
+    // ==========================================
+    // EXIBIR INFORMAÇÕES DO ANIME
+    // ==========================================
+    function displayAnimeInfo(anime, fallbackTitle) {
+      const container = document.getElementById('anime-info');
+      
+      const title = anime.name || fallbackTitle || 'Anime';
+      const poster = anime.poster || '/placeholder.jpg';
+      const description = anime.description || 'Selecione um episódio para assistir';
+      const rating = anime.stats?.rating || 'N/A';
+      const type = anime.stats?.type || 'TV';
+      const subEps = anime.stats?.episodes?.sub || 0;
+      const dubEps = anime.stats?.episodes?.dub || 0;
+      
+      container.innerHTML = `
+        <div class="anime-header">
+          <div class="anime-poster">
+            <img src="${poster}" alt="${title}" onerror="this.src='/placeholder.jpg'">
+          </div>
+          <div class="anime-details">
+            <h1 class="anime-title">${title}</h1>
+            <div class="anime-meta">
+              <div class="meta-item"><i class="fas fa-star"></i> ${rating}</div>
+              <div class="meta-item"><i class="fas fa-tv"></i> ${type}</div>
+              <div class="meta-item"><i class="fas fa-closed-captioning"></i> SUB: ${subEps}</div>
+              ${dubEps > 0 ? `<div class="meta-item"><i class="fas fa-microphone"></i> DUB: ${dubEps}</div>` : ''}
+            </div>
+            <div class="anime-description">
+              <p>${description}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // CARREGAR EPISÓDIOS
+    // ==========================================
+    async function loadEpisodes(animeId) {
+      console.log('📺 Carregando episódios:', animeId);
+      
+      try {
+        const response = await window.AnimeAPI.getEpisodes(animeId);
+        
+        console.log('✅ Resposta episódios:', response);
+        
+        if (response.success && response.data) {
+          // A API retorna { totalEpisodes, episodes }
+          let episodes = response.data.episodes || response.data;
+          
+          // Se não for array, converter
+          if (!Array.isArray(episodes)) {
+            console.error('❌ Episodes não é array:', episodes);
+            episodes = [];
           }
-
-          let attempts = 0;
-          const checkInterval = setInterval(() => {
-            attempts++;
-            console.log(`⏳ Aguardando API... (tentativa ${attempts})`);
-            if (window.AnimeAPI) {
-              clearInterval(checkInterval);
-              resolve();
-            } else if (attempts >= 50) {
-              clearInterval(checkInterval);
-              reject(new Error("API não carregou"));
-            }
-          }, 100);
-        });
-      }
-
-      // Carrega detalhes do anime
-      async function loadAnimeDetails() {
-        try {
-          console.log(`📺 Carregando detalhes: ${currentAnimeId}`);
-
-          const response = await window.AnimeAPI.getAnimeInfo(currentAnimeId);
-
-          if (!response.success) {
-            throw new Error("Erro ao carregar anime");
-          }
-
-          animeData = response.data;
-          console.log("✅ Anime carregado:", animeData);
-
-          displayAnimeHeader(animeData);
-          await loadEpisodes();
-        } catch (error) {
-          console.error("❌ Erro:", error);
-          document.getElementById("anime-content").innerHTML = `
-                    <div class="loading-state">
-                        <p>❌ Erro ao carregar anime</p>
-                        <button class="back-btn" onclick="window.history.back()">Voltar</button>
-                    </div>
-                `;
-        }
-      }
-
-      // Exibe cabeçalho do anime
-      function displayAnimeHeader(anime) {
-        const poster = anime.poster || anime.image || "/placeholder.jpg";
-        const title = anime.name || anime.title || "Anime";
-        const description = anime.description || "Sem descrição disponível.";
-        const rating = anime.rating || "N/A";
-        const status = anime.status || "N/A";
-        const type = anime.type || "TV";
-        const totalEpisodes = anime.totalEpisodes || "?";
-        const genres = anime.genres || [];
-
-        const headerHTML = `
-                <div class="anime-header">
-                    <div class="anime-poster">
-                        <img src="${poster}" alt="${title}" loading="lazy">
-                    </div>
-                    <div class="anime-details">
-                        <h1 class="anime-title">${title}</h1>
-                        <div class="anime-meta">
-                            <span class="meta-item">⭐ ${rating}</span>
-                            <span class="meta-item">📺 ${type}</span>
-                            <span class="meta-item">📊 ${status}</span>
-                            <span class="meta-item">🎬 ${totalEpisodes} episódios</span>
-                        </div>
-                        <p class="anime-description">${description}</p>
-                        ${
-                          genres.length > 0
-                            ? `
-                            <div class="anime-genres">
-                                ${genres
-                                  .map(
-                                    (g) => `<span class="genre-tag">${g}</span>`
-                                  )
-                                  .join("")}
-                            </div>
-                        `
-                            : ""
-                        }
-                    </div>
-                </div>
-            `;
-
-        document.getElementById("anime-content").innerHTML = headerHTML;
-      }
-
-      // Carrega lista de episódios
-      async function loadEpisodes() {
-        try {
-          console.log(`📺 Carregando episódios: ${currentAnimeId}`);
-
-          const response = await window.AnimeAPI.getEpisodes(currentAnimeId);
-
-          if (
-            !response.success ||
-            !response.data ||
-            response.data.length === 0
-          ) {
-            throw new Error("Nenhum episódio encontrado");
-          }
-
-          const episodes = response.data;
+          
           console.log(`✅ ${episodes.length} episódios carregados`);
-
+          
+          episodesData = episodes;
           displayEpisodes(episodes);
-        } catch (error) {
-          console.error("❌ Erro ao carregar episódios:", error);
-          document.getElementById("anime-content").innerHTML += `
-                    <div class="episodes-section">
-                        <h2>📺 Episódios</h2>
-                        <p style="color: #ff6b6b;">❌ Erro ao carregar episódios</p>
-                    </div>
-                `;
+        } else {
+          throw new Error('Nenhum episódio encontrado');
         }
+        
+      } catch (error) {
+        console.error('❌ Erro ao carregar episódios:', error);
+        showEpisodesError('Erro ao carregar episódios. Tente novamente.');
       }
+    }
 
-      // Exibe lista de episódios
-      function displayEpisodes(episodes) {
-        const episodesHTML = episodes
-          .map(
-            (ep) => `
-                <div class="episode-card" onclick="playEpisode('${
-                  ep.episodeId
-                }', ${ep.number})">
-                    <div class="episode-number">EP ${ep.number}</div>
-                    <div class="episode-title">${
-                      ep.title || `Episódio ${ep.number}`
-                    }</div>
-                </div>
-            `
-          )
-          .join("");
-
-        const sectionHTML = `
-                <div class="episodes-section">
-                    <h2>📺 Episódios (${episodes.length})</h2>
-                    <div class="episodes-grid">
-                        ${episodesHTML}
-                    </div>
-                </div>
-            `;
-
-        document.getElementById("anime-content").innerHTML += sectionHTML;
+    // ==========================================
+    // EXIBIR EPISÓDIOS
+    // ==========================================
+    function displayEpisodes(episodes) {
+      const container = document.getElementById('episodes-container');
+      
+      if (!episodes || episodes.length === 0) {
+        container.innerHTML = `
+          <div class="episodes-section">
+            <h2>📺 Episódios</h2>
+            <p style="text-align: center; color: #999; padding: 40px;">
+              Nenhum episódio disponível no momento.
+            </p>
+          </div>
+        `;
+        return;
       }
+      
+      const grid = episodes.map(ep => {
+        const epNum = ep.episodeNumber || ep.number || '?';
+        const epTitle = ep.title || `Episódio ${epNum}`;
+        const isFiller = ep.isFiller ? 'filler' : '';
+        
+        return `
+          <button 
+            class="episode-btn ${isFiller}" 
+            onclick="playEpisode('${ep.episodeId || ep.id}', ${epNum})"
+            title="${epTitle}">
+            <div>${epNum}</div>
+            ${ep.isFiller ? '<small>Filler</small>' : ''}
+          </button>
+        `;
+      }).join('');
+      
+      container.innerHTML = `
+        <div class="episodes-section">
+          <h2>📺 Episódios (${episodes.length})</h2>
+          <div class="episodes-grid">
+            ${grid}
+          </div>
+        </div>
+      `;
+    }
 
-      // Abre o player
-      function playEpisode(episodeId, episodeNumber) {
-        const animeTitle = animeData?.name || animeData?.title || "Anime";
-        const url = `player.html?episodeId=${episodeId}&animeTitle=${encodeURIComponent(
-          animeTitle
-        )}&episodeNumber=${episodeNumber}`;
-        console.log(`🎬 Abrindo player: ${url}`);
-        window.location.href = url;
-      }
+    // ==========================================
+    // REPRODUZIR EPISÓDIO
+    // ==========================================
+    function playEpisode(episodeId, episodeNumber) {
+      const animeTitle = animeData?.name || 'Anime';
+      const url = `player.html?episodeId=${encodeURIComponent(episodeId)}&animeTitle=${encodeURIComponent(animeTitle)}&episodeNumber=${episodeNumber}`;
+      
+      console.log('🎬 Abrindo player:', url);
+      window.location.href = url;
+    }
 
-      // Inicialização
-      async function init() {
-        const params = getUrlParams();
+    // ==========================================
+    // ESTADOS DE ERRO
+    // ==========================================
+    function showError(message) {
+      const container = document.getElementById('anime-info');
+      container.innerHTML = `
+        <div class="loading">
+          <i class="fas fa-exclamation-triangle" style="font-size: 64px; color: #e50914; margin-bottom: 20px;"></i>
+          <p style="color: #e50914; font-size: 18px;">${message}</p>
+          <button class="back-btn" onclick="window.history.back()" style="margin-top: 20px;">
+            <i class="fas fa-arrow-left"></i> Voltar
+          </button>
+        </div>
+      `;
+    }
 
-        console.log("🚀 Parâmetros:", params);
-
-        if (!params.id) {
-          document.getElementById("anime-content").innerHTML = `
-                    <div class="loading-state">
-                        <p>❌ ID do anime não especificado</p>
-                        <button class="back-btn" onclick="window.history.back()">Voltar</button>
-                    </div>
-                `;
-          return;
-        }
-
-        currentAnimeId = params.id;
-
-        try {
-          await waitForAPI();
-          await loadAnimeDetails();
-        } catch (error) {
-          console.error("❌ Erro na inicialização:", error);
-          document.getElementById("anime-content").innerHTML = `
-                    <div class="loading-state">
-                        <p>❌ Erro ao carregar. Recarregue a página.</p>
-                        <button class="back-btn" onclick="window.history.back()">Voltar</button>
-                    </div>
-                `;
-        }
-      }
-
-      // Inicia quando DOM carregar
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-      } else {
-        init();
-      }
-    </script>
-  </body>
+    function showEpisodesError(message) {
+      const container = document.getElementById('episodes-container');
+      container.innerHTML = `
+        <div class="episodes-section">
+          <h2>📺 Episódios</h2>
+          <p style="text-align: center; color: #e50914; padding: 40px;">
+            ${message}
+          </p>
+        </div>
+      `;
+    }
+  </script>
+</body>
 </html>
