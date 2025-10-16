@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teste de Proxies - YayaAnimes</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+        color: white;
+        padding: 40px 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 40px;
+        color: #e50914;
+      }
+
+      .test-section {
+        background: rgba(26, 26, 46, 0.8);
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        border: 1px solid rgba(229, 9, 20, 0.3);
+      }
+
+      .test-section h2 {
+        color: #e50914;
+        margin-bottom: 20px;
+      }
+
+      .proxy-result {
+        background: rgba(42, 42, 42, 0.6);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 4px solid #666;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .proxy-result.success {
+        border-left-color: #00ff00;
+      }
+
+      .proxy-result.error {
+        border-left-color: #ff0000;
+      }
+
+      .proxy-result.testing {
+        border-left-color: #ffaa00;
+      }
+
+      .proxy-name {
+        font-weight: 600;
+        flex: 1;
+      }
+
+      .proxy-status {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .status-success {
+        background: #00ff00;
+        color: #000;
+      }
+
+      .status-error {
+        background: #ff0000;
+        color: #fff;
+      }
+
+      .status-testing {
+        background: #ffaa00;
+        color: #000;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #e50914 0%, #c70713 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.3s;
+        display: block;
+        margin: 20px auto;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(229, 9, 20, 0.5);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .spinner {
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-left-color: #e50914;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-left: 10px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .result-code {
+        font-family: monospace;
+        font-size: 12px;
+        color: #999;
+      }
+
+      .summary {
+        text-align: center;
+        font-size: 20px;
+        margin-top: 30px;
+        padding: 20px;
+        background: rgba(229, 9, 20, 0.1);
+        border-radius: 12px;
+      }
+
+      .summary.success {
+        background: rgba(0, 255, 0, 0.1);
+        color: #00ff00;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🧪 Teste de Proxies para Streaming</h1>
+
+      <div class="test-section">
+        <h2>📋 Lista de Proxies</h2>
+        <div id="proxies-list"></div>
+        <button id="test-btn" class="btn">🚀 Iniciar Teste</button>
+      </div>
+
+      <div class="test-section">
+        <h2>🎬 Teste de M3U8 Real</h2>
+        <div id="m3u8-test"></div>
+        <button id="test-m3u8-btn" class="btn" disabled>🎥 Testar M3U8</button>
+      </div>
+
+      <div id="summary" class="summary" style="display: none"></div>
+    </div>
+
+    <script>
+      // Lista de proxies para testar
+      const proxies = [
+        {
+          name: "AllOrigins",
+          url: "https://api.allorigins.win/raw?url=",
+          type: "cors",
+        },
+        {
+          name: "CorsProxy.io",
+          url: "https://corsproxy.io/?",
+          type: "cors",
+        },
+        {
+          name: "CodeTabs",
+          url: "https://api.codetabs.com/v1/proxy?quest=",
+          type: "cors",
+        },
+        {
+          name: "ThingProxy",
+          url: "https://thingproxy.freeboard.io/fetch/",
+          type: "cors",
+        },
+        {
+          name: "CORS Anywhere (Heroku)",
+          url: "https://cors-anywhere.herokuapp.com/",
+          type: "cors",
+        },
+      ];
+
+      let workingProxies = [];
+      let currentM3U8 = null;
+
+      // ==========================================
+      // RENDERIZAR LISTA
+      // ==========================================
+      function renderProxiesList() {
+        const list = document.getElementById("proxies-list");
+
+        list.innerHTML = proxies
+          .map(
+            (proxy, index) => `
+        <div class="proxy-result" id="proxy-${index}">
+          <div class="proxy-name">
+            ${proxy.name}
+            <div class="result-code">${proxy.url}</div>
+          </div>
+          <div class="proxy-status status-testing">Aguardando</div>
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      // ==========================================
+      // TESTAR PROXY
+      // ==========================================
+      async function testProxy(proxy, index) {
+        const resultDiv = document.getElementById(`proxy-${index}`);
+        const statusDiv = resultDiv.querySelector(".proxy-status");
+
+        statusDiv.textContent = "Testando...";
+        statusDiv.className = "proxy-status status-testing";
+        resultDiv.classList.add("testing");
+
+        const testUrl = "https://www.google.com";
+        const proxiedUrl = proxy.url + encodeURIComponent(testUrl);
+
+        try {
+          console.log(`🧪 Testando ${proxy.name}:`, proxiedUrl);
+
+          const startTime = Date.now();
+          const response = await fetch(proxiedUrl, {
+            method: "GET",
+            signal: AbortSignal.timeout(5000), // 5s timeout
+          });
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+
+          if (response.ok) {
+            const text = await response.text();
+
+            // Verificar se retornou conteúdo válido
+            if (text.includes("google") || text.includes("Google")) {
+              console.log(`✅ ${proxy.name} funcionou! (${duration}ms)`);
+
+              statusDiv.textContent = `✅ OK (${duration}ms)`;
+              statusDiv.className = "proxy-status status-success";
+              resultDiv.classList.remove("testing");
+              resultDiv.classList.add("success");
+
+              workingProxies.push({ ...proxy, duration });
+              return true;
+            }
+          }
+
+          throw new Error(`Status ${response.status}`);
+        } catch (error) {
+          console.error(`❌ ${proxy.name} falhou:`, error.message);
+
+          statusDiv.textContent = `❌ ${error.message}`;
+          statusDiv.className = "proxy-status status-error";
+          resultDiv.classList.remove("testing");
+          resultDiv.classList.add("error");
+
+          return false;
+        }
+      }
+
+      // ==========================================
+      // TESTAR TODOS
+      // ==========================================
+      async function testAllProxies() {
+        const btn = document.getElementById("test-btn");
+        btn.disabled = true;
+        btn.innerHTML = 'Testando... <div class="spinner"></div>';
+
+        workingProxies = [];
+
+        for (let i = 0; i < proxies.length; i++) {
+          await testProxy(proxies[i], i);
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Delay entre testes
+        }
+
+        btn.disabled = false;
+        btn.textContent = "🔄 Testar Novamente";
+
+        showSummary();
+      }
+
+      // ==========================================
+      // MOSTRAR RESUMO
+      // ==========================================
+      function showSummary() {
+        const summary = document.getElementById("summary");
+        summary.style.display = "block";
+
+        if (workingProxies.length > 0) {
+          const fastest = workingProxies.sort(
+            (a, b) => a.duration - b.duration
+          )[0];
+
+          summary.className = "summary success";
+          summary.innerHTML = `
+          <h3>✅ ${workingProxies.length} proxy(s) funcionando!</h3>
+          <p>Mais rápido: <strong>${fastest.name}</strong> (${fastest.duration}ms)</p>
+          <p style="margin-top: 15px; font-size: 14px;">
+            Use no seu projeto:<br>
+            <code style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; display: inline-block; margin-top: 8px;">
+              this.proxyURL = '${fastest.url}';
+            </code>
+          </p>
+        `;
+
+          // Habilitar teste M3U8
+          document.getElementById("test-m3u8-btn").disabled = false;
+        } else {
+          summary.className = "summary";
+          summary.innerHTML = `
+          <h3>❌ Nenhum proxy funcionou</h3>
+          <p>Soluções:</p>
+          <ul style="text-align: left; max-width: 600px; margin: 20px auto;">
+            <li>✅ Criar Cloudflare Worker (recomendado)</li>
+            <li>✅ Usar Vercel Edge Functions</li>
+            <li>✅ Usar Embed externo (VidSrc)</li>
+          </ul>
+        `;
+        }
+      }
+
+      // ==========================================
+      // TESTAR M3U8 REAL
+      // ==========================================
+      async function testM3U8() {
+        if (workingProxies.length === 0) {
+          alert("Nenhum proxy funcionando!");
+          return;
+        }
+
+        const btn = document.getElementById("test-m3u8-btn");
+        const testDiv = document.getElementById("m3u8-test");
+
+        btn.disabled = true;
+        btn.innerHTML = 'Testando M3U8... <div class="spinner"></div>';
+
+        // URL M3U8 de teste (substitua por uma real se tiver)
+        const testM3U8 =
+          "https://cdn.dotstream.buzz/anime/de3a1d8c27100134e970acb749429fca/19ab7cab290af2d8857b48b1ba126701/master.m3u8";
+
+        testDiv.innerHTML = "<p>Testando carregamento de M3U8...</p>";
+
+        for (const proxy of workingProxies) {
+          const proxiedUrl = proxy.url + encodeURIComponent(testM3U8);
+
+          try {
+            testDiv.innerHTML += `<p>🧪 Tentando ${proxy.name}...</p>`;
+
+            const response = await fetch(proxiedUrl);
+
+            if (response.ok) {
+              const text = await response.text();
+
+              if (
+                text.includes("#EXTM3U") ||
+                text.includes(".m3u8") ||
+                text.includes(".ts")
+              ) {
+                testDiv.innerHTML += `<p>✅ ${proxy.name} conseguiu carregar M3U8!</p>`;
+                testDiv.innerHTML += `<pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 12px; overflow-x: auto;">${text.substring(
+                  0,
+                  500
+                )}...</pre>`;
+
+                btn.disabled = false;
+                btn.textContent = "✅ Teste Concluído";
+                return;
+              }
+            }
+
+            testDiv.innerHTML += `<p>❌ ${proxy.name} falhou (Status ${response.status})</p>`;
+          } catch (error) {
+            testDiv.innerHTML += `<p>❌ ${proxy.name} erro: ${error.message}</p>`;
+          }
+        }
+
+        testDiv.innerHTML += `<p style="color: #ff0000; margin-top: 20px;">⚠️ Nenhum proxy conseguiu carregar M3U8. Use Cloudflare Worker.</p>`;
+
+        btn.disabled = false;
+        btn.textContent = "❌ M3U8 Falhou";
+      }
+
+      // ==========================================
+      // EVENT LISTENERS
+      // ==========================================
+      document
+        .getElementById("test-btn")
+        .addEventListener("click", testAllProxies);
+      document
+        .getElementById("test-m3u8-btn")
+        .addEventListener("click", testM3U8);
+
+      // ==========================================
+      // INICIALIZAÇÃO
+      // ==========================================
+      renderProxiesList();
+    </script>
+  </body>
+</html>
