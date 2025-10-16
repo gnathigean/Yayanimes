@@ -3,14 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Player Ultimate - YayaAnimes</title>
+    <title>Player - YayaAnimes</title>
 
     <!-- HLS.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
-    <!-- Plyr (Alternativo) -->
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -35,11 +31,6 @@
         position: sticky;
         top: 0;
         z-index: 1000;
-      }
-
-      .header-content {
-        max-width: 1400px;
-        margin: 0 auto;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -59,6 +50,12 @@
         border-radius: 8px;
         cursor: pointer;
         font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .back-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(229, 9, 20, 0.5);
       }
 
       .player-container {
@@ -79,53 +76,12 @@
         margin-bottom: 20px;
       }
 
-      #video-container {
-        position: relative;
-        width: 100%;
-        background: #000;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
-      }
-
       #video {
         width: 100%;
         max-height: 720px;
-      }
-
-      #iframe-player {
-        width: 100%;
-        height: 720px;
-        border: none;
+        background: #000;
         border-radius: 12px;
-      }
-
-      .methods-section {
-        margin-top: 30px;
-        background: rgba(26, 26, 46, 0.9);
-        padding: 25px;
-        border-radius: 12px;
-      }
-
-      .method-btn {
-        padding: 12px 24px;
-        background: rgba(42, 42, 42, 0.9);
-        border: 2px solid transparent;
-        color: white;
-        cursor: pointer;
-        border-radius: 8px;
-        margin: 5px;
-        font-weight: 600;
-        transition: all 0.3s;
-      }
-
-      .method-btn:hover {
-        border-color: #e50914;
-        background: rgba(229, 9, 20, 0.2);
-      }
-
-      .method-btn.active {
-        background: #e50914;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
       }
 
       #status {
@@ -134,21 +90,28 @@
         border-radius: 8px;
         margin: 15px 0;
         border-left: 4px solid #e50914;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
 
-      .loading {
-        text-align: center;
-        padding: 40px;
+      #status.success {
+        border-left-color: #00ff00;
+      }
+
+      #status.error {
+        border-left-color: #ff0000;
+        background: rgba(58, 0, 0, 0.9);
       }
 
       .spinner {
-        border: 4px solid rgba(229, 9, 20, 0.1);
+        border: 3px solid rgba(229, 9, 20, 0.1);
         border-left-color: #e50914;
         border-radius: 50%;
-        width: 50px;
-        height: 50px;
+        width: 20px;
+        height: 20px;
         animation: spin 1s linear infinite;
-        margin: 0 auto 20px;
       }
 
       @keyframes spin {
@@ -157,35 +120,72 @@
         }
       }
 
-      .hidden {
-        display: none;
+      .servers-section {
+        margin-top: 30px;
+        background: rgba(26, 26, 46, 0.9);
+        padding: 25px;
+        border-radius: 12px;
+      }
+
+      .servers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .server-btn {
+        padding: 12px;
+        background: rgba(42, 42, 42, 0.9);
+        border: 2px solid transparent;
+        color: white;
+        cursor: pointer;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .server-btn:hover {
+        border-color: #e50914;
+        background: rgba(229, 9, 20, 0.2);
+      }
+
+      .server-btn.active {
+        background: #e50914;
+      }
+
+      .retry-btn {
+        padding: 12px 24px;
+        background: #e50914;
+        border: none;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-top: 15px;
       }
     </style>
   </head>
   <body>
     <div class="header">
-      <div class="header-content">
-        <div class="logo">YayaAnimes</div>
-        <button onclick="window.history.back()" class="back-btn">
-          ← Voltar
-        </button>
-      </div>
+      <div class="logo">YayaAnimes</div>
+      <button onclick="window.history.back()" class="back-btn">← Voltar</button>
     </div>
 
     <div class="player-container">
       <h1 class="anime-title" id="animeTitle">Carregando...</h1>
       <p class="episode-info" id="episodeInfo">Episódio...</p>
 
-      <div id="status">⏳ Carregando player...</div>
-
-      <div id="video-container">
-        <video id="video" controls></video>
-        <iframe id="iframe-player" class="hidden"></iframe>
+      <div id="status">
+        <div class="spinner"></div>
+        <span>Carregando player...</span>
       </div>
 
-      <div class="methods-section">
-        <h3>🔧 Métodos de Reprodução:</h3>
-        <div id="methods-buttons"></div>
+      <video id="video" controls></video>
+
+      <div id="serversSection" class="servers-section" style="display: none">
+        <h3>🌐 Selecione o Servidor:</h3>
+        <div id="serversGrid" class="servers-grid"></div>
       </div>
     </div>
 
@@ -193,16 +193,23 @@
     <script src="api-service.js"></script>
 
     <script>
-      let currentEpisodeId = null;
-      let currentM3U8 = null;
       let hls = null;
+      let currentEpisodeId = null;
+      let availableServers = null;
+      let availableSources = [];
+      let currentSourceIndex = 0;
 
-      // Múltiplos proxies CORS
-      const corsProxies = [
-        "https://api.allorigins.win/raw?url=",
-        "https://corsproxy.io/?",
-        "https://api.codetabs.com/v1/proxy?quest=",
-      ];
+      // ==========================================
+      // ATUALIZAR STATUS
+      // ==========================================
+      function updateStatus(message, type = "info", showSpinner = true) {
+        const statusDiv = document.getElementById("status");
+        statusDiv.className = type;
+        statusDiv.innerHTML = `
+        ${showSpinner ? '<div class="spinner"></div>' : ""}
+        <span>${message}</span>
+      `;
+      }
 
       // ==========================================
       // INICIALIZAÇÃO
@@ -213,10 +220,10 @@
         const animeTitle = params.get("animeTitle") || "Anime";
         const episodeNumber = params.get("episodeNumber") || "1";
 
-        console.log("🚀 Player Ultimate Iniciado");
+        console.log("🚀 Player Iniciado");
 
         if (!episodeId) {
-          updateStatus("❌ ID do episódio não fornecido", "error");
+          updateStatus("❌ ID do episódio não fornecido", "error", false);
           return;
         }
 
@@ -226,21 +233,105 @@
           "episodeInfo"
         ).textContent = `Episódio ${episodeNumber}`;
 
-        await loadAndPlay();
+        await loadServers();
       });
 
       // ==========================================
-      // CARREGAR E REPRODUZIR
+      // CARREGAR SERVIDORES
       // ==========================================
-      async function loadAndPlay() {
-        updateStatus("🔍 Buscando link de streaming...");
+      async function loadServers() {
+        updateStatus("🔍 Buscando servidores...");
 
         try {
-          // Buscar link M3U8
+          const response = await window.AnimeAPI.getEpisodeServers(
+            currentEpisodeId
+          );
+
+          if (!response.success || !response.data) {
+            throw new Error("Servidores não encontrados");
+          }
+
+          availableServers = response.data;
+          console.log("✅ Servidores:", availableServers);
+
+          displayServers();
+
+          // Carregar automaticamente
+          if (availableServers.sub && availableServers.sub.length > 0) {
+            await loadVideo("hd-1", "sub");
+          } else if (availableServers.dub && availableServers.dub.length > 0) {
+            await loadVideo("hd-1", "dub");
+          }
+        } catch (error) {
+          console.error("❌ Erro:", error);
+          updateStatus(
+            "❌ Erro ao carregar servidores. Tentando com HD-1...",
+            "error",
+            false
+          );
+          await loadVideo("hd-1", "sub");
+        }
+      }
+
+      // ==========================================
+      // EXIBIR SERVIDORES
+      // ==========================================
+      function displayServers() {
+        const section = document.getElementById("serversSection");
+        const grid = document.getElementById("serversGrid");
+
+        grid.innerHTML = "";
+        section.style.display = "block";
+
+        // SUB
+        if (availableServers.sub) {
+          availableServers.sub.forEach((server) => {
+            const btn = document.createElement("button");
+            btn.className = "server-btn";
+            btn.textContent = `${server.name} (SUB)`;
+            btn.onclick = () => {
+              document
+                .querySelectorAll(".server-btn")
+                .forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
+              loadVideo(server.name.toLowerCase(), "sub");
+            };
+            grid.appendChild(btn);
+          });
+        }
+
+        // DUB
+        if (availableServers.dub) {
+          availableServers.dub.forEach((server) => {
+            const btn = document.createElement("button");
+            btn.className = "server-btn";
+            btn.textContent = `${server.name} (DUB)`;
+            btn.onclick = () => {
+              document
+                .querySelectorAll(".server-btn")
+                .forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
+              loadVideo(server.name.toLowerCase(), "dub");
+            };
+            grid.appendChild(btn);
+          });
+        }
+
+        const firstBtn = grid.querySelector(".server-btn");
+        if (firstBtn) firstBtn.classList.add("active");
+      }
+
+      // ==========================================
+      // CARREGAR VÍDEO COM AUTO-FALLBACK
+      // ==========================================
+      async function loadVideo(server, type) {
+        updateStatus(`🔍 Buscando links de ${server.toUpperCase()}...`);
+
+        try {
           const response = await window.AnimeAPI.getStreamingLinks(
             currentEpisodeId,
-            "hd-1",
-            "sub"
+            server,
+            type
           );
 
           if (
@@ -249,65 +340,58 @@
             !response.data.sources ||
             response.data.sources.length === 0
           ) {
-            throw new Error("Link não disponível");
+            throw new Error("Links não disponíveis");
           }
 
-          // Extrair URL original (sem proxy)
-          let m3u8Url = response.data.sources[0].url;
+          availableSources = response.data.sources;
+          currentSourceIndex = 0;
 
-          // Se vier com proxy, extrair URL original
-          if (m3u8Url.includes("proxy?url=")) {
-            const urlMatch = m3u8Url.match(/url=([^&]+)/);
-            if (urlMatch) {
-              m3u8Url = decodeURIComponent(urlMatch[1]);
-            }
-          }
+          console.log(`✅ ${availableSources.length} fontes disponíveis`);
 
-          currentM3U8 = m3u8Url;
-          console.log("🎥 M3U8 URL:", m3u8Url);
-
-          // Criar botões de métodos
-          createMethodButtons();
-
-          // Tentar método 1 automaticamente
-          await tryMethod1();
+          // Tentar cada fonte
+          await tryNextSource();
         } catch (error) {
           console.error("❌ Erro:", error);
           updateStatus(
-            "❌ Erro ao buscar streaming. Tente outro método.",
-            "error"
+            "❌ Erro ao buscar links. Tente outro servidor.",
+            "error",
+            false
           );
         }
       }
 
       // ==========================================
-      // CRIAR BOTÕES DE MÉTODOS
+      // TENTAR PRÓXIMA FONTE
       // ==========================================
-      function createMethodButtons() {
-        const container = document.getElementById("methods-buttons");
+      async function tryNextSource() {
+        if (currentSourceIndex >= availableSources.length) {
+          updateStatus(
+            "❌ Todas as fontes falharam. Tente outro servidor.",
+            "error",
+            false
+          );
+          document.getElementById("status").innerHTML += `
+          <button class="retry-btn" onclick="location.reload()">🔄 Recarregar Página</button>
+        `;
+          return;
+        }
 
-        const methods = [
-          { id: 1, name: "🎬 Método 1: HLS Direto" },
-          { id: 2, name: "🔄 Método 2: Proxy CORS" },
-          { id: 3, name: "🌐 Método 3: Iframe Embed" },
-          { id: 4, name: "📺 Método 4: Plyr Player" },
-          { id: 5, name: "🎯 Método 5: AllOrigins" },
-        ];
+        const source = availableSources[currentSourceIndex];
+        const videoUrl = source.url;
+        const proxyName = source.proxy || "Unknown";
 
-        methods.forEach((method) => {
-          const btn = document.createElement("button");
-          btn.className = "method-btn";
-          btn.textContent = method.name;
-          btn.onclick = () => tryMethod(method.id);
-          container.appendChild(btn);
-        });
-      }
+        console.log(
+          `🎬 Tentando: ${proxyName} (${currentSourceIndex + 1}/${
+            availableSources.length
+          })`
+        );
+        updateStatus(
+          `🎬 Carregando com ${proxyName}... (${currentSourceIndex + 1}/${
+            availableSources.length
+          })`
+        );
 
-      // ==========================================
-      // TENTAR MÉTODO
-      // ==========================================
-      async function tryMethod(methodId) {
-        console.log(`🔧 Tentando método ${methodId}`);
+        const video = document.getElementById("video");
 
         // Limpar player anterior
         if (hls) {
@@ -315,238 +399,60 @@
           hls = null;
         }
 
-        const video = document.getElementById("video");
-        const iframe = document.getElementById("iframe-player");
-
-        video.classList.remove("hidden");
-        iframe.classList.add("hidden");
-
-        switch (methodId) {
-          case 1:
-            await tryMethod1();
-            break;
-          case 2:
-            await tryMethod2();
-            break;
-          case 3:
-            await tryMethod3();
-            break;
-          case 4:
-            await tryMethod4();
-            break;
-          case 5:
-            await tryMethod5();
-            break;
-        }
-      }
-
-      // ==========================================
-      // MÉTODO 1: HLS DIRETO
-      // ==========================================
-      async function tryMethod1() {
-        updateStatus("🎬 Método 1: Tentando HLS direto...");
-
-        const video = document.getElementById("video");
-
-        if (Hls.isSupported()) {
-          hls = new Hls({
-            xhrSetup: (xhr, url) => {
-              xhr.setRequestHeader("Origin", "https://hianime.to");
-              xhr.setRequestHeader("Referer", "https://hianime.to/");
-            },
-          });
-
-          hls.loadSource(currentM3U8);
-          hls.attachMedia(video);
-
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            updateStatus("✅ Vídeo carregado! (Método 1)", "success");
-            video.play().catch((e) => console.log("Autoplay bloqueado"));
-          });
-
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              console.error("Erro HLS:", data);
-              updateStatus("❌ Método 1 falhou. Tentando método 2...", "error");
-              setTimeout(() => tryMethod2(), 1000);
-            }
-          });
-        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = currentM3U8;
-          video.addEventListener("loadedmetadata", () => {
-            updateStatus("✅ Vídeo carregado! (Safari)", "success");
-            video.play();
-          });
-        }
-      }
-
-      // ==========================================
-      // MÉTODO 2: PROXY CORS
-      // ==========================================
-      async function tryMethod2() {
-        updateStatus("🔄 Método 2: Tentando com proxy CORS...");
-
-        for (let i = 0; i < corsProxies.length; i++) {
-          const proxy = corsProxies[i];
-          const proxiedUrl = proxy + encodeURIComponent(currentM3U8);
-
-          console.log(`Tentando proxy ${i + 1}:`, proxy);
-
-          try {
-            const video = document.getElementById("video");
-
-            if (Hls.isSupported()) {
-              hls = new Hls();
-              hls.loadSource(proxiedUrl);
-              hls.attachMedia(video);
-
-              // Aguardar resultado
-              await new Promise((resolve, reject) => {
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                  updateStatus(`✅ Sucesso com proxy ${i + 1}!`, "success");
-                  video.play();
-                  resolve();
-                });
-
-                hls.on(Hls.Events.ERROR, (event, data) => {
-                  if (data.fatal) {
-                    reject(data);
-                  }
-                });
-
-                setTimeout(() => reject("Timeout"), 5000);
-              });
-
-              return; // Sucesso!
-            }
-          } catch (error) {
-            console.warn(`Proxy ${i + 1} falhou:`, error);
-            if (hls) hls.destroy();
-            continue;
-          }
-        }
-
-        updateStatus(
-          "❌ Todos os proxies falharam. Tentando método 3...",
-          "error"
-        );
-        setTimeout(() => tryMethod3(), 1000);
-      }
-
-      // ==========================================
-      // MÉTODO 3: IFRAME EMBED
-      // ==========================================
-      async function tryMethod3() {
-        updateStatus("🌐 Método 3: Iframe Embed...");
-
-        const video = document.getElementById("video");
-        const iframe = document.getElementById("iframe-player");
-
-        video.classList.add("hidden");
-        iframe.classList.remove("hidden");
-
-        // HTML do player
-        const iframeHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script>
-          <style>
-            body { margin: 0; background: #000; }
-            video { width: 100%; height: 100vh; }
-          </style>
-        </head>
-        <body>
-          <video id="video" controls autoplay></video>
-          <script>
-            const video = document.getElementById('video');
-            const hls = new Hls();
-            hls.loadSource('${currentM3U8}');
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              video.play();
-              window.parent.postMessage({type:'loaded'}, '*');
+        // Tentar com timeout
+        const loadPromise = new Promise((resolve, reject) => {
+          if (Hls.isSupported()) {
+            hls = new Hls({
+              debug: false,
+              enableWorker: true,
+              lowLatencyMode: true,
+              xhrSetup: function (xhr, url) {
+                xhr.timeout = 10000; // 10s timeout
+              },
             });
-          <\/script>
-        </body>
-        </html>
-      `;
 
-        iframe.srcdoc = iframeHTML;
-        updateStatus("✅ Iframe carregado!", "success");
-      }
+            hls.loadSource(videoUrl);
+            hls.attachMedia(video);
 
-      // ==========================================
-      // MÉTODO 4: PLYR PLAYER
-      // ==========================================
-      async function tryMethod4() {
-        updateStatus("📺 Método 4: Plyr Player...");
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              resolve();
+            });
 
-        const video = document.getElementById("video");
-
-        const player = new Plyr(video, {
-          controls: [
-            "play-large",
-            "play",
-            "progress",
-            "current-time",
-            "mute",
-            "volume",
-            "fullscreen",
-          ],
+            hls.on(Hls.Events.ERROR, (event, data) => {
+              if (data.fatal) {
+                reject(new Error(data.details));
+              }
+            });
+          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = videoUrl;
+            video.addEventListener("loadedmetadata", () => resolve());
+            video.addEventListener("error", () =>
+              reject(new Error("Video error"))
+            );
+          } else {
+            reject(new Error("HLS não suportado"));
+          }
         });
 
-        if (Hls.isSupported()) {
-          hls = new Hls();
-          hls.loadSource(currentM3U8);
-          hls.attachMedia(video);
+        // Timeout de 10 segundos
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 10000)
+        );
 
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            updateStatus("✅ Plyr carregado!", "success");
-            player.play();
-          });
+        try {
+          await Promise.race([loadPromise, timeoutPromise]);
+
+          // SUCESSO!
+          console.log(`✅ Sucesso com ${proxyName}!`);
+          updateStatus(`✅ Reproduzindo com ${proxyName}`, "success", false);
+          video.play().catch((e) => console.log("Autoplay bloqueado"));
+        } catch (error) {
+          console.warn(`❌ ${proxyName} falhou:`, error.message);
+
+          // Tentar próxima fonte
+          currentSourceIndex++;
+          await tryNextSource();
         }
-      }
-
-      // ==========================================
-      // MÉTODO 5: ALLORIGINS
-      // ==========================================
-      async function tryMethod5() {
-        updateStatus("🎯 Método 5: AllOrigins Proxy...");
-
-        const proxiedUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(
-          currentM3U8
-        )}`;
-        const video = document.getElementById("video");
-
-        if (Hls.isSupported()) {
-          hls = new Hls();
-          hls.loadSource(proxiedUrl);
-          hls.attachMedia(video);
-
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            updateStatus("✅ AllOrigins funcionou!", "success");
-            video.play();
-          });
-
-          hls.on(Hls.Events.ERROR, () => {
-            updateStatus("❌ AllOrigins falhou", "error");
-          });
-        }
-      }
-
-      // ==========================================
-      // UTILITÁRIOS
-      // ==========================================
-      function updateStatus(message, type = "info") {
-        const statusDiv = document.getElementById("status");
-        statusDiv.textContent = message;
-        statusDiv.style.borderLeftColor =
-          type === "success"
-            ? "#00ff00"
-            : type === "error"
-            ? "#ff0000"
-            : "#e50914";
       }
     </script>
   </body>

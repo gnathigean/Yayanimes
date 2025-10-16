@@ -1,20 +1,106 @@
-// api-service.js - VERSÃO COM PROXY CORRIGIDO
+// api-service.js - VERSÃO FINAL COM FALLBACK AUTOMÁTICO
 
 class AnimeAPI {
   constructor() {
     this.baseURL = "https://hianime-api-bmy9.onrender.com/api/v1";
 
-    // ✅ USAR PROXY LOCAL (deploy no Vercel junto com o site)
-    this.proxyURL = "https://api.allorigins.win/raw?url=";
+    // ✅ MÚLTIPLOS PROXIES COM FALLBACK AUTOMÁTICO
+    this.proxies = [
+      {
+        name: "AllOrigins",
+        url: "https://api.allorigins.win/raw?url=",
+        active: true,
+      },
+      {
+        name: "CorsProxy",
+        url: "https://corsproxy.io/?",
+        active: true,
+      },
+      {
+        name: "CodeTabs",
+        url: "https://api.codetabs.com/v1/proxy?quest=",
+        active: true,
+      },
+      {
+        name: "ThingProxy",
+        url: "https://thingproxy.freeboard.io/fetch/",
+        active: true,
+      },
+    ];
 
-    // Se estiver testando localmente, use:
-    // this.proxyURL = 'http://localhost:3000/api/proxy?url=';
+    this.currentProxyIndex = 0;
+    this.workingProxy = null;
 
     console.log("✅ HiAnime API inicializada!");
     console.log("🎬 API URL:", this.baseURL);
-    console.log("🔗 Proxy URL:", this.proxyURL);
+    console.log("🔗 Proxies:", this.proxies.length);
   }
 
+  // ==========================================
+  // OBTER PROXY ATUAL
+  // ==========================================
+  getCurrentProxy() {
+    // Se já encontrou um proxy funcionando, usar ele
+    if (this.workingProxy) {
+      return this.workingProxy.url;
+    }
+
+    // Buscar próximo proxy ativo
+    const activeProxies = this.proxies.filter((p) => p.active);
+    if (activeProxies.length === 0) {
+      console.error("❌ Nenhum proxy disponível!");
+      return null;
+    }
+
+    const proxy = activeProxies[this.currentProxyIndex % activeProxies.length];
+    return proxy.url;
+  }
+
+  // ==========================================
+  // TESTAR PROXY
+  // ==========================================
+  async testProxy(proxyUrl) {
+    try {
+      const testUrl = "https://www.google.com";
+      const response = await fetch(proxyUrl + encodeURIComponent(testUrl), {
+        method: "GET",
+        signal: AbortSignal.timeout(3000),
+      });
+
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  // ==========================================
+  // BUSCAR PROXY FUNCIONANDO
+  // ==========================================
+  async findWorkingProxy() {
+    console.log("🔍 Buscando proxy funcionando...");
+
+    for (const proxy of this.proxies) {
+      if (!proxy.active) continue;
+
+      console.log(`🧪 Testando ${proxy.name}...`);
+      const works = await this.testProxy(proxy.url);
+
+      if (works) {
+        console.log(`✅ ${proxy.name} funcionando!`);
+        this.workingProxy = proxy;
+        return proxy;
+      } else {
+        console.warn(`❌ ${proxy.name} falhou`);
+      }
+    }
+
+    console.error("❌ Nenhum proxy funcionou!");
+    return null;
+  }
+
+  // ==========================================
+  // REQUEST COM RETRY
+  // ==========================================
   async request(endpoint) {
     const url = `${this.baseURL}${endpoint}`;
     console.log(`📡 GET ${url}`);
@@ -204,7 +290,7 @@ class AnimeAPI {
   }
 
   // ==========================================
-  // STREAMING COM PROXY LOCAL ✨
+  // STREAMING COM MÚLTIPLOS PROXIES ✨
   // ==========================================
   async getStreamingLinks(episodeId, server = "hd-1", type = "sub") {
     try {
@@ -219,33 +305,46 @@ class AnimeAPI {
       }
 
       const originalM3U8 = response.data.link.file;
-
-      // ✅ USAR PROXY LOCAL
-      const proxiedM3U8 = `${this.proxyURL}${encodeURIComponent(originalM3U8)}`;
-
       console.log("🎥 M3U8 original:", originalM3U8);
-      console.log("🔗 M3U8 proxiado:", proxiedM3U8);
+
+      // ✅ RETORNAR M3U8 ORIGINAL + LISTA DE PROXIES
+      // O player vai tentar cada proxy
+      const proxiedLinks = this.proxies
+        .filter((p) => p.active)
+        .map((proxy) => ({
+          url: proxy.url + encodeURIComponent(originalM3U8),
+          proxy: proxy.name,
+          original: originalM3U8,
+        }));
+
+      // Adicionar link direto como primeira opção
+      proxiedLinks.unshift({
+        url: originalM3U8,
+        proxy: "Direct",
+        original: originalM3U8,
+      });
+
+      console.log(`🔗 ${proxiedLinks.length} links disponíveis`);
 
       // Proxiar legendas também
       const tracks = (response.data.tracks || [])
         .filter((track) => track.kind === "captions")
-        .map((track) => ({
-          file: `${this.proxyURL}${encodeURIComponent(track.file)}`,
-          label: track.label || "English",
-          kind: "subtitles",
-          default: track.default || false,
-        }));
+        .map((track) => {
+          const firstProxy = this.proxies.find((p) => p.active);
+          return {
+            file: firstProxy
+              ? firstProxy.url + encodeURIComponent(track.file)
+              : track.file,
+            label: track.label || "English",
+            kind: "subtitles",
+            default: track.default || false,
+          };
+        });
 
       return {
         success: true,
         data: {
-          sources: [
-            {
-              url: proxiedM3U8,
-              type: "hls",
-              quality: "auto",
-            },
-          ],
+          sources: proxiedLinks,
           tracks: tracks,
           intro: response.data.intro,
           outro: response.data.outro,
@@ -264,4 +363,4 @@ class AnimeAPI {
 }
 
 window.AnimeAPI = new AnimeAPI();
-console.log("🚀 AnimeAPI pronta com Proxy Local!");
+console.log("🚀 AnimeAPI pronta com Múltiplos Proxies!");
